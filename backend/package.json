@@ -1,0 +1,30 @@
+{
+  "name": "communityhub-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CommunityHub · backend. RLS real: el rol app_runtime no tiene BYPASSRLS.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:pull": "prisma db pull",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts",
+    "check:db": "tsx src/check-db.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "dotenv": "^18.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

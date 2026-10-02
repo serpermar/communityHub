@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Entorno: NUNCA subir. Contiene la contraseña de la base de datos.
+.env
+.env.*
+!.env.example
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Sistema
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local
+*.local
