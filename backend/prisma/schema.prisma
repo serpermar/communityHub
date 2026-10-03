@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://postgres.mghovmtmwdtrnjplspem:Monlau2018%23%23@aws-1-eu-west-3.pooler.supabase.com:5432/postgres?sslmode=require"
+  url      = env("DATABASE_URL")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

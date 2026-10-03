@@ -20,9 +20,14 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from './db.js'
 
+// userId y communityId admiten null porque hay operaciones legítimas sin contexto:
+// el registro (aun no hay identidad) y toda la capa de autenticacion, que
+// funciona por comunidad todavia. En ambos casos se pasa la cadena vacia, que
+// `nullif(current_setting(...), '')::uuid` convierte en NULL, que es
+// justamente lo que las politicas de RLS interpretan como "sin contexto".
 export type Context = {
-  userId: string
-  communityId: string
+  userId: string | null
+  communityId: string | null
 }
 
 export async function withContext<T>(
@@ -30,8 +35,8 @@ export async function withContext<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`select set_config('app.current_user_id', ${ctx.userId}, true)`
-    await tx.$executeRaw`select set_config('app.current_community_id', ${ctx.communityId}, true)`
+    await tx.$executeRaw`select set_config('app.current_user_id', ${ctx.userId ?? ''}, true)`
+    await tx.$executeRaw`select set_config('app.current_community_id', ${ctx.communityId ?? ''}, true)`
 
     return fn(tx)
   })

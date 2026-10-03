@@ -24,26 +24,32 @@
 
 import 'dotenv/config'
 import { PrismaClient, Prisma } from '@prisma/client'
-import { hashSync } from 'node:crypto'
-
+import argon2 from 'argon2'
 // ---------------------------------------------------------------------------
-// Determinismo: hash de contraseña sin bcrypt ni argon2.
+// Contraseña de los datos de prueba.
 //
-// En el seed la contraseña es de prueba y el hash no tiene por qué ser
-// resistente. Usamos scryptSync de la librería nativa, que sí es un KDF
-// correcto, y con coste bajo para que el seed no tarde.
+// argon2id, el mismo algoritmo y los mismos parámetros que usa la aplicación
+// (spec 01, decisión A-2). Antes se usaba scryptSync, y el propio script
+// advertía de que en cuanto existiera autenticación estas cuentas dejarían de
+// poder entrar, porque app_auth_find_user_by_email devuelve el hash y el
+// backend verifica argon2. Ese momento es este.
 //
-// OJO: las contraseñas de los datos de prueba NO sirven para iniciar sesión
-// hasta que la spec de auth esté implementada. En cuanto esté, app_auth_lookup
-// verificará argon2id contra este hash y fallará, porque scrypt no es argon2.
-// Para entonces el seed hay que cambiar a argon2id (npm i argon2).
+// No se importan las funciones de `src/auth/password.ts` a propósito: esas
+// cargan `config/env.ts`, que exige un DATABASE_URL con el rol app_runtime, y el
+// seed tiene que correr justamente con MIGRATION_DATABASE_URL (rol postgres).
+// Ver argon2 aquí no es duplicar lógica: son tres líneas y un hash.
+//
+// El hash lleva sal aleatoria, así que cambia en cada seed. Lo que es
+// determinista son los UUID y los datos, que es lo que necesitan los tests.
 // ---------------------------------------------------------------------------
 
-const TEST_PASSWORD_HASH = hashSync('Vecino2026!', 'scrypt', {
-  N: 16384,
-  r: 8,
-  p: 1,
-  maxmem: 64 * 1024 * 1024,
+const TEST_PASSWORD = 'CommunityHub2026'
+
+const TEST_PASSWORD_HASH = await argon2.hash(TEST_PASSWORD, {
+  type: argon2.argon2id,
+  memoryCost: 65_536,
+  timeCost: 3,
+  parallelism: 4,
 })
 
 // UUID fijos. Elegidos a mano, no generados: el mismo seed en cada máquina.
@@ -81,25 +87,25 @@ async function wipe() {
   // El orden lo marca la FK: primero los hijos, luego los padres. ON DELETE
   // CASCADE ayuda, pero las tablas sin cascada desde communities (incidents,
   // expenses) necesitan ir antes.
-  await prisma.voteResponse.deleteMany({})
-  await prisma.voteOption.deleteMany({})
-  await prisma.vote.deleteMany({})
-  await prisma.invoice.deleteMany({})
-  await prisma.expense.deleteMany({})
-  await prisma.areaSlot.deleteMany({})
-  await prisma.reservation.deleteMany({})
-  await prisma.commonArea.deleteMany({})
-  await prisma.auditLog.deleteMany({})
-  await prisma.session.deleteMany({})
-  await prisma.notification.deleteMany({})
+  await prisma.voteResponses.deleteMany({})
+  await prisma.voteOptions.deleteMany({})
+  await prisma.votes.deleteMany({})
+  await prisma.invoices.deleteMany({})
+  await prisma.expenses.deleteMany({})
+  await prisma.areaSlots.deleteMany({})
+  await prisma.reservations.deleteMany({})
+  await prisma.commonAreas.deleteMany({})
+  await prisma.auditLogs.deleteMany({})
+  await prisma.sessions.deleteMany({})
+  await prisma.notifications.deleteMany({})
   await prisma.documentAcl.deleteMany({})
-  await prisma.document.deleteMany({})
-  await prisma.announcement.deleteMany({})
-  await prisma.incidentComment.deleteMany({})
-  await prisma.incident.deleteMany({})
-  await prisma.communityMember.deleteMany({})
-  await prisma.community.deleteMany({})
-  await prisma.user.deleteMany({})
+  await prisma.documents.deleteMany({})
+  await prisma.announcements.deleteMany({})
+  await prisma.incidentComments.deleteMany({})
+  await prisma.incidents.deleteMany({})
+  await prisma.communityMembers.deleteMany({})
+  await prisma.communities.deleteMany({})
+  await prisma.users.deleteMany({})
 }
 
 async function main() {
@@ -114,7 +120,8 @@ async function main() {
   // -------------------------------------------------------------------------
   // Usuarios
   // -------------------------------------------------------------------------
-  // Password: Vecino2026! para todos. Son datos de prueba, no credenciales.
+  // Contraseña de los datos de prueba: `CommunityHub2026` para todos los usuarios.
+// Son datos de prueba generados por este script, no credenciales reales.
   //
   // Reparto pensado para que cada prueba de aislamiento tenga un caso:
   //   anaAdmin        ADMIN de A. Debe ver gastos de A.
@@ -125,43 +132,43 @@ async function main() {
   //   proveedorManolo PROVIDER de A, asignado a UNA incidencia. No debe ver
   //                   las otras dos de A: es el caso más delicado del RBAC.
   console.log('  1/5  Usuarios')
-  await prisma.user.createMany({
+  await prisma.users.createMany({
     data: [
       {
         id: ID.anaAdmin,
         email: 'ana@comunidad-a.test',
-        passwordHash: TEST_PASSWORD_HASH,
-        fullName: 'Ana Ruiz Delgado',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Ana Ruiz Delgado',
         phone: '+34600000001',
       },
       {
         id: ID.luisPresidente,
         email: 'luis@comunidad-a.test',
-        passwordHash: TEST_PASSWORD_HASH,
-        fullName: 'Luis Mendoza Prat',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Luis Mendoza Prat',
         phone: '+34600000002',
       },
       {
         id: ID.martaVecina,
         email: 'marta@comunidad-a.test',
-        passwordHash: TEST_PASSWORD_HASH,
-        fullName: 'Marta Ibáñez Soto',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Marta Ibáñez Soto',
         phone: '+34600000003',
       },
       {
         id: ID.carlosVecino,
         email: 'carlos@comunidad-b.test',
-        passwordHash: TEST_PASSWORD_HASH,
-        fullName: 'Carlos Ferrer Ruiz',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Carlos Ferrer Ruiz',
         phone: '+34600000004',
       },
       {
         id: ID.proveedorManolo,
         email: 'manolo@proveedor.test',
-        passwordHash: TEST_PASSWORD_HASH,
-        fullName: 'Manolo Reparaciones SL',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Manolo Reparaciones SL',
         phone: '+34600000005',
-        globalRole: 'NEIGHBOR',
+        global_role: 'NEIGHBOR',
       },
     ],
   })
@@ -172,37 +179,37 @@ async function main() {
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
   console.log('  2/5  Comunidades')
-  await prisma.community.createMany({
+  await prisma.communities.createMany({
     data: [
       {
         id: ID.comunidadA,
         name: 'Comunidad del Saucejo',
         slug: 'saucejo',
         description: 'Comunidad residencial de 48 viviendas en Zaragoza.',
-        addressLine1: 'Calle Mayor 14',
+        address_line1: 'Calle Mayor 14',
         city: 'Zaragoza',
         province: 'Zaragoza',
-        postalCode: '50001',
+        postal_code: '50001',
         latitude: 41.648800,
         longitude: -0.889100,
         timezone: 'Europe/Madrid',
-        registrationNumber: 'Z-1998-00482',
-        createdBy: ID.anaAdmin,
+        registration_number: 'Z-1998-00482',
+        created_by: ID.anaAdmin,
       },
       {
         id: ID.comunidadB,
         name: 'Residencial Diagonal Mar',
         slug: 'diagonal-mar',
         description: 'Comunidad de lujo en Barcelona. Existe solo para probar aislamiento.',
-        addressLine1: 'Avinguda Diagonal 662',
+        address_line1: 'Avinguda Diagonal 662',
         city: 'Barcelona',
         province: 'Barcelona',
-        postalCode: '08019',
+        postal_code: '08019',
         latitude: 41.392400,
         longitude: 2.130000,
         timezone: 'Europe/Madrid',
-        registrationNumber: 'B-2004-11877',
-        createdBy: ID.carlosVecino,
+        registration_number: 'B-2004-11877',
+        created_by: ID.carlosVecino,
       },
     ],
   })
@@ -211,45 +218,45 @@ async function main() {
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
   console.log('  3/5  Membresías')
-  await prisma.communityMember.createMany({
+  await prisma.communityMembers.createMany({
     data: [
       {
-        communityId: ID.comunidadA,
-        userId: ID.anaAdmin,
+        community_id: ID.comunidadA,
+        user_id: ID.anaAdmin,
         role: 'ADMIN',
-        unitNumber: 'Portal A, 3º B',
+        unit_number: 'Portal A, 3º B',
       },
       {
-        communityId: ID.comunidadA,
-        userId: ID.luisPresidente,
+        community_id: ID.comunidadA,
+        user_id: ID.luisPresidente,
         role: 'PRESIDENT',
-        unitNumber: 'Portal A, 1º A',
+        unit_number: 'Portal A, 1º A',
       },
       {
-        communityId: ID.comunidadA,
-        userId: ID.martaVecina,
+        community_id: ID.comunidadA,
+        user_id: ID.martaVecina,
         role: 'NEIGHBOR',
-        unitNumber: 'Portal B, 2º D',
+        unit_number: 'Portal B, 2º D',
       },
       {
-        communityId: ID.comunidadA,
-        userId: ID.proveedorManolo,
+        community_id: ID.comunidadA,
+        user_id: ID.proveedorManolo,
         role: 'PROVIDER',
       },
       {
-        communityId: ID.comunidadB,
-        userId: ID.carlosVecino,
+        community_id: ID.comunidadB,
+        user_id: ID.carlosVecino,
         role: 'ADMIN',
-        unitNumber: '4ª planta, D',
+        unit_number: '4ª planta, D',
       },
       {
-        communityId: ID.comunidadB,
-        userId: ID.martaVecina,
+        community_id: ID.comunidadB,
+        user_id: ID.martaVecina,
         role: 'NEIGHBOR',
         // Marta es miembro de A y de B a la vez. Es el caso que demuestra que
         // el aislamiento depende de la comunidad, no solo del usuario: con el
         // contexto puesto en A no debe ver nada de B, y al revés.
-        unitNumber: '2ª planta, B',
+        unit_number: '2ª planta, B',
         status: 'ACTIVE',
       },
     ],
@@ -261,12 +268,12 @@ async function main() {
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
   console.log('  4/5  Incidencias')
-  await prisma.incident.createMany({
+  await prisma.incidents.createMany({
     data: [
       {
         id: ID.incFugaA,
-        communityId: ID.comunidadA,
-        referenceCode: 'INC-2026-0001',
+        community_id: ID.comunidadA,
+        reference_code: 'INC-2026-0001',
         title: 'Fuga de agua en el cuarto de contadores',
         description:
           'Sale agua desde la junta de la tubería general del sótano. Ya se ha cerrado la llave de paso del portal.',
@@ -274,13 +281,13 @@ async function main() {
         priority: 'HIGH',
         status: 'IN_PROGRESS',
         location: 'Sótano, cuarto de contadores',
-        reporterId: ID.martaVecina,
-        assignedToId: ID.proveedorManolo,
+        reporter_id: ID.martaVecina,
+        assigned_to_id: ID.proveedorManolo,
       },
       {
         id: ID.incAscensorA,
-        communityId: ID.comunidadA,
-        referenceCode: 'INC-2026-0002',
+        community_id: ID.comunidadA,
+        reference_code: 'INC-2026-0002',
         title: 'Ascensor parado entre plantas por tercera vez',
         description:
           'Se ha detenido dos veces esta semana. La empresa dice que es por la cuota de uso.',
@@ -288,33 +295,33 @@ async function main() {
         priority: 'MEDIUM',
         status: 'OPEN',
         location: 'Portal A',
-        reporterId: ID.luisPresidente,
+        reporter_id: ID.luisPresidente,
         // Sin assigned_to_id a propósito: tiene que ser INVISIBLE para el
         // proveedor, que solo ve las que tiene asignadas.
       },
       {
         id: ID.incFarolaB,
-        communityId: ID.comunidadB,
-        referenceCode: 'INC-2026-0003',
+        community_id: ID.comunidadB,
+        reference_code: 'INC-2026-0003',
         title: 'Farola fundida en el parking',
         description: 'La del fondo no enciende desde hace cuatro días.',
         category: 'ELECTRICITY',
         priority: 'LOW',
         status: 'OPEN',
         location: 'Parking, plaza 12',
-        reporterId: ID.carlosVecino,
+        reporter_id: ID.carlosVecino,
       },
       {
         id: ID.incRoturaB,
-        communityId: ID.comunidadB,
-        referenceCode: 'INC-2026-0004',
+        community_id: ID.comunidadB,
+        reference_code: 'INC-2026-0004',
         title: 'Rotura de la puerta del cuarto deCommunity',
         description: 'No cierra bien y el cuarto de contadores queda accesible.',
         category: 'SECURITY',
         priority: 'HIGH',
         status: 'OPEN',
         location: 'Planta baja',
-        reporterId: ID.martaVecina,
+        reporter_id: ID.martaVecina,
       },
     ],
   })
@@ -325,34 +332,34 @@ async function main() {
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
   console.log('  5/5  Gastos')
-  await prisma.expense.createMany({
+  await prisma.expenses.createMany({
     data: [
       {
-        communityId: ID.comunidadA,
+        community_id: ID.comunidadA,
         concept: 'Reparación de la bomba de la comunidad',
         category: 'MAINTENANCE',
         amount: 1250.5,
-        expenseDate: new Date('2026-01-15'),
+        expense_date: new Date('2026-01-15'),
         supplier: 'Bombeiros Zaragoza SL',
-        createdBy: ID.anaAdmin,
+        created_by: ID.anaAdmin,
       },
       {
-        communityId: ID.comunidadA,
+        community_id: ID.comunidadA,
         concept: 'Limpieza de zonas comunes, enero',
         category: 'CLEANING',
         amount: 480.0,
-        expenseDate: new Date('2026-01-31'),
+        expense_date: new Date('2026-01-31'),
         supplier: 'Limpiosol',
-        createdBy: ID.anaAdmin,
+        created_by: ID.anaAdmin,
       },
       {
-        communityId: ID.comunidadA,
+        community_id: ID.comunidadA,
         concept: 'Seguro de la comunidad, primera cuota',
         category: 'INSURANCE',
         amount: 890.25,
-        expenseDate: new Date('2026-02-01'),
+        expense_date: new Date('2026-02-01'),
         supplier: 'Mapfre',
-        createdBy: ID.anaAdmin,
+        created_by: ID.anaAdmin,
       },
     ],
   })
@@ -361,21 +368,21 @@ async function main() {
   // Resumen
   // -------------------------------------------------------------------------
   const [u, c, m, i, e] = await Promise.all([
-    prisma.user.count(),
-    prisma.community.count(),
-    prisma.communityMember.count(),
-    prisma.incident.count(),
-    prisma.expense.count(),
+    prisma.users.count(),
+    prisma.communities.count(),
+    prisma.communityMembers.count(),
+    prisma.incidents.count(),
+    prisma.expenses.count(),
   ])
 
   console.log(`\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos\n`)
 
-  console.log('  Para entrar en cada rol (cuando exista el login):')
-  console.log('    ADMIN      ana@comunidad-a.test     · Vecino2026!')
-  console.log('    PRESIDENT  luis@comunidad-a.test    · Vecino2026!')
-  console.log('    NEIGHBOR   marta@comunidad-a.test   · Vecino2026!  (miembro de A y B)')
-  console.log('    NEIGHBOR   carlos@comunidad-b.test  · Vecino2026!')
-  console.log('    PROVIDER   manolo@proveedor.test    · Vecino2026!  (solo 1 incidencia asignada)\n')
+  console.log(`\n  Para entrar en cada rol:\n`)
+  console.log(`    ADMIN      ana@comunidad-a.test     · ${TEST_PASSWORD}`)
+  console.log(`    PRESIDENT  luis@comunidad-a.test    · ${TEST_PASSWORD}`)
+  console.log(`    NEIGHBOR   marta@comunidad-a.test   · ${TEST_PASSWORD}   (miembro de A y B)`)
+  console.log(`    NEIGHBOR   carlos@comunidad-b.test  · ${TEST_PASSWORD}`)
+  console.log(`    PROVIDER   manolo@proveedor.test    · ${TEST_PASSWORD}   (solo 1 incidencia asignada)\n`)
 }
 
 main()
