@@ -740,15 +740,36 @@ Pirámide con pesos explícitos:
 | Nivel | Alcance | Herramienta | Objetivo |
 |---|---|---|---|
 | Unit | policies, servicios, validadores, reglas de slot | Vitest | rápido, sin infra |
-| Integration (backend) | rutas → services → **Postgres real** | Vitest + supertest + `prisma dev` (PGlite) | lógica y aislamiento de comunidad |
+| Integration (backend) | rutas → services → **Supabase real** | Vitest + supertest | lógica y aislamiento de comunidad |
 | Component (frontend) | componentes y hooks | Vitest + Testing Library + MSW | UI y estados |
 | E2E | flujos críticos en navegador | Playwright | Login, crear incidencia, reservar, votar, resultados |
 | Contract | OpenAPI vs implementado | test automático | detecta drift entre spec y código |
 | AI evals | calidad de tools y clasificación | dataset de casos esperados | mide acierto de categoría/prioridad |
 
-**Postgres en local sin Docker:** `npx prisma dev` levanta un Postgres real (PGlite, WASM) en un proceso Node. Es la solución a que Docker no esté instalado: **mismo motor, mismas migraciones, sin contenedores ni orquestación**. Los tests de integración corren contra `prisma dev`, nunca contra Supabase (que se pausa a los 7 días y rompería la CI). `fileParallelism: false` porque la suite comparte una única base de datos.
+**Los tests de integración corren contra Supabase, no contra un Postgres local.**
+La decisión original era `npx prisma dev` (PGlite en WASM) para que la CI no
+dependiera de un proyecto que se pausa a los 7 días. Se descartó al comprobar
+que PGlite no puede ejecutar este esquema. Ver D-12.
 
-Los tests que tocan servicios externos usan adapters fake (weather, map) y `LLMProvider` fake. **`npm test` tiene que pasar sin ninguna API key y sin red.**
+Los dos ficheros de configuración separan las suites por patrón de nombre, no por
+entorno: `*.unit.test.ts` no abre ninguna conexión a propósito, y
+`*.integration.test.ts` la exige. Un test unitario que intentara tocar la base de
+datos fallaría por falta de `DATABASE_URL`, que es la falla que interesa.
+
+`fileParallelism: false` porque la suite comparte una única base de datos y los
+fixtures crean filas reales. Concretamente: crear, leer y revocar sesiones y
+usuarios en paralelo da falsos negativos por colisión de `unique` en `email`.
+
+`npm run smoke` es una capa aparte: levanta el flujo por HTTP real contra el
+servidor ya arrancado, con cabeceras y cookies de verdad. Los tests de
+integración ya ejercitan Express, pero con la app en memoria dentro del proceso
+de Vitest. Es la única comprobación que recorre HTTP → middleware → RLS →
+Postgres de verdad, y por eso detecta cosas como el problema del contexto de RLS
+en el registro, que ningún test de integración con `supertest` habría visto.
+
+Los tests que tocan servicios externos usan adapters fake (weather, map) y
+`LLMProvider` fake. **`npm run test:unit` tiene que pasar sin ninguna API key y
+sin red.**
 
 Casos de prueba que **deben** existir (por riesgo, no por conveniencia):
 
@@ -761,7 +782,7 @@ Casos de prueba que **deben** existir (por riesgo, no por conveniencia):
 - Categoría/prioridad fuera de enum en la validación → 422.
 - Idioma: los mensajes de error y la UI de la web en español (el enunciado está en español y el público es communities de vecinos).
 
-Comando raíz esperado: `npm test` (unit+integration), `npm run test:e2e`, `npm run lint`, `npm run typecheck`. En CI, la suite debe ser verde y **sin** `skip` ni `only`.
+Comando raíz esperado: `npm run test:unit` + `npm run test:integration`, más `npm run smoke`, `npm run lint`, `npm run typecheck`. En CI, la suite debe ser verde y **sin** `skip` ni `only`.
 
 ---
 
@@ -856,15 +877,87 @@ Cada fase empieza con spec aprobada y termina con tests, security review y docum
 
 ## 18. Decisiones arquitectónicas
 
-Estado: **D-01 a D-04 decididas** (dadas por el desarrollador). D-05 a D-11 pendientes de confirmación.
+Estado: **D-01 a D-13 decididas.** D-01 revisada en la Fase 2. D-12 y D-13 cerradas
+al implementar autenticación.
 
 ### Ya decididas
 
-**D-01 — Entorno: Supabase Free, coste $0.** ✅ Decidido.
+**D-01 — Entorno: Supabase Free, coste $0.** ✅ Decidido y **revisado** en la Fase 2.
 - Base de datos: **Supabase** (plan Free). Es Postgres real, así que Prisma, migraciones, `Decimal`, índices parciales, `jsonb` y RLS funcionan sin compromiso.
-- **Docker ya no es necesario** en esta máquina. El proyecto se ejecuta con `npm run dev` contra Supabase, coste cero. La Fase 1 ya no tiene bloqueantes.
-- Los tests de integración usan `npx prisma dev` (Postgres local vía PGlite), para que la CI no dependa de un proyecto que se pausa a los 7 días.
+- **Docker ya no es necesario** en esta máquina. El proyecto se ejecuta con `npm run dev` contra Supabase, coste cero. La Fase 1 no tiene bloqueantes.
 - `docker-compose.yml` se documentará en el README como vía alternativa de despliegue, pero **no es requisito para ejecutar ni para evaluar el proyecto**.
+- **Cambio respecto al borrador:** los tests de integración ya **no** usan `npx prisma dev`. PGlite no puede ejecutar este esquema. La estrategia real es la de D-12.
+
+**D-12 — Tests de integración contra Supabase real, no contra PGlite.** ✅ Cerrada en la Fase 2.
+
+La decisión original de la sección 14 (PGlite vía `prisma dev`, para no depender de
+un proyecto que se pausa a los 7 días) **no es viable con este esquema**, y no
+por una razón de configuración:
+
+| Necesidad del esquema | Por qué PGlite no puede |
+|---|---|
+| `pgcrypto`, `pg_trgm`, `pg_stat_statements` | Extensiones no disponibles en la build WASM |
+| `pgsodium` | La exige `03_storage.sql`; requiere fidget y un archivo de claves |
+| `create role app_runtime` | PGlite corre como superusuario único y no admite roles nombrados |
+| `grant` / `revoke` por rol | Sin roles, no hay a quién conceder ni quitar nada |
+| `force row level security` | Se aplica, pero sin políticas por rol no hay nada que probar |
+
+Y sin `app_runtime` no hay RLS que probar, que es justamente lo que esta suite
+existe para demostrar. Un Postgres local que no puede reproducir el modelo de
+permisos solo daría una falsa sensación de cobertura.
+
+Estrategia resultante, **híbrida**:
+
+| Suite | Base de datos | Motivo |
+|---|---|---|
+| `npm run test:unit` | ninguna | Lógica pura. Pass sin red ni claves |
+| `npm run test:integration` | Supabase real | RLS y aislamiento solo existen contra el rol real |
+| `npm run smoke` | Supabase real, por HTTP | Recorre el stack entero, con el servidor levantado |
+
+El riesgo que la decisión original quería evitar —el proyecto de Supabase
+pausándose a los 7 días y rompiendo la CI— se acepta, y se mitiga en parte:
+`npm run test:unit` sigue siendo verde sin ninguna conexión, así que la
+señal principal no depende del proyecto. Si Supabase pausa el proyecto,
+`db:seed` y `check:db` lo reactivan con un clic. Con un plan de pago o un
+proyecto propio para CI, el cambio es solo la variable de entorno: los tests no
+distinguen un Postgres de otro.
+
+**Lo que sí se acepta, y cómo se avisa de ello:** `npm run test:integration`
+necesita `.env` con credenciales reales. En un clon nuevo, antes de `db:seed`, no
+corre. Está escrito en el README en vez de escondido.
+
+**D-13 — Organización de módulos del backend por `src/<dominio>/`.** ✅ Cerrada en la Fase 2.
+
+`backend/src/` se organiza por módulo funcional, no por capa técnica:
+
+```
+backend/src/
+  auth/          service, repository, routes, controller, middleware,
+                 password, tokens, validators
+  config/env.ts
+  context.ts     withContext()
+  db.ts          Prisma singleton
+  db-admin.ts    cliente BYPASSRLS: fixtures y seed, nunca producto
+  check-db.ts
+  http/          envelope, ratelimit, errors
+  __tests__/     auth.api.integration, rls.integration, helpers, integration.setup
+```
+
+`controller`, `service` y `repository` van dentro del módulo al que sirven. Con
+la estructura por capa, un módulo de auth terminado acaba con `controllers/auth.ts`,
+`services/auth.ts` y `repositories/auth.ts`: tres archivos abiertos para leer una
+funcionalidad, y con once módulos pendientes, once carpetas de tres archivos
+vacíos.
+
+La excepción es `http/`, que se queda como carpeta compartida porque sus tres
+piezas son transversales a todos los módulos: el envelope de respuestas, los
+errores y el rate limit. Mañana, con trece módulos, una capa por módulo serían
+trece carpetas de un archivo.
+
+Los tests unitarios de un módulo viven en `<modulo>/__tests__/`; los de
+integración, en `src/__tests__/`, porque cruzan varios módulos (una petición
+pasa por middleware, auth y RLS a la vez). El sufijo del archivo dice cuál es:
+`.unit.test.ts` o `.integration.test.ts`.
 
 **D-02 — Proveedor LLM: Groq free, con Gemini de fallback.** ✅ Decidido.
 - Groq `openai/gpt-oss-120b` / `gpt-oss-20b`: 30 req/min, 1 000 req/día, 200 000 tokens/día, sin tarjeta.
@@ -896,15 +989,42 @@ Cerradas por el desarrollador aceptando las recomendaciones:
 
 **D-11 — Nombre.** ✅ Cerrada. `communityHub`.
 
+Cerradas durante la Fase 2, al implementar autenticación:
+
+**D-12 — Tests de integración contra Supabase real.** ✅ Cerrada. PGlite no puede
+ejecutar este esquema (extensiones, `create role`, `grant`), y sin `app_runtime`
+no hay RLS que probar. Estrategia híbrida: unitarios sin base de datos,
+integración y smoke contra Supabase. El coste —la suite depende del proyecto
+remoto— está documentado en la sección 14 y en el README.
+
+**D-13 — Módulos organizados por dominio.** ✅ Cerrada. `src/auth/` con
+`service`, `repository`, `routes`, `controller`, `middleware` y tests dentro, en
+vez de una carpeta por capa técnica. `http/` queda compartida por transversal
+(envelope, errores, rate limit).
+
 ---
 
 ## Siguiente paso
 
-1. Creas el proyecto en Supabase (plan Free) y ejecutas los 4 scripts de `supabase/sql/` en orden. Guía paso a paso: `supabase/sql/README.md`.
-2. `04_verify.sql` debe terminar todo en verde. Si algo falla, te dice exactamente qué falta.
-3. Activas el rol `app_runtime` con contraseña (esta en ningún archivo del repositorio).
-4. Me pasas la **URL de conexión** y la **service role key** → van a `.env`, nunca al repo.
-5. Yo escribo `/specs/01-authentication.md` y `/specs/03-communities.md` para tu revisión.
-6. Con la spec aprobada: plan → implementación, con tests y security review en cada commit.
+**Fase 2 (autenticación) cerrada.** Los 7 endpoints implementados, 28 tests
+unitarios, 49 de integración contra Supabase real, 17 comprobaciones de humo por
+HTTP, `check:db` en verde y `04_verify.sql` sin excepciones.
+
+Siguiente bloque: **`03-communities`**, con `02-members` detrás.
+
+1. Escribir y revisar `/specs/03-communities.md` antes de implementar nada.
+2. El SQL de la Fase 1 ya tiene las tablas, RLS y políticas de comunidades,
+   incumbencias y membresías: `01_schema.sql`, `02_rls.sql`, `04_verify.sql`.
+   Lo que falta es el módulo del backend, los endpoints y sus tests de
+   aislamiento, que es donde se demuestra el requisito central del proyecto.
+3. Cada módulo, mismo ciclo: spec aprobada → implementación → tests → revisión
+   de seguridad → commit. Sin funcionalidad que no esté en la spec.
+4. `SECURITY.md` se actualiza con lo que aprenda cada módulo.
+
+Pendientes de housekeeping, sin urgencia:
+- `AGENTS.md` y `docs/API.md` están vacíos.
+- Verificación real del certificado en `db:apply`, con `POSTGRES_CA_CERT_PATH`.
+- Purgar del historial la contraseña que quedó en el commit `924a3e6` (ya
+  rotada, ver [`SECURITY.md`](docs/SECURITY.md#una-credencial-que-sí-quedó-en-el-historial)).
 
 Opcional pero recomendado: una API key de Groq (console.groq.com, sin tarjeta). Sin ella la aplicación funciona igual, con el clasificador en modo heurístico.

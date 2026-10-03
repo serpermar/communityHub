@@ -13,12 +13,12 @@ import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
-import { prisma } from '../db.js'
 import {
   allSetCookies,
   app,
   createUser,
   deleteUser,
+  readSessions,
   refreshCookieHeader,
   refreshCookieValue,
   TEST_PASSWORD,
@@ -177,7 +177,7 @@ describe('POST /api/v1/auth/login', () => {
     const res = await loginAs(user)
     const cookie = refreshCookieValue(res)!
 
-    const sessions = await prisma.sessions.findMany({ where: { user_id: user.id } })
+    const sessions = await readSessions(user.id)
 
     expect(sessions).toHaveLength(1)
     expect(sessions[0]!.token_hash).not.toBe(cookie)
@@ -281,13 +281,13 @@ describe('POST /api/v1/auth/refresh', () => {
   it('conserva el family_id entre rotaciones y encadena replaced_by', async () => {
     const user = await makeUser()
     const login = await loginAs(user)
-    const familyId = (await prisma.sessions.findFirstOrThrow({ where: { user_id: user.id } })).family_id
+    const familyId = (await readSessions(user.id))[0]!.family_id
 
     const res = await request(app())
       .post('/api/v1/auth/refresh')
       .set('Cookie', [`refresh_token=${refreshCookieValue(login)}`])
 
-    const sessions = await prisma.sessions.findMany({ where: { user_id: user.id }, orderBy: { created_at: 'asc' } })
+    const sessions = await readSessions(user.id)
 
     expect(sessions).toHaveLength(2)
     // La familia no cambia al rotar: toda la cadena de un login comparte
@@ -352,8 +352,8 @@ describe('detección de robo de refresh token', () => {
     const victim = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${victimToken}`])
     expect(victim.status).toBe(401)
 
-    const actives = await prisma.sessions.count({ where: { user_id: user.id, status: 'ACTIVE' } })
-    expect(actives).toBe(0)
+    const actives = (await readSessions(user.id)).filter((s) => s.status === 'ACTIVE')
+    expect(actives).toHaveLength(0)
   })
 
   it('un login nuevo crea una familia nueva y no se ve afectado', async () => {
@@ -471,7 +471,7 @@ describe('POST /api/v1/auth/logout', () => {
     expect(res.status).toBe(204)
     expect(allSetCookies(res)).toContain('refresh_token=;')
 
-    const sessions = await prisma.sessions.findMany({ where: { user_id: user.id } })
+    const sessions = await readSessions(user.id)
     expect(sessions.every((s) => s.status === 'REVOKED')).toBe(true)
     expect(sessions.every((s) => s.revoked_at !== null)).toBe(true)
   })
@@ -624,9 +624,7 @@ describe('contrato HTTP', () => {
     // Criterio 15 y 16.
     const user = await makeUser()
     const login = await loginAs(user)
-    const token = login.body.data.accessToken as string
     const cookie = [`refresh_token=${refreshCookieValue(login)}`]
-    const auth = { Authorization: `Bearer ${token}` }
 
     const register = await request(app())
       .post('/api/v1/auth/register')
@@ -641,20 +639,38 @@ describe('contrato HTTP', () => {
     expect(refreshed.status).toBe(200)
     expect(refreshed.body).toHaveProperty('data')
 
+    // Tras el refresh hay que usar el token NUEVO. El anterior queda revocado en
+    // el acto, porque la rotación encadena la sesión: reuse de un token ya
+    // usado es exactamente lo que dispara la revocación de la familia. Reusar
+    // aquí el token viejo daría 401, que sería la respuesta correcta del
+    // servidor y un test mal escrito.
+    const auth = { Authorization: `Bearer ${refreshed.body.data.accessToken}` }
+    const cookie2 = [`refresh_token=${refreshCookieValue(refreshed)}`]
+
     const me = await request(app()).get('/api/v1/auth/me').set(auth)
     expect(me.status).toBe(200)
     expect(me.body).toHaveProperty('data')
 
+    // Hace falta una segunda sesión para poder revocar "la otra". Revocar la
+    // propia y luego seguir usando su token tampoco sería un defecto: sería el
+    // servidor haciendo bien su trabajo.
+    const other = await loginAs(user)
+    expect(other.status).toBe(200)
+
     const sessions = await request(app()).get('/api/v1/auth/sessions').set(auth)
     expect(sessions.status).toBe(200)
     expect(sessions.body).toHaveProperty('data')
+    expect(sessions.body.data).toHaveLength(2)
 
-    const revoke = await request(app())
-      .delete(`/api/v1/auth/sessions/${sessions.body.data[0].id}`)
-      .set(auth)
+    const current = sessions.body.data.find((s: { current: boolean }) => s.current)
+    const other_ = sessions.body.data.find((s: { current: boolean }) => !s.current)
+    expect(current).toBeDefined()
+    expect(other_).toBeDefined()
+
+    const revoke = await request(app()).delete(`/api/v1/auth/sessions/${other_.id}`).set(auth)
     expect(revoke.status).toBe(204)
 
-    const logout = await request(app()).post('/api/v1/auth/logout').set(auth).set('Cookie', cookie)
+    const logout = await request(app()).post('/api/v1/auth/logout').set(auth).set('Cookie', cookie2)
     expect(logout.status).toBe(204)
   })
 

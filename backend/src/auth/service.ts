@@ -113,7 +113,20 @@ export async function register(input: {
   const id = randomUUID()
 
   try {
-    const row = await withContext({ userId: null, communityId: null }, (tx) =>
+    // El contexto es el id DEL USUARIO QUE SE ESTA CREANDO, no null.
+    //
+    // No es un detalle menor ni un atajo: con `userId: null` el registro falla
+    // con 42501 "new row violates row-level security policy for table users",
+    // aunque `users_insert_public` sea `with check (true)` y el INSERT sea
+    // permitido. La razon es que la escritura de Prisma comprueba la politica de
+    // SELECT sobre la fila afectada, y `users_select_self` exige
+    // `id = app_current_user_id()`. Con el contexto vacio, la fila recien creada
+    // no es visible ni para si misma y la operacion se rechaza.
+    //
+    // Poner el id aqui es ademas lo correcto por si mismo: al finishing de
+    // registrarse uno es el propio usuario, y `users_select_self` existe para
+    // permitirle leer su fila.
+    const row = await withContext({ userId: id, communityId: null }, (tx) =>
       repo.createUser(tx, {
         id,
         email,

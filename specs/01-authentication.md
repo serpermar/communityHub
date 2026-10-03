@@ -1,5 +1,19 @@
 # Spec 01 · Autenticación y sesiones
 
+> **Estado: IMPLEMENTADA Y VERIFICADA.**
+>
+> Los 7 endpoints existen y responden. La verificación, con lo que cubre cada
+> capa:
+>
+> | Comprobación | Resultado |
+> |---|---|
+> | `npm run typecheck` | limpio |
+> | `npm run test:unit` | 28 tests, sin base de datos |
+> | `npm run test:integration` | 49 tests, contra Supabase real |
+> | `npm run check:db` | todas las comprobaciones en verde |
+> | `npm run smoke` | 17 comprobaciones por HTTP real |
+> | `04_verify.sql` | sin excepciones |
+
 > **Estado:** pendiente de revisión.
 > **Fase:** 1 → 2 (autenticación propia, decisión D-11 de `ARCHITECTURE.md`).
 > **Base de datos:** `supabase/sql/01_schema.sql`, `02_rls.sql`, `02b_auth.sql`.
@@ -32,6 +46,46 @@ políticas no tiene a quién aplicar.
 | A-8 | Access token solo **en memoria** del cliente | `localStorage` o cookie | Si va en cookie, el CSRF vuelve. Si va en `localStorage`, un XSS lo roba. En memoria, un refresh de página lo pierde y el cliente usa el refresh token para pedir uno nuevo |
 | A-9 | Argon2 **en el backend**, nunca en SQL | `crypt()` de pgcrypto | pgcrypto no tiene argon2 (solo MD5, Blowfish, SHA-2), y son funciones sha256-crypt y bcrypt de coste fijo. Argon2id necesita parámetros de memoria y tiempo, que SQL no expone bien |
 | A-10 | Email **case-insensitive** con índice `lower(email)` | Índice sobre `email` | `Ana@x.com` y `ana@x.com` son la misma cuenta. Sin el índice sobre `lower()`, la unicidad no se aplica |
+| A-11 | El rate limit cuenta **solo intentos fallidos** | Contar también los exitosos | Entrar y salir cinco veces es uso normal, no un ataque. Contarlo bloquearía a un vecino que usa la app a diario, y el límite seguiría impidiendo lo único que importa: probar cinco contraseñas por cuenta |
+| A-12 | Éxito con `{ data, meta }`; el refresh token va **solo en cookie** | Refresh también en el cuerpo de la respuesta | Un token en el cuerpo acaba antes o después en un log, en un `localStorage` mal hecho o en la consola del navegador. La cookie `httpOnly` es el único sitio donde el cliente no puede leerlo, que es justo la propiedad que se busca |
+| A-13 | Un error de RLS al escribir se lee como **fallo de contexto**, no como bug de permisos | Aceptar el 42501 y buscar la política | La escritura de Prisma comprueba la política de `SELECT` sobre la fila afectada. Contexto vacío al registrarse → la fila nueva no es visible ni para sí misma → 42501 con `with check (true)`. El contexto del registro es su propio UUID |
+
+### A-11, A-12 y A-13 en detalle
+
+Las tres surgieron durante la implementación, y las tres se salen de lo que la
+spec daba por supuesto. Se dejan aquí porque las decisiones que parecen menores
+son las que más se olvidan.
+
+**A-11 · el límite cuenta los fallos, no los aciertos.** La cuenta va por email e
+IP: cinco intentos fallidos en quince minutos. Los logins correctos no suman, y
+hay un test que hace siete logins buenos seguidos y espera que todos pasen. Es la
+prueba de que el límite no molesta al uso legítimo.
+
+**A-12 · el token viaja solo en la cookie.** El cuerpo de la respuesta lleva
+`accessToken`, `expiresIn` y el usuario. El refresh no aparece ni ahí ni en
+ningún log. La cookie va con `httpOnly`, `secure` y `sameSite=strict`, y con
+`Path` restringido a `/api/v1/auth`.
+
+**A-13 · escribir exige poder leer lo que escribes.** Es el punto menos obvio de
+los tres, y costó un bug real: el registro devolvía 500 con
+
+```
+new row violates row-level security policy for table "users"
+```
+
+aunque `users_insert_public` fuese `with check (true)` y el INSERT fuese legal. La
+causa: la escritura de Prisma consulta también la política de `SELECT` sobre la
+fila afectada, y `users_select_self` exige `id = app_current_user_id()`. Con el
+contexto a `NULL` en el registro, la fila recién creada no era visible ni para
+sí misma.
+
+La corrección no es un rodeo: al terminar de registrarse, uno **es** el usuario
+nuevo, y poder leer su propia fila es lo que `users_select_self` existe para
+permitir. Lo que cambia es que el contexto del registro es su propio UUID.
+
+Se documenta porque el síntoma no lleva a ninguna parte por intuición: un 42501
+en un INSERT cuya política de escritura es `true` no apunta a la política de
+escritura. Apunta al contexto.
 
 ### A-9 en detalle
 
@@ -288,6 +342,9 @@ Payload mínimo, deliberadamente:
 
 ## 8. Variables de entorno
 
+Viven en **`backend/.env`**, que está en `.gitignore`. La plantilla con los
+comentarios de todas ellas es `backend/.env.example`.
+
 ```dotenv
 JWT_SECRET="<64 bytes aleatorios en base64>"
 ACCESS_TOKEN_TTL_SECONDS=900
@@ -302,65 +359,119 @@ algún momento se filtra, todos los access tokens existentes son válidos hasta
 expirar, y no hay manera de invalidarlos sin cambiar la clave, que es
 exactamente lo que lleva a todos los usuarios a iniciar sesión de nuevo.
 
+`env.ts` la exige con un mínimo de 32 caracteres y **valida todo el entorno al
+arrancar**: si algo está mal, el proceso no llega a levantar el servidor. También
+comprueba ahí que `DATABASE_URL` usa el rol `app_runtime` y el puerto 5432, que
+son las dos condiciones cuya violación no da ningún error visible.
+
+`MIGRATION_DATABASE_URL` es **opcional** a propósito: el servidor no la usa y
+ningún módulo de producto la importa. Exigirla haría fallar el arranque de un
+servidor que funciona perfectamente. Quien la necesita (el seed, los fixtures de
+los tests, `db:apply`) la comprueba ella misma y explica qué falta.
+
 ---
 
 ## 9. Estructura de archivos
 
 ```
-backend/src/
-  db.ts                          Prisma singleton
-  context.ts                     withContext()  ← ya escrito
-  check-db.ts                    verificación de RLS  ← ya escrito
-  config/
-    env.ts                       validación del .env al arrancar
-  auth/
-    password.ts                  argon2id: hash, verify, hash señuelo
-    tokens.ts                    JWT y refresh tokens
-    service.ts                   register, login, refresh, logout
-    middleware.ts                requireAuth, requireCommunity
-    routes.ts                    los 7 endpoints
-  http/
-    envelope.ts                  { data, meta } y { error }
-    ratelimit.ts                 límite en memoria
+backend/
+  .env                              fuera de Git
+  .env.example                      la plantilla de arriba, sin valores
+  prisma/
+    schema.prisma                   derivado con db pull, no escrito a mano
+    seed.ts                         datos de demo
+    apply-sql.ts                    aplica supabase/sql, idempotente
+  scripts/
+    smoke.ts                        flujo por HTTP real contra el servidor
+  src/
+    db.ts                           Prisma singleton (app_runtime)
+    db-admin.ts                     Prisma con BYPASSRLS: fixtures y seed
+    context.ts                      withContext()  ← ya escrito
+    check-db.ts                     verificación de RLS  ← ya escrito
+    config/
+      env.ts                        validación del .env al arrancar
+    auth/
+      service.ts                    register, login, refresh, logout, revoke
+      repository.ts                 las consultas
+      routes.ts                     los 7 endpoints
+      controller.ts                 validación y envelope
+      middleware.ts                 requireAuth
+      password.ts                   argon2id: hash, verify, hash señuelo
+      tokens.ts                     JWT y refresh tokens
+      validators.ts                 zod
+      __tests__/                    password, tokens, validators (unitarios)
+    http/
+      envelope.ts                   { data, meta } y { error }
+      errors.ts                     códigos de la sección 6
+      ratelimit.ts                  límite en memoria
+    __tests__/
+      auth.api.integration.test.ts  los 7 endpoints
+      rls.integration.test.ts       aislamiento y políticas
+      integration.setup.ts          exige conexión real y app_runtime
+      helpers.ts                    fixtures, vía db-admin
 ```
+
+Dos reglas que esta estructura deja fijas:
+
+**`db-admin.ts` no se importa desde código de producto.** Es el único módulo con
+`BYPASSRLS`, y el fixture de los tests lo necesita. Si se colgara de un service,
+el aislamiento desaparecería sin ningún error visible.
+
+**Los tests unitarios viven dentro del módulo que prueban; los de integración, en
+`src/__tests__/`.** Los de integración cruzan varios módulos a la vez —una
+petición pasa por middleware, auth y RLS—, que es justo lo que un test unitario
+no puede reproducir. El sufijo del archivo dice de qué tipo es.
 
 ---
 
 ## 10. Criterios de aceptación
 
-Cada uno tiene un test que lo demuestra. No se da porgood sin él.
+Cada uno tiene un test que lo demuestra. No se da por good sin él.
+
+Los 19 están implementados. La columna de la derecha es dónde vive cada uno.
 
 ### Seguridad
 
-1. Registrar, cerrar sesión y volver a entrar funciona.
-2. La contraseña nunca aparece en ninguna respuesta ni log.
-3. Un access token con firma inválida da 401.
-4. Un access token con `alg: none` da 401.
-5. Un access token expirado da 401.
-6. Un login con email inexistente tarda lo mismo que con contraseña incorrecta
-   (test con margen del 20%, ejecutado varias veces).
-7. Usar dos veces el mismo refresh token revoca la sesión.
-8. Tras detectar reutilización, **todos** los refresh de esa familia fallan.
-9. Cerrar sesión invalida el access token en la siguiente petición.
-10. `JWT_SECRET` no aparece en ningún archivo versionado.
+| # | Criterio | Dónde |
+|---|---|---|
+| 1 | Registrar, cerrar sesión y volver a entrar funciona | `auth.api.integration`, `smoke` |
+| 2 | La contraseña nunca aparece en ninguna respuesta ni log | `auth.api.integration` |
+| 3 | Un access token con firma inválida da 401 | `tokens.unit` |
+| 4 | Un access token con `alg: none` da 401 | `tokens.unit` |
+| 5 | Un access token expirado da 401 | `tokens.unit`, `smoke` |
+| 6 | Un login con email inexistente tarda lo mismo que con contraseña incorrecta | `auth.api.integration` (margen del 20%, repetido) |
+| 7 | Usar dos veces el mismo refresh token revoca la sesión | `auth.api.integration`, `smoke` |
+| 8 | Tras detectar reutilización, **todos** los refresh de esa familia fallan | `auth.api.integration`, `smoke` |
+| 9 | Cerrar sesión invalida el access token en la siguiente petición | `auth.api.integration`, `smoke` |
+| 10 | `JWT_SECRET` no aparece en ningún archivo versionado | `.gitignore` + escaneo previo a cada commit |
 
 ### RLS
 
-11. `GET /auth/me` con token válido devuelve solo los datos del usuario.
-12. Dos vecinos de comunidades distintas no pueden leerse entre sí.
-13. `app_runtime` no tiene `BYPASSRLS`.
-14. Sin `set_config`, las consultas de datos de comunidad devuelven 0 filas.
+| # | Criterio | Dónde |
+|---|---|---|
+| 11 | `GET /auth/me` con token válido devuelve solo los datos del usuario | `auth.api.integration` |
+| 12 | Dos vecinos de comunidades distintas no pueden leerse entre sí | `rls.integration`, `auth.api.integration` |
+| 13 | `app_runtime` no tiene `BYPASSRLS` | `rls.integration`, `check:db` |
+| 14 | Sin `set_config`, las consultas de datos de comunidad devuelven 0 filas | `rls.integration`, `check:db` |
 
 ### Contrato
 
-15. Los 7 endpoints responden con el envelope de la sección 6.
-16. Los errores usan los códigos de la tabla.
-17. El rate limit responde 429 al superarse.
+| # | Criterio | Dónde |
+|---|---|---|
+| 15 | Los 7 endpoints responden con el envelope de la sección 6 | `auth.api.integration` |
+| 16 | Los errores usan los códigos de la tabla | `auth.api.integration` |
+| 17 | El rate limit responde 429 al superarse, y **no** cuenta los aciertos | `auth.api.integration` (ambos sentidos) |
 
 ### Verificación manual
 
-18. `npm run check:db` pasa los 12 checks.
-19. `04_verify.sql` termina todo en verde tras aplicar `02b_auth.sql`.
+| # | Criterio | Dónde |
+|---|---|---|
+| 18 | `npm run check:db` pasa todas sus comprobaciones | `check:db` |
+| 19 | `04_verify.sql` termina todo en verde tras aplicar `02b_auth.sql` | `db:apply --verify` |
+
+> El criterio 18 decía «los 12 checks». `check:db` tiene hoy 12 comprobaciones
+> agrupadas en 5 secciones; el número cambia con lo que se añada, así que el
+> criterio es que pase entero, no que dé una cifra concreta.
 
 ---
 
@@ -374,6 +485,8 @@ Cada uno tiene un test que lo demuestra. No se da porgood sin él.
 | Enumeración de emails por tiempo de respuesta | Hash señuelo. Test 6 |
 | Argon2 con coste alto en hardware débil | Los parámetros son configurables, con el valor por defecto para hardware moderno |
 | `app_auth_find_user_by_email` usada por un rol que no debe | Solo `app_runtime` tiene `EXECUTE`, y `02b_auth.sql` lo verifica |
+| **Contexto vacío en una escritura, y el error señala a la política equivocada** | Documentado en A-13 y en `SECURITY.md`. El INSERT puede ser legal y rechazarse por la política de `SELECT` |
+| Cliente que reuse el access token viejo tras refrescar | Comportamiento correcto del servidor, documentado. El cliente debe sustituir el token en cuanto llega el 200 |
 
 ---
 
@@ -393,14 +506,35 @@ spec, no un rediseño.
 
 ## 13. Preguntas abiertas
 
-1. **¿Cookie de refresh en `Path=/api/v1/auth` o `Path=/`?** Con el path
-   restringido solo viaja en los endpoints de auth, que es más estrecho.
-   Recomiendo restringirlo. Si algún sitio necesita refrescar desde otro path,
-   se cambia en un sitio.
-2. **¿`SameSite=Strict` rompe algo si el frontend se sirve en otro dominio?** En
-   desarrollo (`localhost:5173` → `localhost:3000`) no, porque `Strict` compara
-   el sitio, no el origen. En producción con dominios distintos, sí. Recomiendo
-   `Lax` y un token CSRF si se separan los dominios.
-3. **¿Rate limit en memoria o compartido?** En memoria vale para una instancia.
-   Si se despliega en serverless hay que moverlo a Supabase, que ya está
-   contratado. Recomiendo empezar en memoria y documentar el límite.
+Las tres siguen sin responder. Lo que se hizo en cada caso, y por qué:
+
+1. **¿Cookie de refresh en `Path=/api/v1/auth` o `Path=/`?**
+   **Resuelto: `Path=/api/v1/auth`.** Es lo más estrecho: fuera de los endpoints
+   de auth, la cookie no viaja. Todos los que la necesitan están ahí. Cambiarlo
+   después es una constante en un sitio.
+
+2. **¿`SameSite=Strict` rompe algo si el frontend se sirve en otro dominio?**
+   **Sin resolver, y es la que más puede doler.** En desarrollo
+   (`localhost:5173` → `localhost:3000`) no hay problema, porque `Strict` compara
+   el sitio, no el origen. En producción, con dominios distintos, el refresh
+   deixa de funcionar.
+
+   `env.ts` se niega a arrancar en producción con `SameSite` distinto de
+   `strict`, para desbloquear harían falta dos cosas a la vez: `SameSite=none`
+   **más** `secure`, y un token CSRF, porque `none` es exactamente el caso para
+   el que `strict` protegía. Bajar solo el `SameSite` cambia un problema por
+   otro.
+
+   La recomendación sigue siendo la misma: serving frontend y API bajo el mismo
+   dominio, que es lo que hace `CORS_ORIGINS` sin necesitar `none` en absoluto.
+   Queda anotado aquí para que la decisión se tome **antes** de desplegar, no
+   después de que alguien no pueda entrar.
+
+3. **¿Rate limit en memoria o compartido?**
+   **Resuelto para una instancia: en memoria.** Si se despliega en serverless o
+   con más de una instancia, hay que moverlo a Supabase, que ya está contratado:
+   con N instancias, cada una cuenta por su lado y el límite real es N veces el
+   configurado. En serverless es peor, porque las instancias se reciclan
+   constantemente y el contador se pierde.
+
+   Documentado como riesgo aceptado en `SECURITY.md`, sección 7.

@@ -1,32 +1,54 @@
 // ---------------------------------------------------------------------------
-// Utilidades compartidas por los tests de integración.
+// Utilidades compartidas por los tests de integracion.
 //
-// Cada test crea sus propios usuarios con un email único, para que la suite sea
-// reejecutable sin limpiar nada antes y sin que dos tests se pisen los datos.
+// ---------------------------------------------------------------------------
+// La regla que explica todo este archivo: sembrar con privilegio, afirmar con
+// restriccion.
+//
+// Los fixtures se crean con `admin` (rol postgres, BYPASSRLS) porque el rol de
+// la aplicacion no puede crearlos. Y no es un atajo comodo: `app_runtime` no
+// tiene permiso de INSERT en `communities`, no tiene permiso de INSERT en
+// `expenses`, y `users` no tiene DELETE. Los tests que usaban el rol de runtime
+// para crear datos fallaban con errores de permisos que no decian nada sobre su
+// causa real.
+//
+// En cambio, lo que se COMPRUEBA va siempre por el rol de runtime, a traves de
+// `withContext` o de la propia API. Si un test afirmara sobre `admin` no estaria
+// probando RLS: probaria que una tabla tiene filas.
+//
+// Esa asimetria es el test. El admin coloca, el vecino intenta mirar.
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from 'node:crypto'
+import type { expense_category, incident_category, incident_priority, member_role } from '@prisma/client'
 import { createApp } from '../app.js'
-import { prisma } from '../db.js'
+import { admin } from '../db-admin.js'
 
-/** Contraseña de 12+ caracteres: cumple la política del registro. */
+/** Contrasena de 12+ caracteres: cumple la politica del registro. */
 export const TEST_PASSWORD = 'CommunityHub2026'
 
 export function uniqueEmail(prefix = 'test'): string {
   return `${prefix}-${randomUUID()}@communityhub.test`
 }
 
-// Una sola instancia de la app para toda la suite. Se cachea a mano en vez de
-// llamar a createApp() por test porque cada instancia crea sus propios limiters
-// de peticiones, y un test que agota el limite del login dejaría al siguiente
-// sin poder entrar. Los tests que necesitan provocar un 429 usan una app
-// aparte (ver auth.api.test.ts).
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
+
+// Una sola instancia para toda la suite. Se cachea a mano en vez de llamar a
+// createApp() por test porque cada instancia crea sus propios limiters de
+// peticiones, y un test que agota el limite del login dejaria al siguiente sin
+// poder entrar. Los tests que necesitan provocar un 429 usan una app aparte.
 let cachedApp: ReturnType<typeof createApp> | null = null
 
 export function app() {
   cachedApp ??= createApp()
   return cachedApp
 }
+
+// ---------------------------------------------------------------------------
+// Usuarios
+// ---------------------------------------------------------------------------
 
 export type TestUser = {
   id: string
@@ -37,13 +59,9 @@ export type TestUser = {
 /**
  * Crea un usuario directamente en la base de datos.
  *
-* Se inserta con el contexto de RLS puesto a ese mismo usuario, para que el test
- * vaya por el mismo camino que la aplicación y no por un atajo con el rol
- * postgres que no existiría en producción.
- *
- * No se usa el endpoint de registro a propósito: algunos tests necesitan un
- * usuario que existe pero nunca ha iniciado sesión, y meterlo por la API le
- * dejaría con sesión abierta siempre.
+ * No se usa el endpoint de registro a proposito: algunos tests necesitan un
+ * usuario que existe pero nunca ha iniciado sesion, y meterlo por la API le
+ * dejaria con sesion abierta siempre.
  */
 export async function createUser(
   overrides: { email?: string; fullName?: string; globalRole?: 'NEIGHBOR' | 'ADMIN_SA' } = {},
@@ -55,33 +73,145 @@ export async function createUser(
   const password = TEST_PASSWORD
   const passwordHash = await hashPassword(password)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`select set_config('app.current_user_id', ${id}, true)`
-    await tx.$executeRaw`select set_config('app.current_community_id', ${''}, true)`
-    await tx.users.createMany({
-      data: [
-        {
-          id,
-          email,
-          password_hash: passwordHash,
-          full_name: overrides.fullName ?? 'Usuario de Prueba',
-          global_role: overrides.globalRole ?? 'NEIGHBOR',
-        },
-      ],
-    })
+  await admin.users.create({
+    data: {
+      id,
+      email,
+      password_hash: passwordHash,
+      full_name: overrides.fullName ?? 'Usuario de Prueba',
+      global_role: overrides.globalRole ?? 'NEIGHBOR',
+    },
   })
 
   return { id, email, password }
 }
 
-/** Borra un usuario y todo lo que cuelgue de él (sesiones incluidas, por cascada). */
+/**
+ * Borra un usuario y todo lo que cuelgue de el.
+ *
+ * Necesita `admin` porque `app_runtime` no tiene DELETE sobre `users`. Con el
+ * rol de runtime esta llamada fallaba y el `.catch()` del que la envolvia se
+ * comia el error: los tests pasaban y la base de datos se llenaba de usuarios.
+ * El fallo era invisible justo porque estaba escondido.
+ */
 export async function deleteUser(userId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`select set_config('app.current_user_id', ${userId}, true)`
-    await tx.$executeRaw`select set_config('app.current_community_id', ${''}, true)`
-    await tx.users.deleteMany({ where: { id: userId } })
+  await admin.users.delete({ where: { id: userId } })
+}
+
+// ---------------------------------------------------------------------------
+// Comunidades, membresias y datos de comunidad
+// ---------------------------------------------------------------------------
+
+export async function makeCommunity(name: string): Promise<string> {
+  const id = randomUUID()
+  await admin.communities.create({
+    data: {
+      id,
+      name,
+      slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${id.slice(0, 8)}`,
+      address_line1: 'Calle de Prueba 1',
+      city: 'Zaragoza',
+      country: 'ES',
+      latitude: 41.6488,
+      longitude: -0.8891,
+    },
+  })
+  return id
+}
+
+export async function makeMember(userId: string, communityId: string, role: member_role = 'NEIGHBOR'): Promise<void> {
+  await admin.communityMembers.create({
+    data: { community_id: communityId, user_id: userId, role },
   })
 }
+
+export async function makeIncident(
+  communityId: string,
+  reporterId: string,
+  overrides: {
+    title?: string
+    description?: string
+    category?: incident_category
+    priority?: incident_priority
+  } = {},
+): Promise<string> {
+  const id = randomUUID()
+  await admin.incidents.create({
+    data: {
+      id,
+      community_id: communityId,
+      title: overrides.title ?? 'Incidencia de prueba',
+      description: overrides.description ?? 'Descripcion de prueba.',
+      category: overrides.category ?? 'OTHER',
+      priority: overrides.priority ?? 'LOW',
+      status: 'OPEN',
+      reporter_id: reporterId,
+      reference_code: randomUUID().slice(0, 8),
+    },
+  })
+  return id
+}
+
+/**
+ * `expenses` es de solo lectura para `app_runtime` a proposito: las escrituras
+ * pasan por funcion dedicada para dejar rastro de auditoria. Por eso el fixture
+ * tiene que usar `admin`, y por eso el test afirma con `withContext`.
+ */
+export async function makeExpense(
+  communityId: string,
+  createdBy: string,
+  concept = 'Gasto de prueba',
+  category: expense_category = 'MAINTENANCE',
+): Promise<string> {
+  const id = randomUUID()
+  await admin.expenses.create({
+    data: {
+      id,
+      community_id: communityId,
+      concept,
+      category,
+      amount: '1234.56',
+      expense_date: new Date(),
+      created_by: createdBy,
+    },
+  })
+  return id
+}
+
+export async function deleteCommunity(communityId: string): Promise<void> {
+  await admin.communities.delete({ where: { id: communityId } })
+}
+
+// ---------------------------------------------------------------------------
+// Lectura de estado, para afirmar
+// ---------------------------------------------------------------------------
+
+/**
+ * Lee sesiones desde el lado privilegiado.
+ *
+ * Necesario porque `sessions_own` exige `user_id = app_current_user_id()`. Una
+ * lectura con `prisma` sin contexto devuelve `[]` siempre, y un test que
+ * espera encontrar sesiones fallaria sin decir por que: pareceria que la
+ * aplicacion no las guarda, cuando lo que ocurre es que la lectura estaba mal.
+ */
+export async function readSessions(userId: string) {
+  return admin.sessions.findMany({
+    where: { user_id: userId },
+    orderBy: { created_at: 'asc' },
+  })
+}
+
+/** Resumen de un usuario sin `password_hash`, para no filtrarla en un assert. */
+export async function readUserSafe(userId: string) {
+  return admin.users.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, full_name: true, global_role: true, status: true, deleted_at: true },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Cookies
+// ---------------------------------------------------------------------------
 
 /** El valor del refresh token en la cabecera Set-Cookie. */
 export function refreshCookieValue(res: { headers: Record<string, unknown> }): string | null {
@@ -99,9 +229,8 @@ export function refreshCookieHeader(res: { headers: Record<string, unknown> }): 
 /**
  * Todos los valores de `Set-Cookie` en una sola cadena.
  *
- * Express envía varios `Set-Cookie` en cabeceras separadas, pero los tipos de
- * supertest lo tipan como un único string. Esta función normaliza ambas formas
- * para que los tests no tengan que hacerlo.
+ * Express envia varios `Set-Cookie` en cabeceras separadas, pero los tipos de
+ * supertest lo tipan como un unico string. Esta funcion normaliza ambas formas.
  */
 export function allSetCookies(res: { headers: Record<string, unknown> }): string {
   const raw = res.headers['set-cookie']

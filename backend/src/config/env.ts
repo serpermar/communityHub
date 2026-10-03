@@ -30,11 +30,21 @@ const schema = z.object({
 
   // Base de datos
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es obligatoria'),
+
+  // Opcional a proposito: la aplicacion en runtime no la usa, y ningun modulo
+  // de product la importa. Exigirla aqui haria fallar el arranque de un servidor
+  // que funciona perfectamente.
+  //
+  // `min(1)` junto a un default de '' era contradictorio: ausente pasaba (el
+  // default no se revalida) y presente-pero-vacia fallaba, de modo que el mismo
+  // valor se aceptaba o se rechazaba dependiendode como hubiera llegado.
+  //
+  // Quien la necesita de verdad comprueba ella misma y explica que falta:
+  // db-admin.ts (fixtures y seed) y check-db.ts.
   MIGRATION_DATABASE_URL: z
     .string()
-    .min(1)
     .default('')
-    .describe('Solo para db pull y seed. Nunca la usa el servidor.'),
+    .describe('Solo para db pull, seed y fixtures de los tests. Nunca la usa el servidor.'),
 
   // JWT y sesiones
   JWT_SECRET: z.string().min(32, 'JWT_SECRET necesita al menos 32 caracteres'),

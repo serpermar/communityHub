@@ -1,7 +1,6 @@
 # SQL para Supabase · CommunityHub
 
-Cinco scripts para ejecutar **en este orden** en el SQL Editor de Supabase
-(*Dashboard → proyecto → SQL Editor → New query → Run*).
+Cinco scripts para aplicar a la base de datos, **en este orden**.
 
 | # | Archivo | Qué hace |
 |---|---|---|
@@ -12,6 +11,28 @@ Cinco scripts para ejecutar **en este orden** en el SQL Editor de Supabase
 | 5 | `04_verify.sql` | Comprobaciones; debe terminar todo en verde |
 
 Cada script es **idempotente**: se puede volver a ejecutar sin romper nada.
+
+## Dos formas de aplicarlos
+
+**Desde el SQL Editor del dashboard** (*Dashboard → proyecto → SQL Editor → New
+query → Run*), uno a uno. Es la vía para el primer arranque, y la que no
+requiere nada instalado.
+
+**Desde el backend, con un comando:**
+
+```bash
+cd backend
+npm run db:apply              # aplica 01, 02, 02b y 03
+npm run db:apply -- --verify  # aplica los cuatro y además 04_verify
+```
+
+Usa `MIGRATION_DATABASE_URL` (el rol `postgres`) porque necesita permisos de
+administración. Los `NOTICE` que emiten los scripts se imprimen por pantalla, que
+es la única forma de ver qué ha pasado. Es lo que se usó para montar este
+proyecto, y evita el error de copiar la mitad de un script.
+
+> `--verify` no siempre llega a través de `npm run` según el shell. Si no se
+> aplica, invoca el script directamente: `npx tsx prisma/apply-sql.ts --verify`.
 
 ---
 
@@ -196,10 +217,12 @@ la contraseña:
 alter role app_runtime with login password 'UNA_CONTRASENA_LARGA_Y_ALEATORIA';
 ```
 
-Y añade la conexión a tu `.env` (fuera de Git). Copia `.env.example` de la raíz
-del proyecto, que ya trae la estructura y los comentarios:
+Y añade la conexión a tu `.env` (fuera de Git). El archivo está en **`backend/`**,
+junto al `package.json`, y su plantilla trae la estructura y los comentarios de
+todas las variables:
 
 ```powershell
+cd backend
 copy .env.example .env
 ```
 
@@ -209,7 +232,12 @@ consumidor distinto y equivocarse no da ningún error visible:
 | Variable | Rol | Quién la consume |
 |---|---|---|
 | `DATABASE_URL` | `app_runtime` | Prisma Client, en **cada petición**. RLS se aplica de verdad. |
-| `MIGRATION_DATABASE_URL` | `postgres` | Solo `prisma db pull` y scripts de setup. Tiene `BYPASSRLS`. |
+| `MIGRATION_DATABASE_URL` | `postgres` | `db pull`, seed, fixtures de los tests y `db:apply`. Tiene `BYPASSRLS`. |
+
+Si se invierten, la aplicación funciona y devuelve datos de otras comunidades.
+No hay excepción, no hay aviso: el síntoma es un test de aislamiento que falla.
+Por eso `src/config/env.ts` comprueba el rol **al arrancar** y se niega a
+levantar el servidor.
 
 ```dotenv
 DATABASE_URL="postgresql://app_runtime.ABCDEFGHIJKLMNOP:UNA_CONTRASENA_LARGA_Y_ALEATORIA@aws-1-eu-west-3.pooler.supabase.com:5432/postgres?sslmode=require"
@@ -301,10 +329,10 @@ caché.
 
 ---
 
-## Qué tienes que hacer en el backend (todavía no escrito)
+## Cómo lo consume el backend
 
 Cada petición, dentro de una transacción, fija el contexto que leen las
-políticas:
+políticas. Eso es `withContext()` en `backend/src/context.ts`:
 
 ```ts
 await prisma.$transaction(async (tx) => {
@@ -319,6 +347,16 @@ El tercer parámetro `true` es lo que convierte `set_config` en `SET LOCAL`: la
 variable existe **solo** durante esa transacción. Si la conexión vuelve al pool
 sin valor, el acceso es cero. Con `SET` normal el valor se filtraría de una
 petición a la siguiente, que es un fallo de aislamiento difícil de detectar.
+
+**Nunca escribas una consulta a datos de comunidad sin `withContext`.** No da
+error: da cero filas, y un endpoint que devuelve una lista vacía por un `withContext`
+olvidado es indistinguishable de uno que no tiene datos.
+
+Hay una excepción, y es la que costó un bug: **al registrarse, el contexto es el
+UUID del usuario que se está creando**, no `null`. La escritura comprueba la
+política de `SELECT` sobre la fila afectada, y con el contexto vacío la fila
+recién creada no es visible ni para sí misma. Está explicado en
+[`SECURITY.md`](./SECURITY.md#escribir-exige-poder-leer-lo-que-escribes).
 
 ---
 
@@ -351,33 +389,28 @@ programación cause una fuga y que cause una laincompleta.
 tiene `BYPASSRLS` y ve todas las filas. Ver todo ahí es correcto y esperado, no
 es un fallo.
 
-Para la prueba real:
+Esto ya está automatizado. Con datos de demo y el rol correcto:
 
 ```bash
-npm run seed
+cd backend
+npm run db:seed        # 34 usuarios en 2 comunidades
+npm run test:integration
 ```
 
-Luego, en una terminal con `psql` apuntando a `DATABASE_URL` (que es `app_runtime`,
-el rol con RLS; si apuntas a `MIGRATION_DATABASE_URL` verías todo y la prueba no
-serviría para nada):
+La suite de integración es la que contiene las pruebas de aislamiento: cada
+comprobación conecta como `app_runtime`, fija el contexto de un vecino y
+comprueba que una comunidad no ve los datos de la otra. Sin contexto, las
+compras devuelven 0 filas.
 
-```sql
-BEGIN;
--- vecino de la comunidad A
-SET LOCAL app.current_user_id      = '<uuid-del-vecino-A>';
-SET LOCAL app.current_community_id = '<uuid-comunidad-A>';
+Y para el estado de la conexión en general:
 
-SELECT count(*) FROM incidents;   -- solo incidencias de A
-SELECT count(*) FROM expenses;    -- 0: expenses es ADMIN-only
-SELECT count(*) FROM votes;       -- solo las de A
-COMMIT;
+```bash
+npm run check:db
 ```
 
-Repite con un usuario de la comunidad B y compara. Los números no deben solaparse.
-
-Cuando el backend esté implementado, esto será un test de integración
-automatizado (`incidents.isolation.test.ts`), que es donde tiene que vivir esta
-garantía.
+Verifica el rol, el puerto, la ausencia de `BYPASSRLS`, que RLS deniega sin
+contexto y que el contexto se lee correctamente en las políticas. Si algo de eso
+falla, el problema es de configuración, no de código.
 
 ---
 
@@ -397,22 +430,46 @@ garantía.
 
 ---
 
-## Lo que todavía no está
+## Alcance de estos scripts
 
-Estos scripts cubren esquema, seguridad y storage. **No** incluyen:
+Cubren esquema, seguridad y storage. **No** incluyen lógica de aplicación.
 
-- Datos de demostración → llega con `npm run seed`
-- `schema.prisma` → se genera con `npx prisma db pull` desde este esquema
-- Nada de la lógica de aplicación
+El estado de cada pieza:
 
-La secuencia después de ejecutar el SQL es:
+| Pieza | Dónde | Estado |
+|---|---|---|
+| Esquema, RLS, auth, storage | `supabase/sql/` | Hecho y verificado |
+| `schema.prisma` | `backend/prisma/` | Derivado con `prisma db pull`. 24 modelos, 19 ENUMs |
+| Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` |
+| Autenticación | `backend/src/auth/` | Hecho: los 7 endpoints, 49 tests de integración |
+| Resto de módulos | — | Pendiente |
+
+La secuencia completa desde cero:
 
 ```bash
-npx prisma db pull          # deriva el schema.prisma de la base de datos
-npm run seed                # datos de demo en 2 comunidades
-npm run dev                 # frontend y backend
+cd backend
+npm install
+copy .env.example .env      # y rellena DATABASE_URL, MIGRATION_DATABASE_URL, JWT_SECRET
+npm run db:apply -- --verify # aplica el SQL y verifica
+npx prisma db pull          # deriva schema.prisma de la base de datos
+npx prisma generate         # genera el cliente
+npm run db:seed             # datos de demo en 2 comunidades
+npm run dev                 # servidor en http://localhost:3000
+```
+
+Y para comprobar que todo va bien:
+
+```bash
+npm run typecheck
+npm run test:unit           # 28 tests, sin base de datos
+npm run test:integration    # 49 tests, contra Supabase real
+npm run check:db
 ```
 
 `prisma db pull` y no escribir el schema a mano: si definieras los modelos en
 Prisma y luego pegaras este SQL, cualquier diferencia entre ambos sería drift
 silencioso. Derivando uno del otro no hay dos verdades.
+
+El orden importa y va en la dirección contraria a la habitual: **el SQL es la
+fuente de verdad y Prisma se deriva de él**, no al revés. Por eso los scripts se
+aplican antes de generar el cliente, y no hay migraciones de Prisma.
