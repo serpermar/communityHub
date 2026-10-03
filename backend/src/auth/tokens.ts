@@ -18,7 +18,7 @@
 // suplantar a nadie.
 // ---------------------------------------------------------------------------
 
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { tokenExpired, tokenRevoked, unauthorized } from '../http/errors.js'
@@ -52,27 +52,34 @@ export function signAccessToken(input: { userId: string; role: string; sessionId
  * dos.
  */
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  try {
-    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: [ALGORITHM] })
-
-    if (typeof decoded === 'string') {
-      throw unauthorized('Token con formato inesperado.')
+  // La decodificacion va FUERA del try. Si estuviera dentro, los `unauthorized`
+  // de abajo se capturarian a si mismos y saldrian convertidos en el error
+  // generico del catch, que es lo mismo pero con el mensaje equivocado: el
+  // codigo de distincion entre "token incompleto" y "firma invalida" nunca
+  // llegaria a verse.
+  const decoded = (() => {
+    try {
+      return jwt.verify(token, env.JWT_SECRET, { algorithms: [ALGORITHM] })
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) throw tokenExpired()
+      // Solo se distinguen los dos casos que la spec define con codigo propio; el
+      // resto (firma invalida, algoritmo incorrecto, token malformado) es un 401
+      // generico, porque detallar por que falla el token ayuda a quien prueba.
+      throw unauthorized('Sesión no válida.', 'UNAUTHORIZED')
     }
+  })()
 
-    const { sub, role, ver } = decoded as Record<string, unknown>
-
-    if (typeof sub !== 'string' || typeof ver !== 'string' || typeof role !== 'string') {
-      throw unauthorized('Token incompleto.')
-    }
-
-    return { sub, role, ver }
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) throw tokenExpired()
-    // Solo se distinguen los dos casos que la spec define con codigo propio; el
-    // resto (firma invalida, algoritmo incorrecto, token malformado) es un 401
-    // generico, porque detallar por que falla el token ayuda a quien prueba.
-    throw unauthorized('Sesión no válida.', 'UNAUTHORIZED')
+  if (typeof decoded === 'string') {
+    throw unauthorized('Token con formato inesperado.')
   }
+
+  const { sub, role, ver } = decoded as Record<string, unknown>
+
+  if (typeof sub !== 'string' || typeof ver !== 'string' || typeof role !== 'string') {
+    throw unauthorized('Token incompleto.')
+  }
+
+  return { sub, role, ver }
 }
 
 // --- Refresh tokens ---------------------------------------------------------
@@ -91,14 +98,6 @@ export function generateRefreshToken(): string {
  */
 export function hashRefreshToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
-}
-
-/** Comparacion en tiempo constante, para el caso de buscar un hash por hash. */
-export function safeEqualHex(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, 'hex')
-  const bufB = Buffer.from(b, 'hex')
-  if (bufA.length !== bufB.length) return false
-  return timingSafeEqual(bufA, bufB)
 }
 
 export function newFamilyId(): string {

@@ -39,13 +39,33 @@ const handler = (_req: Request, res: Response) => {
   })
 }
 
+/**
+ * Rutas exentas del limite global.
+ *
+ * `/api/v1/health` la consulta el balanceador de carga, y un 429 ahi no es
+ * "abuso": es la senal que dice que la instancia esta sana. Si se limitara, un
+ * sondeo frecuente (cada segundo son 900 peticiones en 15 minutos, mas del
+ * limite) receberia 429 y el balanceador sacaria de rotacion una instancia
+ * parfaitement sana.
+ *
+ * La comparacion es con el `path` COMPLETO, no con el relativo al montaje. En
+ * este middleware `req.path` es `/api/v1/health`; escribir `'/health'` aqui no
+ * coincide con nada y el `skip` no hace nada, que es el error que motivaba este
+ * comentario. Por eso la ruta se declara como constante y se reutiliza en
+ * `app.ts`.
+ */
+export const UNLIMITED_PATHS = new Set(['/api/v1/health'])
+
+/** La misma ruta, para que `app.ts` no la escriba otra vez y puedan divergir. */
+export const HEALTH_PATH = [...UNLIMITED_PATHS][0] as string
+
 const common: Partial<Options> = {
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   handler,
-  // 429 sin Retry-After en draft-7 lo entiende cualquier cliente; y el header
-  // ayuda al usuario a saber cuando reintentar en lugar de picar sin parar.
-  skip: (req) => req.path === '/health',
+  // 429 con Retry-After en draft-7 lo entiende cualquier cliente; y el header
+  // ayuda al usuario a saber cuándo reintentar en lugar de picar sin parar.
+  skip: (req) => UNLIMITED_PATHS.has(req.path),
 }
 
 /**
@@ -66,16 +86,22 @@ export function createLoginRateLimiter() {
   })
 }
 
-/** Limite global de la API, mas alto: protege de abuso sin molestar. */
-export function createApiRateLimiter() {
+/**
+ * Limite global de la API, mas alto: protege de abuso sin molestar.
+ *
+ * El limite es un parametro y no una constante para que el test de regresion
+ * pueda comprobar la exencion del health con 3 peticiones en lugar de 300, que
+ * es lo mismo que comprobar con 300 pero en milisegundos.
+ */
+export function createApiRateLimiter(limit = 300) {
   return rateLimit({
     ...common,
-    limit: 300,
+    limit,
     windowMs: 15 * 60 * 1000,
   })
 }
 
-/** Limite de los endpoints de IA, que consumen(tokens de un proveedor gratuito. */
+/** Limite de los endpoints de IA, que consumen tokens de un proveedor gratuito. */
 export function createAiRateLimiter() {
   return rateLimit({
     ...common,

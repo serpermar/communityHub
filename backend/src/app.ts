@@ -23,7 +23,7 @@ import cookieParser from 'cookie-parser'
 import { logger } from './config/logger.js'
 import { env } from './config/env.js'
 import { createAuthRouter } from './auth/routes.js'
-import { createApiRateLimiter } from './http/ratelimit.js'
+import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
 
@@ -76,8 +76,8 @@ export function createApp(): Express {
   )
 
   // `1mb` es suficiente para JSON y evita que un cuerpo enorme ocupe memoria
-  // antes de que ninguna validacion lo mire. Las subidas de documentos van por
-  // una ruta aparte con su propio limite.
+  // antes de que ninguna validación lo mire. Las subidas de documentos van por
+  // una ruta aparte con su propio límite.
   app.use(express.json({ limit: '1mb' }))
   app.use(express.urlencoded({ extended: false, limit: '1mb' }))
   app.use(cookieParser())
@@ -95,19 +95,45 @@ export function createApp(): Express {
     )
   }
 
-  app.use(createApiRateLimiter())
+  // El limite global NO se monta en los tests de integracion.
+  //
+  // `helpers.app()` cachea una sola instancia para toda la suite, y el limiter
+  // cuenta por IP: supertest viene siempre de 127.0.0.1, asi que las peticiones
+  // de un test gastan el presupuesto de los demas. Hoy la suite queda por debajo
+  // de 300 y no se nota; al anadir tests empezaria a fallar con 429 sin relacion
+  // con lo que se prueba, que es la peor forma de fallar.
+  //
+  // El limite de login si se monta en los tests, y con su limite real, porque es
+  // el que protege de verdad y hay tests que dependen de el (criterio 17). Esos
+  // tests usan una app aislada para no interferir con el resto.
+  if (!env.isTest) {
+    app.use(createApiRateLimiter())
+  }
 
-  app.get('/api/v1/health', async (_req, res) => {
+  app.get(HEALTH_PATH, async (_req, res) => {
     try {
       await prisma.$queryRaw`select 1`
+
+      // Se pregunta a la base de datos si la sesion actual tiene BYPASSRLS, en
+      // lugar de deducirlo de la URL.
+      //
+      // La URL no responde a la pregunta: `app_runtime` y `postgres` se
+      // distinguen por un prefijo, y ese prefijo lo elige quien escribe la
+      // variable. `pg_roles` no se puede convencer con una cadena. Ademas,
+      // `env.ts` ya se niega a arrancar con un rol que no sea `app_runtime`, asi
+      // que la comprobacion por URL no solo era mas debil: era imposible que
+      // dijera otra cosa que `true`.
+      const rlsRows = await prisma.$queryRaw<Array<{ bypassrls: boolean }>>`
+        select r.rolbypassrls as bypassrls from pg_roles r where r.rolname = current_user
+      `
+
       res.status(200).json({
         data: {
           status: 'ok',
           database: 'reachable',
-          // `app_runtime` sin BYPASSRLS es la configuracion que hace que el
-          // aislamiento funcione. Si algún dia alguien conecta con `postgres`,
-          // esto lo dice en voz alta.
-          rlsEnforced: !env.DATABASE_URL.startsWith('postgresql://postgres.'),
+          // `false` aqui significa que el aislamiento NO se esta aplicando. Es el
+          // unico campo del health que importa vigilar en produccion.
+          rlsEnforced: rlsRows[0]?.bypassrls === false,
           timestamp: new Date().toISOString(),
         },
       })
