@@ -44,6 +44,7 @@ administrador, y nada más.
 | C-10 | "Métricas" no entra aquí | Un `/communities/:id/summary` | El módulo `dashboard` es el sitio de los agregados, y hacerlo dos veces garantiza que no divergan |
 | C-11 | Toda lectura y escritura va dentro de `withContext` con el `communityId` ya resuelto | Consultar con solo el `userId` | Con el `communityId` en el contexto, las políticas pueden compararlo y no dependen solo de `app_is_member_of` |
 | C-12 | `ADMIN_SA` puede ser miembro de varias comunidades, y su rol global **no** le da lectura sobre datos de ninguna | Tratar `ADMIN_SA` como omnisciente | El staff de la plataforma crea comunidades; no lee las incidencias de un vecino. El aislamiento también se le aplica a él |
+| C-13 | No existe descubrimiento de comunidades ni auto-alta. `GET /communities` devuelve solo las propias, y nadie se une a una comunidad por su cuenta | Listado público de comunidades y botón de "unirme" | El producto es un espacio privado por comunidad de vecinos: se entra con una invitacion o un alta del administrador, no recorriendo un catalogo. La pertenencia se concede, no se solicita |
 
 ---
 
@@ -397,17 +398,50 @@ del 400 del UUID mal formado (C-9). Este bloque es su primer consumidor.
 
 ---
 
-## 12. Preguntas abiertas
+## 12. Decidido por el desarrollador, y pendientes
 
-1. **¿Quién puede ver el listado de comunidades públicas para unirse?** Ahora solo
-   ve las suyas. Un buscador de comunidades a las que uno pueda unirse es un flujo
-   de invitación, y pertenece a `03-members.md`. Se deja fuera, y por eso no hay
-   endpoint público de comunidades.
-2. **Coordenadas por dirección postal.** Mientras tanto son obligatorias. Si el
+### Ya decidido (no era una pregunta)
+
+**No hay descubrimiento ni auto-alta de comunidades** (C-13). Confirmado por el
+producto: cada comunidad de vecinos tiene su propio espacio privado y nadie se
+une a otras. Consecuencias que quedan fijadas:
+
+- `GET /api/v1/communities` devuelve únicamente las comunidades donde el usuario
+  es miembro activo. No hay endpoint público, ni buscador, ni "unirme".
+- La pertenencia se **concede**: la crea un `ADMIN_SA` al dar de alta la
+  comunidad, o un `ADMIN` de esa comunidad en `03-members.md`.
+- Eso cierra el círculo del arranque sin huecos: `app_create_community` nombra al
+  primer ADMIN, y ese ADMIN incorpora al resto. Nadie necesita auto-alta.
+- Un usuario **sí** puede pertenecer a varias comunidades a la vez (el único
+  índice es `(community_id, user_id)`, no `user_id`). Es el caso de quien tiene
+  dos viviendas. Por eso `GET /communities` devuelve una lista y cada elemento
+  lleva su `memberRole`, y el frontend necesitará un selector de "comunidad
+  activa" (`CommunityContext`). Este bloque no lo implementa: solo entrega los
+  datos que ese selector necesitará.
+
+Los cuatro roles del producto son exactamente los del enum `member_role` que ya
+existe en la base de datos, sin nada que añadir:
+
+| Producto | `member_role` |
+|---|---|
+| 👤 Vecino | `NEIGHBOR` |
+| 👨‍💼 Presidente | `PRESIDENT` |
+| 🔧 Administrador | `ADMIN` |
+| 🛠️ Proveedor | `PROVIDER` |
+
+Y las secciones del espacio de cada comunidad —Dashboard, Vecinos, Incidencias,
+Reservas, Avisos, Documentos, Gastos, Facturas, Votaciones, Configuración— son
+los módulos que ya enumera `ARCHITECTURE.md`. De ellas, **Configuración** es la
+única que entra en este bloque, vía `PATCH /api/v1/communities/:communityId`
+reservado a `ADMIN`.
+
+### Pendientes de decidir
+
+1. **Coordenadas por dirección postal.** Mientras tanto son obligatorias. Si el
    bloque de integraciones no llega, el alta manual con coordenadas es incómoda
    pero funcional; la alternativa (coordenadas opcionales con `null`) choca con el
    `not null` de la columna y exigiría una migración.
-3. **`is_active` frente a `deleted_at`.** Hay dos columnas para la baja y este
+2. **`is_active` frente a `deleted_at`.** Hay dos columnas para la baja y este
    bloque solo usa `is_active`. La alternativa sería usar `deleted_at` y dejar
    `is_active` para una suspensión comercial futura. Se decide usar `is_active`
    como interruptor y dejar `deleted_at` sin tocar.
