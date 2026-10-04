@@ -304,8 +304,16 @@ backend/src/communities/
   __tests__/validators.unit.test.ts  slug, coordenadas, cuerpo del PATCH
 
 backend/src/auth/middleware.ts      añade requireGlobalAdmin, junto a los otros guards
+backend/src/__tests__/helpers.ts    añade makeAdminSa(): fixture de rol global
+backend/prisma/seed.ts              añade un usuario ADMIN_SA de demo
 backend/src/__tests__/communities.api.integration.test.ts
 ```
+
+El `ADMIN_SA` falta hoy en el seed: los cinco usuarios de demo son `NEIGHBOR`.
+Sin uno, `POST /api/v1/communities` no se puede ejercitar de punta a punta, ni
+tampoco en la demo. Se añade uno de demo al seed y un `makeAdminSa()` a los
+helpers para los tests, que es lo mismo que ya hacen `makeUser` y
+`makeCommunity` con su limpieza.
 
 Decisión de colocación: `requireGlobalAdmin` **no** va en un archivo nuevo, sino
 en `src/auth/middleware.ts`, junto a `requireCommunity` y `requireCommunityRole`,
@@ -332,6 +340,10 @@ del 400 del UUID mal formado (C-9). Este bloque es su primer consumidor.
 - Un `ADMIN` de la comunidad 1 que hace `PATCH` sobre la comunidad 2 recibe 403.
 - Un `ADMIN_SA` puede crear una comunidad y el resultado es que ya es `ADMIN` de
   ella, sin segundo paso.
+- Un `ADMIN_SA` **sin membresía** recibe 403 al pedir la comunidad de otro: el rol
+  global crea comunidades, no las lee (C-12).
+- El seed trae un `ADMIN_SA` usable, para que la demo tenga una comunidad creada
+  desde la API y no solo desde SQL.
 - Un insert directo con `app_runtime` que no pasa por la función se rechaza por
   RLS.
 - `app_create_community` con un actor que no es `ADMIN_SA` falla con 42501 y no
