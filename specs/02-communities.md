@@ -1,6 +1,8 @@
 # Spec 02 — Comunidades
 
-> **Estado: DRAFT.** Sin la aprobación de esta spec no se escribe código.
+> **Estado: APPROVED.** Aprobada por el desarrollador el 2026-10-04. Decisiones
+> que van dentro de la aprobación: **C-1** (alta por función `SECURITY DEFINER`) y
+> **C-9** (`:communityId` mal formado = 400), ambas tal cual están descritas aquí.
 >
 > **Fase:** 3 (comunidades). Precedida de `01-authentication`, que sigue siendo
 > quien resuelve la identidad.
@@ -38,7 +40,7 @@ administrador, y nada más.
 | C-4 | Los miembros no entran en este bloque | Incluirlos aquí | `03-members.md` es un bloque propio. Mezclarlos dejaría la spec sin un criterio claro de qué está aprobado |
 | C-5 | Sin endpoint de borrado. La baja es `PATCH { isActive: false }` | `DELETE /communities/:id` | `deleted_at` y su índice parcial ya existen para baja lógica. Un borrado físico por API sería el primero del proyecto y `communities` no tiene política `DELETE` a propósito |
 | C-6 | El `slug` se normaliza a minúsculas y es inmutable tras el alta | Dejarlo editable | `communities_slug_uidx` es único pero **sensible a mayúsculas**: "Barrio Alto" y "barrio-alto" coexistirían y la URL dependería de cómo lo escribió cada uno |
-| C-7 | `latitude` y `longitude` son obligatorias en el alta | Ser opcionales y geocodificar | La columna es `not null`. El autocompletado por Photon llega en el bloque de integraciones; para entonces se relaxarán a opcionales |
+| C-7 | `latitude` y `longitude` son **anulables**: dirección obligatoria, coordenadas opcionales. Si se manda una, se mandan las dos, y ambas en rango | Obligatorias en el alta | Un vecino no escribe `39.474, -0.379`: casi nadie lo hace y quien lo hace se equivoca. Rellenarlas con `0,0` sería peor, porque `0,0` está en el Atlántico y daría meteorología y mapa equivocados sin que nadie se entere. `null` significa "sin localizar todavía", y el bloque de integraciones las resuelve desde la dirección con Photon. Exigir las dos juntas evita el caso `latitude = 0, longitude = -0.379`, que cae en el golfo de Guinea |
 | C-8 | Quien no es miembro recibe **403**, y un UUID inexistente también | 404 para ambos | 403 uniforme es lo que ya hace `requireCommunity`. Un 403 no distingue "no existe" de "no eres miembro", así que no hay oráculo de existencia |
 | C-9 | Un `:communityId` mal formado es **400**, no 403 | Dejar el 403 actual | Es un error de forma del cliente, no de permisos. `requireCommunity` mezcla hoy los dos casos |
 | C-10 | "Métricas" no entra aquí | Un `/communities/:id/summary` | El módulo `dashboard` es el sitio de los agregados, y hacerlo dos veces garantiza que no divergan |
@@ -65,7 +67,7 @@ definió y `02_rls.sql` ya protege.
 | `city` | `text not null` | Indexado: se buscan por ciudad |
 | `province`, `postal_code` | `text` | Opcionales |
 | `country` | `text not null` | Por defecto `'ES'` |
-| `latitude`, `longitude` | `numeric(9,6) not null` | Obligatorias en el alta (C-7) |
+| `latitude`, `longitude` | `numeric(9,6)` | Anulables; si se da una, se dan las dos (C-7) |
 | `timezone` | `text not null` | Por defecto `'Europe/Madrid'` |
 | `registration_number` | `text` | Opcional |
 | `is_active` | `boolean not null` | `false` es la baja lógica (C-5) |
@@ -268,6 +270,10 @@ traduce a 409. No hace falta capturarlo en el servicio.
 }
 ```
 
+Una comunidad creada solo con la dirección devuelve `"latitude": null` y
+`"longitude": null`. No es un dato a medias: es "sin localizar", y el bloque de
+integraciones lo rellena.
+
 `latitude` y `longitude` son `Decimal` de Prisma y se serializan a `number`: son
 coordenadas, y convertirlas a texto las haría inútiles para un mapa.
 
@@ -291,9 +297,19 @@ meteorología, ni OpenAI. El límite de peticiones global ya lo aplica `app.ts`.
 
 ```
 supabase/sql/02c_communities.sql     nuevo: app_create_community + permisos + autocomprobación
+supabase/sql/01_schema.sql           latitude/longitude sin not null, para bases nuevas
 supabase/sql/02_rls.sql              añade app_is_global_admin() y communities_insert_admin_sa
 supabase/sql/04_verify.sql           comprueba la función, la política y el search_path
 backend/prisma/apply-sql.ts          añade 02c_communities.sql a FILES
+```
+
+`01_schema.sql` usa `create table if not exists`, así que editarlo **no** cambia
+la tabla que ya existe: solo sirve para que una base de datos creada desde cero
+salga bien. El cambio real lo hace el `alter table … drop not null` de
+`02c_communities.sql`, que sí es idempotente y se puede reaplicar. Los dos
+cambios van juntos a propósito; si solo se editara el primero, la base de
+desarrollo y una base nueva divergirían justo en las columnas que C-7 acaba de
+cambiar.
 
 backend/src/communities/
   service.ts                         alta, listado, detalle, configuración
@@ -368,7 +384,11 @@ del 400 del UUID mal formado (C-9). Este bloque es su primer consumidor.
 - `:communityId` mal formado → 400, no 403 (C-9).
 - `slug` en el `PATCH` → 400.
 - `slug` con mayúsculas o espacios → 400, y se guarda en minúsculas.
-- Cuerpo con clave desconocida → 400, porque los esquemas son `.strict()`.
+- Cuerpo con clave desconocida → 400, porque los esquemas son .strict().
+- latitude sin longitude (o al revés) → 400. Aceptar solo una pondría la
+  comunidad en el golfo de Guinea con latitude = 0.
+- latitude = 91 o longitude = 181 → 400, por rango.
+- Alta solo con dirección → 201, y la respuesta trae latitude: null.
 
 ### Verificación
 
@@ -449,10 +469,14 @@ reservado a `ADMIN`.
 
 ### Pendientes de decidir
 
-1. **Coordenadas por dirección postal.** Mientras tanto son obligatorias. Si el
-   bloque de integraciones no llega, el alta manual con coordenadas es incómoda
-   pero funcional; la alternativa (coordenadas opcionales con `null`) choca con el
-   `not null` de la columna y exigiría una migración.
+Ninguno que bloquee este bloque. Queda anotado para más adelante:
+
+1. **Cuándo se rellenan las coordenadas.** Se ha decidido que son anulables y que
+   `null` significa "sin localizar" (C-7). Quién las rellena y cuándo es cosa del
+   bloque de integraciones: la vía prevista es una acción "ubicar" que llama a
+   Photon con la dirección y guarda el resultado. Hasta entonces, el mapa y la
+   meteorología müssen degradar a "no disponible", que es un comportamiento ya
+   previsto para el bloque 11.
 2. **`is_active` frente a `deleted_at`.** Hay dos columnas para la baja y este
    bloque solo usa `is_active`. La alternativa sería usar `deleted_at` y dejar
    `is_active` para una suspensión comercial futura. Se decide usar `is_active`
