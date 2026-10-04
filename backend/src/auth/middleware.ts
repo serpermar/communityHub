@@ -13,7 +13,7 @@
 
 import type { NextFunction, Request, Response } from 'express'
 import { withContext } from '../context.js'
-import { forbidden, unauthorized } from '../http/errors.js'
+import { badRequest, forbidden, unauthorized } from '../http/errors.js'
 import { verifyAccessToken } from './tokens.js'
 import * as repo from './repository.js'
 
@@ -94,15 +94,40 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 }
 
 /**
+ * Exige un `communityId` con forma de UUID.
+ *
+ * C-9. Antes esto devolvia 403 y era un error de categoria, no de sintaxis.
+ *
+ * Un 403 significa "no tienes permiso". Un id que no es un UUID no es una
+ * peticion sin permiso: es una peticion mal formada, y la respuesta correcta es
+ * 400. Con 403 se confundian dos cosas distintas y, peor, se le estaba
+ * diciendo a quien programa que el problema era de credenciales cuando el problema
+ * era un enlace roto o un `id` guardado a medias.
+ *
+ * Va antes de tocar la base de datos a proposito. Un `::uuid` sobre texto
+ * invalido revienta con 22P02, y aunque se tradujese a 400 llegaria tarde: ya se
+ * habria abierto una transaccion para nada.
+ */
+function requireUuidParam(req: Request, paramName: string): string {
+  const value = routeParam(req, paramName)
+
+  if (!UUID_RE.test(value)) {
+    throw badRequest(`El parámetro ${paramName} debe ser un UUID.`)
+  }
+
+  return value
+}
+
+/**
  * Exige pertenencia activa a la comunidad de `:communityId`.
  *
  * El `communityId` de la URL es un dato del cliente y se trata como tal: se
  * valida contra la pertenencia real. Cambiar el id en la URL no da acceso a otra
  * comunidad, da un 403. Ese es el requisito de la seccion 9 del enunciado.
  *
- * El rol se resuelve con `app_role_in()`, que ya lee el contexto de RLS. No se
- * consulta `community_members` a mano, porque esa consulta pasaria por la misma
- * politica y seria redundante.
+ * Que un id bien formado pero ajeno, o uno que no existe, den ambos 403 es
+ * deliberado (C-8): un 404 en el caso de "no existe" confirmaria que ese id esta
+ * libre, que es informacion sobre los ids de los demas.
  */
 export function requireCommunity(paramName = 'communityId') {
   return async function communityGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
@@ -110,11 +135,7 @@ export function requireCommunity(paramName = 'communityId') {
       throw unauthorized()
     }
 
-    const communityId = routeParam(req, paramName)
-
-    if (!UUID_RE.test(communityId)) {
-      throw forbidden('Identificador de comunidad no válido.')
-    }
+    const communityId = requireUuidParam(req, paramName)
 
     const rows: Array<{ role: string | null }> = await withContext(
       { userId: req.auth.userId, communityId },
@@ -151,6 +172,49 @@ export function requireCommunityRole(...roles: string[]) {
 
     if (!roles.includes(req.community.role)) {
       throw forbidden('Tu rol en esta comunidad no permite esta acción.')
+    }
+
+    next()
+  }
+}
+
+/**
+ * Exige el rol de plataforma `ADMIN_SA`.
+ *
+ * El unico permiso que no es de una comunidad. `requireCommunity` pregunta
+ * "que puedes hacer aqui"; este pregunta "puedes hacer algo a nivel de toda la
+ * plataforma", que hoy es unicamente dar de alta comunidades.
+ *
+ * Se consulta `app_is_global_admin()` y no el `role` que lleva el access token,
+ * a proposito. El token lleva hasta 15 minutos, asi que leer el rol de ahi
+ * permitiria que alguien revocase el ADMIN_SA y siguiera creando comunidades
+ * durante la ventana del token. La funcion se resuelve contra la fila de
+ * `users`, que es el estado real.
+ *
+ * Lo mismo haria `req.auth.role` contra la fila, asi que la diferencia real es
+ * que la funcion no acepta un usuario como parametro: no hay forma de preguntar
+ * "y este otro?" (spec 02, seccion 4).
+ *
+ * Y con una intencion que conviene no perder: este permiso crea comunidades,
+ * NO las lee. Un ADMIN_SA que no es miembro recibe 403 al pedir la comunidad de
+ * otro, y eso lo da `requireCommunity`, no esto (C-12). Que el staff de la
+ * plataforma entre por la puerta de al lado a mirar el contenido de una comunidad
+ * seria un cambio de modelo que se decide en su propia spec, no aqui.
+ */
+export function requireGlobalAdmin() {
+  return async function globalAdminGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+    if (!req.auth) {
+      throw unauthorized()
+    }
+
+    const rows = await withContext({ userId: req.auth.userId, communityId: null }, (tx) =>
+      tx.$queryRaw<Array<{ is_admin: boolean }>>`
+        select app_is_global_admin() as is_admin
+      `,
+    )
+
+    if (!rows[0]?.is_admin) {
+      throw forbidden('Esta acción está reservada al administrador de la plataforma.')
     }
 
     next()

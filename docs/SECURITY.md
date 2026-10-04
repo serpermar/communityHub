@@ -171,6 +171,33 @@ No es teórico: con los permisos por defecto, la `anon` key —que es pública p
 diseño— puede leer tablas directamente desde el navegador, saltándose el
 backend entero.
 
+### Funciones `SECURITY DEFINER`: el otro punto de entrada
+
+Conceder `execute` sobre una función `SECURITY DEFINER` a un rol equivocado es
+equivalente a conceder el permiso que la función ejerce, porque la función se
+ejecuta **saltándose RLS**. Por eso las dos que hay tienen los permisos
+restringidos a mano:
+
+| Función | Puede ejecutarla | Qué hace |
+|---|---|---|
+| `app_create_community(...)` | `app_runtime` | Crea una comunidad y a su primer `ADMIN` |
+| `app_is_global_admin()` | `app_runtime` | Responde si el usuario del contexto es `ADMIN_SA` |
+
+Las dos llevan `revoke ... from public` en el mismo fichero que las crea. El test
+`public, anon y authenticated no pueden ejecutar app_create_community` lo
+comprueba con `has_function_privilege`, que es la pregunta correcta: pregunta al
+catálogo, no deduce del texto del `GRANT`.
+
+`04_verify.sql` lo falla si el recuento no es el esperado, así que un `GRANT`
+nuevo que se colara en otro fichero también lo delata.
+
+El detalle que hace que esto no sea una escalada de privilegios trivial está en
+que **`app_is_global_admin()` no acepta ningún usuario como parámetro**
+(C-3 de la spec 02). Una función `SECURITY DEFINER` que reciba un `userId` libre
+es escalada con una llamada: quien pueda ejecutarla pregunta por cualquier
+usuario. El predicado va fijado a `app_current_user_id()`, que sale del contexto
+de la sesión y no de la petición.
+
 ---
 
 ## 6. Secretos
@@ -229,22 +256,29 @@ red con adversario esto no es suficiente; con la ruta 1, sí.
 
 ## 7. Riesgos aceptados
 
-### `deepmerge-ts` — Prototipo pollution (transitivo, solo en dev)
+### `deepmerge-ts` — Stack exhaustion (transitivo, solo en la CLI)
 
-`npm audit` marca `deepmerge-ts` (dependencia transitiva de Prisma CLI).
+`npm audit` marca `deepmerge-ts` (dependencia transitiva de `@prisma/config`, que
+a su vez viene de Prisma).
 
 | | |
 |---|---|
-| Afecta a | `prisma` y `@prisma/dev`, que son **herramientas de desarrollo** |
-| Presente en producción | No. No está en las dependencias de runtime |
-| Cuándo se ejecuta | `npx prisma db pull`, `prisma generate`. Nunca al servir peticiones |
-| Versión actual | 2.3.1, sin fix publicado |
+| Afecta a | `prisma` (herramienta de línea de comandos) |
+| Aviso | [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), severidad alta |
+| Versión instalada | 7.1.5 (vulnerable, el fix está en 8.x) |
+| Presente en producción | No. `@prisma/client` no declara `dependencies`, solo `peerDependencies` |
+| Cuándo se ejecuta | `prisma generate`, `prisma db pull`. Nunca al servir peticiones |
 
-**Decisión: aceptado.** No hay versión parcheada, así que no hay nada que
-actualizar; y el vector exige ejecutar la herramienta CLI con una entrada
+**Decisión: aceptado, con verificación.** Comprobado en vez de supuesto: al
+arrancar `createApp()` con Prisma conectado, `require.cache` contiene **0**
+módulos de `deepmerge-ts`. El vector exige ejecutar la CLI con una entrada
 controlada por el atacante, lo que ya exige acceso al repositorio.
 
-Volver a mirarlo cuando Prisma lo suba, no antes.
+`npm audit fix` no lo resuelve sin subir Prisma a 8.x, que hoy es
+`8.0.0-rc`. Subir la versión mayor de Prisma para tapar un aviso que no afecta al
+runtime es peor que el aviso, así que se espera a Prisma 8 estable.
+
+Volver a mirarlo cuando salga Prisma 8 estable, no antes.
 
 ### Demo en la base de datos de desarrollo
 

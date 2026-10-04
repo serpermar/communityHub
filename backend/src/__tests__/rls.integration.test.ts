@@ -255,7 +255,7 @@ describe('aislamiento entre comunidades', () => {
     expect(allowed.body.data.role).toBe('NEIGHBOR')
   })
 
-  it('un communityId mal formado da 403 sin llegar a consultar la base de datos', async () => {
+  it('un communityId mal formado da 400 sin llegar a consultar la base de datos', async () => {
     const user = await makeUser()
     const token = await loginAs(user)
 
@@ -263,7 +263,11 @@ describe('aislamiento entre comunidades', () => {
       .get('/sonda/no-es-un-uuid')
       .set('Authorization', `Bearer ${token}`)
 
-    expect(res.status).toBe(403)
+    // 400 y no 403 (C-9): un id que no es un UUID no es una peticion sin
+    // permiso, es una peticion mal formada. Este test afirmaba 403, asi que
+    // dejaba de comprobar exactamente lo que C-9 cambia.
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })
 
   it('un ADMIN de una comunidad no ve los gastos de la otra', async () => {

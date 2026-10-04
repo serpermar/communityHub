@@ -1,8 +1,21 @@
 # Spec 02 — Comunidades
 
-> **Estado: APPROVED.** Aprobada por el desarrollador el 2026-10-04. Decisiones
-> que van dentro de la aprobación: **C-1** (alta por función `SECURITY DEFINER`) y
-> **C-9** (`:communityId` mal formado = 400), ambas tal cual están descritas aquí.
+> **Estado: IMPLEMENTED.** Aprobada por el desarrollador el 2026-10-04, e
+> implementada y verificada el 2026-10-05. Decisiones que van dentro de la
+> aprobación: **C-1** (alta por función `SECURITY DEFINER`) y **C-9**
+> (`:communityId` mal formado = 400), ambas tal cual están descritas aquí.
+>
+> **Desviaciones respecto a lo escrito aquí**, las dos por la misma razón —el
+> supuesto sobre cómo llegan los errores de PostgreSQL a Prisma era falso—, y
+> ambas documentadas en su sitio:
+> 1. `slug` duplicado llega como `P2010` con `23505` en `meta.code`, no como
+>    `P2002` (§6). Lo traduce el servicio, no el middleware.
+> 2. `latitude`/`longitude` son anulables en `schema.prisma`, igual que en la
+>    base de datos. Si el esquema no se actualiza, Prisma rechaza el `NULL` al
+>    deserializar la fila y el endpoint que la devuelve falla con un 500 (§C-7).
+>
+> **Verificación:** `typecheck` limpio · 55 unit · 85 integración ·
+> `check:db` en verde · `db:apply --verify` sin excepciones · `smoke` 17/17.
 >
 > **Fase:** 3 (comunidades). Precedida de `01-authentication`, que sigue siendo
 > quien resuelve la identidad.
@@ -243,8 +256,17 @@ errores `{ error: { code, message, details? } }`, mensajes en castellano.
 | `slug` ya usado | 409 | `CONFLICT` |
 | Método o ruta inexistente | 404 | `NOT_FOUND` |
 
-`slug` duplicado llega como `P2002` de Prisma y el middleware de errores ya lo
-traduce a 409. No hace falta capturarlo en el servicio.
+`slug` duplicado lo impone el índice único de la tabla dentro de
+`app_create_community()`, así que **no** llega como `P2002` de Prisma sino como
+un fallo de `$queryRaw`: `P2010`, con el código de PostgreSQL (`23505`) en
+`meta.code`. El middleware de errores, que solo conocía `P2002`, no puede
+traducirlo sin saber de comunidades, así que el servicio lo convierte en
+`CONFLICT`/409.
+
+La traducción mira **`meta.code === '23505'` y la columna `(slug)`**, no el texto
+del mensaje: el mensaje de PostgreSQL está traducido al idioma de la sesión, y
+comparar con una cadena en castellano dejaría de funcionar en cuanto el servidor
+hablara inglés.
 
 ### Forma del recurso
 

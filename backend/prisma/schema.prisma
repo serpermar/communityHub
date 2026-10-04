@@ -171,8 +171,13 @@ model Communities {
   province            String?
   postal_code         String?
   country             String              @default("ES")
-  latitude            Decimal             @db.Decimal(9, 6)
-  longitude           Decimal             @db.Decimal(9, 6)
+  // Anulables a propósito (spec 02, C-7): `NULL` significa "sin localizar
+  // todavía", no "en el centro del mapa". Tiene que reflejar el `drop not null`
+  // de 02c_communities.sql, o Prisma rechaza el `NULL` al deserializar la fila y
+  // el endpoint que la devuelve falla con un 500 en lugar de devolver
+  // `latitude: null`.
+  latitude            Decimal?            @db.Decimal(9, 6)
+  longitude           Decimal?            @db.Decimal(9, 6)
   timezone            String              @default("Europe/Madrid")
   registration_number String?
   is_active           Boolean             @default(true)

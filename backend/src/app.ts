@@ -23,6 +23,7 @@ import cookieParser from 'cookie-parser'
 import { logger } from './config/logger.js'
 import { env } from './config/env.js'
 import { createAuthRouter } from './auth/routes.js'
+import { createCommunitiesRouter } from './communities/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -148,6 +149,7 @@ export function createApp(): Express {
   })
 
   app.use('/api/v1/auth', createAuthRouter())
+  app.use('/api/v1/communities', createCommunitiesRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

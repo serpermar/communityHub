@@ -5,12 +5,17 @@
 // La regla que explica todo este archivo: sembrar con privilegio, afirmar con
 // restriccion.
 //
-// Los fixtures se crean con `admin` (rol postgres, BYPASSRLS) porque el rol de
-// la aplicacion no puede crearlos. Y no es un atajo comodo: `app_runtime` no
-// tiene permiso de INSERT en `communities`, no tiene permiso de INSERT en
-// `expenses`, y `users` no tiene DELETE. Los tests que usaban el rol de runtime
-// para crear datos fallaban con errores de permisos que no decian nada sobre su
-// causa real.
+// Los fixtures se crean con `admin` (rol postgres, BYPASSRLS) porque el rol de la
+// aplicacion no siempre puede crearlos. Y no es un atajo comodo: `expenses` es de
+// solo lectura para `app_runtime` a proposito, y `users` no tiene DELETE. Los tests
+// que usaban el rol de runtime para crear datos fallaban con errores de permisos
+// que no decian nada sobre su causa real.
+//
+// Matiz para `communities`: desde el bloque 02 SI se puede escribir en ella, pero
+// solo un `ADMIN_SA` y con `created_by` propio, por `communities_insert_admin_sa`.
+// Los fixtures de comunidad siguen usando `admin` porque una comunidad de prueba
+// no tiene por que tener un staff que la haya creado, y poner un `ADMIN_SA` solo
+// para poder crearla seria contaminar el escenario que se quiere probar.
 //
 // En cambio, lo que se COMPRUEBA va siempre por el rol de runtime, a traves de
 // `withContext` o de la propia API. Si un test afirmara sobre `admin` no estaria
@@ -84,6 +89,22 @@ export async function createUser(
   })
 
   return { id, email, password }
+}
+
+/**
+ * Crea un usuario con el rol de plataforma `ADMIN_SA`.
+ *
+ * Existe como funcion aparte y no como un `globalRole` mas de `createUser`
+ * porque el nombre dice lo que el test necesita saber. Un `createUser({
+ * globalRole: 'ADMIN_SA' })` obligaria a ir a mirar el enum para saber si es un
+ * ADMIN de plataforma o un ADMIN de comunidad, y son permisos distintos: el
+ * primero crea comunidades, el segundo solo gestiona las suyas.
+ *
+ * Este usuario NO es miembro de ninguna comunidad, y eso es parte de lo que se
+ * prueba: el staff crea comunidades pero no lee las que ya hay (C-12).
+ */
+export async function makeAdminSa(overrides: { email?: string; fullName?: string } = {}): Promise<TestUser> {
+  return createUser({ ...overrides, globalRole: 'ADMIN_SA' })
 }
 
 /**

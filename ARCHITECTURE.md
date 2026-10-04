@@ -1012,21 +1012,47 @@ vez de una carpeta por capa técnica. `http/` queda compartida por transversal
 unitarios, 49 de integración contra Supabase real, 17 comprobaciones de humo por
 HTTP, `check:db` en verde y `04_verify.sql` sin excepciones.
 
-Siguiente bloque: **`02-communities`**, con `03-members` detrás.
+**Fase 3 (comunidades) cerrada.** Los 4 endpoints implementados, 55 tests
+unitarios, 85 de integración contra Supabase real, `check:db` en verde,
+`db:apply --verify` sin excepciones y `smoke` 17/17 sin regresiones.
 
-1. Escribir y revisar `/specs/02-communities.md` antes de implementar nada. Ya esta escrito en estado DRAFT, pendiente de aprobacion.
-2. El SQL de la Fase 1 ya tiene las tablas, RLS y políticas de comunidades,
-   incumbencias y membresías: `01_schema.sql`, `02_rls.sql`, `04_verify.sql`.
-   Lo que falta es el módulo del backend, los endpoints y sus tests de
-   aislamiento, que es donde se demuestra el requisito central del proyecto.
-3. Cada módulo, mismo ciclo: spec aprobada → implementación → tests → revisión
+Lo que dejó el bloque, y que conviene no perder de vista para el siguiente:
+
+- `app_create_community()` es la **única** vía de alta, y crea a la comunidad y
+  a su primer `ADMIN` en una sola transacción. Con dos escrituras sueltas, un
+  fallo entre medias dejaba una comunidad sin nadie que la administrara.
+- `app_is_global_admin()` es `SECURITY DEFINER` y **no acepta ningún usuario como
+  parámetro**: el predicado va fijado a `app_current_user_id()`. Una función que
+  reciba un `userId` libre es escalada de privilegios con una llamada.
+- `ADMIN_SA` **crea comunidades pero no las lee**. Si no es miembro, recibe 403
+  al pedirlas (C-12). Entrar por la puerta de al lado a mirar el contenido de una
+  comunidad sería un cambio de modelo.
+- No hay `DELETE`. La baja es `PATCH { isActive: false }`, y `communities` no
+  tiene política `DELETE` a propósito.
+- `latitude`/`longitude` son anulables. `null` es "sin localizar todavía", nunca
+  `0,0`. **Y `schema.prisma` tiene que reflejarlo**: si el esquema dice
+  obligatoria, Prisma rechaza el `NULL` al deserializar y el endpoint que la
+  devuelve da 500.
+
+Siguiente bloque: **`03-members`**.
+
+1. Escribir y revisar `/specs/03-members.md` antes de implementar nada. Está
+   vacío: hay que escribirlo y aprobarlo.
+2. Empieza por las decisiones de fondo, que son las que no se pueden deshacer
+   cheaply: quién puede invitar, qué pasa con una invitación caducada, y si el
+   cambio de rol es un `PATCH` de `community_members` o un endpoint aparte con su
+   propio permiso.
+3. `03-members` es el bloque que da de entrada a los demás: incidencias,
+   reservas, documentos y finanzas cuelgan de la membresía. Conviene decidir bien
+   la matriz de roles antes que la velocidad.
+4. Mismo ciclo: spec aprobada → base de datos → implementación → tests → revisión
    de seguridad → commit. Sin funcionalidad que no esté en la spec.
-4. `SECURITY.md` se actualiza con lo que aprenda cada módulo.
+5. `SECURITY.md` se actualiza con lo que aprenda cada módulo.
 
 Pendientes de housekeeping, sin urgencia:
-- `AGENTS.md` y `docs/API.md` están vacíos.
 - Verificación real del certificado en `db:apply`, con `POSTGRES_CA_CERT_PATH`.
 - Purgar del historial la contraseña que quedó en el commit `924a3e6` (ya
   rotada, ver [`SECURITY.md`](docs/SECURITY.md#una-credencial-que-sí-quedó-en-el-historial)).
+- `AGENTS.md` sigue vacío.
 
 Opcional pero recomendado: una API key de Groq (console.groq.com, sin tarjeta). Sin ella la aplicación funciona igual, con el clasificador en modo heurístico.

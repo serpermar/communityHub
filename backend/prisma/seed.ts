@@ -60,6 +60,15 @@ const ID = {
   martaVecina: '11111111-1111-4333-8333-333333333333',
   carlosVecino: '11111111-1111-4444-8444-444444444444',
   proveedorManolo: '11111111-1111-4555-8555-555555555555',
+  // Staff de la plataforma. Unico usuario con `global_role = 'ADMIN_SA'` y el
+  // unico que puede dar de alta una comunidad por la API.
+ //
+  // No es un ADMIN de la comunidad A como ana, y la confusion es facil: `ADMIN`
+  // es un rol DENTRO de una comunidad y no puede crear comunidades; `ADMIN_SA` es
+  // un rol de plataforma. Ana no puede usar POST /api/v1/communities aunque sea
+  // la administradora de A, y viceversa: el de la plataforma entra en la
+  // comunidad que acaba de crear como ADMIN de ella.
+  staffElena: '11111111-1111-4666-8666-666666666666',
 
   // Comunidades
   comunidadA: '22222222-2222-4111-8111-111111111111',
@@ -131,6 +140,9 @@ async function main() {
   //   carlosVecino    NEIGHBOR de B. No debe ver nada de A.
   //   proveedorManolo PROVIDER de A, asignado a UNA incidencia. No debe ver
   //                   las otras dos de A: es el caso más delicado del RBAC.
+  //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
+  //                   poder es dar de alta comunidades, no leer las que hay. Al
+  //                   crear una desde la API entra en ella como ADMIN.
   console.log('  1/5  Usuarios')
   await prisma.users.createMany({
     data: [
@@ -169,6 +181,18 @@ async function main() {
         full_name: 'Manolo Reparaciones SL',
         phone: '+34600000005',
         global_role: 'NEIGHBOR',
+      },
+      {
+        id: ID.staffElena,
+        email: 'elena@staff.test',
+        password_hash: TEST_PASSWORD_HASH,
+        full_name: 'Elena Vidal Cortés',
+        phone: '+34600000006',
+        // `ADMIN_SA` es lo unico que este usuario tiene de especial. Sin esta
+        // linea el seed no tendria a nadie capaz de llamar a
+        // POST /api/v1/communities, y la demo empezaria sin comunidades
+        // creadas desde la API.
+        global_role: 'ADMIN_SA',
       },
     ],
   })
@@ -382,7 +406,11 @@ async function main() {
   console.log(`    PRESIDENT  luis@comunidad-a.test    · ${TEST_PASSWORD}`)
   console.log(`    NEIGHBOR   marta@comunidad-a.test   · ${TEST_PASSWORD}   (miembro de A y B)`)
   console.log(`    NEIGHBOR   carlos@comunidad-b.test  · ${TEST_PASSWORD}`)
-  console.log(`    PROVIDER   manolo@proveedor.test    · ${TEST_PASSWORD}   (solo 1 incidencia asignada)\n`)
+  console.log(`    PROVIDER   manolo@proveedor.test    · ${TEST_PASSWORD}   (solo 1 incidencia asignada)`)
+  console.log(`    ADMIN_SA   elena@staff.test         · ${TEST_PASSWORD}   (staff de plataforma; puede crear comunidades)`)
+  console.log(`\n  Elena no es miembro de A ni de B. Su poder es dar de alta comunidades, no`)
+  console.log(`  leer las que ya hay: si pide la comunidad de Ana recibe un 403. Al crear una`)
+  console.log(`  desde la API entra en ella como ADMIN.\n`)
 }
 
 main()
