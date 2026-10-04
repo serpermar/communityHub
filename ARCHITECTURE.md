@@ -720,13 +720,15 @@ IDEA → SPEC → REVIEW → PLAN → IMPLEMENTATION → TEST → SECURITY REVIE
 - `/specs/NN-slug.md` con la plantilla estándar (objetivo, contexto, actores, requisitos funcionales y no funcionales, modelo de datos, API, permisos, errores, validaciones, casos límite, tests, criterios de aceptación).
 - **Spec ↔ código**: cada spec referencia los ficheros que la implementan; cada endpoint apunta a su spec. Un test de contrato verifica que OpenAPI coincide con lo implementado (`/specs` se referencia desde la UI de API).
 - **Ciclo de vida de una spec**: `DRAFT → REVIEW → APPROVED → IMPLEMENTING → DONE`, con el cambio de estado en el commit message (`spec(04-incidents): approve`).
-- Orden de las specs:
+- Orden de las specs. La numeración es la de los archivos en `specs/`, y no lleva
+  un hueco para `users`: el perfil de usuario se resuelve dentro de autenticación
+  (`GET /api/v1/auth/me`), y no tiene módulo propio.
 
 ```
-01-authentication  02-users         03-communities
-04-incidents       05-reservations  06-announcements
-07-documents        08-finance       09-voting
-10-ai-assistant    11-agents        12-mcp
+01-authentication  02-communities      03-members
+04-incidents       05-common-areas     06-reservations
+07-announcements   08-documents        09-finance
+10-voting          11-ai               12-mcp
 ```
 
 Regla de implementación extraída del SDD: cuando el código y la spec divergen, primero se corrige la spec (y se registra el cambio), luego el código.
@@ -981,7 +983,7 @@ Cerradas por el desarrollador aceptando las recomendaciones:
 
 **D-07 — `PROVIDER` es un usuario con login.** ✅ Cerrada. Se modela como un `community_members.role = 'PROVIDER'` sobre la tabla `users`, no como una entidad aparte. Así hereda autenticación, sesión y auditoría sin duplicar trabajo, y las políticas de RLS le permiten ver **solo** las incidencias que tiene asignadas.
 
-**D-08 — Orden: `01-authentication` + `03-communities` antes que `04-incidents`.** ✅ Cerrada.
+**D-08 — Orden: `01-authentication` + `02-communities` antes que `04-incidents`.** ✅ Cerrada.
 
 **D-09 — Idioma.** ✅ Cerrada. UI y textos de usuario en español; identificadores y comentarios de código en inglés.
 
@@ -1010,9 +1012,9 @@ vez de una carpeta por capa técnica. `http/` queda compartida por transversal
 unitarios, 49 de integración contra Supabase real, 17 comprobaciones de humo por
 HTTP, `check:db` en verde y `04_verify.sql` sin excepciones.
 
-Siguiente bloque: **`03-communities`**, con `02-members` detrás.
+Siguiente bloque: **`02-communities`**, con `03-members` detrás.
 
-1. Escribir y revisar `/specs/03-communities.md` antes de implementar nada.
+1. Escribir y revisar `/specs/02-communities.md` antes de implementar nada. Ya esta escrito en estado DRAFT, pendiente de aprobacion.
 2. El SQL de la Fase 1 ya tiene las tablas, RLS y políticas de comunidades,
    incumbencias y membresías: `01_schema.sql`, `02_rls.sql`, `04_verify.sql`.
    Lo que falta es el módulo del backend, los endpoints y sus tests de
