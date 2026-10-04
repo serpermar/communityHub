@@ -310,6 +310,113 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
+-- 8b. El alta de comunidades (spec 02, C-1 y C-2)
+-- ----------------------------------------------------------------------------
+-- Mismas tres cosas que se comprueban de las funciones de auth, y por el mismo
+-- motivo: app_create_community() se ejecuta como su propietario y no pasa por
+-- RLS, así que su seguridad no la sostiene ninguna política. Si alguien la
+-- reescribe sin `security definer`, o con el `search_path` abierto, el resto del
+-- esquema seguiría siendo correcto y el agujero se instalaría en silencio.
+do $$
+declare
+  v_fn       record;
+  v_fallos   text := '';
+  v_sp       text;
+begin
+  select p.oid, p.prosecdef, p.proconfig::text as config
+    into v_fn
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname = 'app_create_community'
+     and pg_get_function_identity_arguments(p.oid) =
+         'p_name text, p_slug text, p_address_line1 text, p_city text, p_country text, p_description text, p_province text, p_postal_code text, p_latitude numeric, p_longitude numeric, p_timezone text, p_registration_number text';
+
+  if v_fn.oid is null then
+    raise exception 'app_create_community() no existe. Falta ejecutar 02c_communities.sql';
+  end if;
+
+  v_sp := replace(coalesce(v_fn.config, ''), ' ', '');
+
+  if not v_fn.prosecdef then
+    v_fallos := v_fallos || ' no es SECURITY DEFINER;';
+  end if;
+
+  if v_sp not like '%search_path=public,pg_temp%' then
+    v_fallos := v_fallos || ' search_path sin fijar en public, pg_temp;';
+  end if;
+
+  -- La segunda capa de C-2. Si esta política desapareciera, el insert directo
+  -- con app_runtime quedaría sin ninguna barrera y el alta dependería solo de la
+  -- función.
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'communities'
+       and policyname = 'communities_insert_admin_sa'
+       and cmd = 'INSERT'
+  ) then
+    v_fallos := v_fallos || ' falta la politica communities_insert_admin_sa de INSERT;';
+  end if;
+
+  -- Y que no se pueda borrar en cascada desde la API: sin politica de DELETE, un
+  -- DELETE no puede tocar la fila ni siquiera siendo ADMIN.
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'communities' and cmd = 'DELETE'
+  ) then
+    v_fallos := v_fallos || ' communities tiene politica DELETE y deberia ser baja logica;';
+  end if;
+
+  -- C-7: las coordenadas tienen que admitir NULL, o el alta solo con direccion
+  -- fallara con un not_null_violation en vez de con un 400.
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'communities'
+       and column_name in ('latitude', 'longitude')
+       and is_nullable <> 'YES'
+  ) then
+    v_fallos := v_fallos || ' latitude/longitude siguen siendo NOT NULL;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'El alta de comunidades no es segura:%', v_fallos;
+  end if;
+
+  raise notice 'OK · app_create_community() segura, con politica INSERT y sin DELETE';
+end $$;
+
+-- Los permisos de ejecucion de la funcion de alta. Si anon o authenticated
+-- pudieran llamarla, cualquiera podria crear su propia comunidad desde el
+-- navegador con la clave publica de Supabase, y ser su propio ADMIN.
+do $$
+declare
+  filtrados text := '';
+  r record;
+begin
+  for r in
+    select grantee
+    from information_schema.role_routine_grants
+    where routine_schema = 'public'
+      and routine_name = 'app_create_community'
+      and grantee <> 'app_runtime'
+    group by grantee
+  loop
+    if r.grantee = 'PUBLIC' then
+      filtrados := filtrados || 'PUBLIC ';
+    elsif r.grantee in ('anon', 'authenticated') then
+      filtrados := filtrados || r.grantee || ' ';
+    end if;
+  end loop;
+
+  if filtrados <> '' then
+    raise exception
+      'app_create_community() tambien se puede ejecutar como: %', filtrados;
+  end if;
+
+  raise notice 'OK · solo app_runtime puede ejecutar app_create_community()';
+end $$;
+
+-- ----------------------------------------------------------------------------
 -- 9. Buckets de Storage
 -- ----------------------------------------------------------------------------
 do $$

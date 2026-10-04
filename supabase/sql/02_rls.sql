@@ -135,6 +135,36 @@ as $$
   select coalesce(app_role_in(target_community) = 'ADMIN', false)
 $$;
 
+-- ¿El usuario es staff de la plataforma (ADMIN_SA)?
+--
+-- Es el único permiso que NO es de una comunidad: existe para dar de alta
+-- comunidades, no para mirar lo que hay dentro de ellas. Por eso va aparte de
+-- app_role_in() y por eso communities_select_member no lo consulta.
+--
+-- DELIBERADAMENTE no acepta ningún usuario como parámetro. Una función
+-- SECURITY DEFINER que admitiera "este es admin" sería escalada de privilegios
+-- en una llamada: cualquiera podría preguntar por otro. Aquí el único sujeto
+-- posible es el de la sesión, que es justo lo que se quiere comprobar.
+--
+-- SECURITY DEFINER por lo mismo que app_is_member_of: la política se evalúa
+-- como el usuario de la conexión, que bajo RLS solo puede ver su propia fila de
+-- `users`. Confiar en que la política siga siendo "solo yo" sería atar la
+-- autorización a otra política que puede cambiar sin que nadie lo note.
+create or replace function app_is_global_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from users u
+    where u.id = app_current_user_id()
+      and u.global_role = 'ADMIN_SA'
+  )
+$$;
+
 -- ¿El usuario es PROVIDER con una incidencia asignada?
 -- Los proveedores ven únicamente los trabajos que tienen asignados. Es el caso
 -- más delicado del RBAC: un proveedor podría leer información financiera de la
@@ -235,8 +265,29 @@ create policy communities_update_admin on communities
   using (app_is_admin_of(id))
   with check (app_is_admin_of(id));
 
--- INSERT: la capa de aplicación valida que quien crea es global ADMIN_SA.
--- Aquí se exige que no se auto-asigne como miembro en el mismo movimiento.
+-- INSERT: solo el staff de la plataforma, y solo atributiéndose la creación.
+--
+-- Esta política es la SEGUNDA capa, no la principal. El alta normal la hace
+-- app_create_community() (02c_communities.sql), que además crea al primer
+-- ADMIN. Pero esa función se ejecuta como su propietario y no pasa por RLS, así
+-- que sin esta política el único camino para crear una comunidad sería
+-- privilegiado: si alguien escribiera un insert directo en el servicio, nada lo
+-- frenaría.
+--
+-- El `created_by = app_current_user_id()` no es decorativo: obliga a que la
+-- comunidad quede atribuida a quien la creó, y no a un id arbitrario que le
+-- hayan pasado por el cuerpo.
+drop policy if exists communities_insert_admin_sa on communities;
+create policy communities_insert_admin_sa on communities
+  for insert
+  with check (app_is_global_admin() and created_by = app_current_user_id());
+
+-- DELETE: sin política, a propósito.
+--
+-- Una comunidad no se borra en cascada desde la API: `community_members` tiene
+-- ON DELETE CASCADE, así que un DELETE aquí se llevaría por delante a los
+-- vecinos, sus incidencias y sus gastos. La baja es lógica
+-- (is_active = false) y la hace un ADMIN por el UPDATE de arriba.
 
 -- ----------------------------------------------------------------------------
 -- 5.3 community_members

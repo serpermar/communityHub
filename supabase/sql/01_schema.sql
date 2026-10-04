@@ -195,8 +195,12 @@ create table if not exists communities (
   province            text,
   postal_code         text,
   country             text        not null default 'ES',
-  latitude            numeric(9,6)  not null,
-  longitude           numeric(9,6)  not null,
+  -- Anulables a propósito (spec 02, C-7). NULL significa "sin localizar todavía",
+  -- no "en el centro del mapa". Un vecino no escribe 39.474, -0.379, y poner
+  -- 0,0 por defecto daría meteorología y mapa del Atlántico sin avisar.
+  -- Quien las rellena es el bloque de integraciones, con la dirección.
+  latitude            numeric(9,6),
+  longitude           numeric(9,6),
   timezone            text        not null default 'Europe/Madrid',
   registration_number text,
   is_active           boolean     not null default true,

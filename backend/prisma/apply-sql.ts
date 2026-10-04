@@ -29,9 +29,9 @@ import { Client } from 'pg'
 const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 
 // El orden importa. 02_rls.sql crea `app_runtime` y depende de las tablas de
-// 01; 02b_auth.sql y 03_storage.sql dependen del rol de 02; 04_verify.sql
-// comprueba que todo lo anterior existe.
-const FILES = ['01_schema.sql', '02_rls.sql', '02b_auth.sql', '03_storage.sql']
+// 01; 02b_auth.sql, 02c_communities.sql y 03_storage.sql dependen del rol de 02;
+// 04_verify.sql comprueba que todo lo anterior existe.
+const FILES = ['01_schema.sql', '02_rls.sql', '02b_auth.sql', '02c_communities.sql', '03_storage.sql']
 const VERIFY = '04_verify.sql'
 
 function arg(name: string): string | undefined {
