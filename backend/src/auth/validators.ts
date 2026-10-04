@@ -2,9 +2,9 @@
 // Validacion de entrada (zod).
 //
 // Se valida en el borde, antes de que nada toque la logica de negocio. El
-// backend nunca confiar en lo que le manda el cliente, y el cliente nunca
-// prevalidar en lugar de validar aqui: una prevalidacion es una cortesia, no una
-// garantia.
+// backend nunca debe confiar en lo que le manda el cliente, y el cliente nunca
+// debe prevalidar en lugar de validar aqui: una prevalidacion es una cortesia,
+// no una garantia.
 //
 // `.strict()` en todos los esquemas: una clave desconocida es un error, no algo
 // que se ignora en silencio. Sin eso, un campo renombrado o mal escrito sigue

@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import type { NextFunction, Request, Response } from 'express'
-import { badRequest } from '../http/errors.js'
+import { badRequest, tokenRevoked } from '../http/errors.js'
 import { created, noContent, ok } from '../http/envelope.js'
 import { env } from '../config/env.js'
 import * as service from './service.js'
@@ -103,14 +103,14 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
   try {
     const token = req.cookies?.[env.REFRESH_COOKIE_NAME]
 
+    // Sin cookie no hay nada que renovar. Se lanza el mismo error que un refresh
+    // invalido, para no distinguir los casos.
+    //
+    // Se lanza en vez de responder aqui a mano porque el `catch` de abajo ya borra
+    // la cookie y delega en el middleware de errores. Escribir el envelope a mano
+    // aqui era duplicar las dos cosas que ese `catch` hace por todos.
     if (typeof token !== 'string' || token.length === 0) {
-      // Sin cookie no hay nada que renovar. Se responde con el mismo codigo que
-      // un refresh invalido, para no distinguir los casos.
-      clearRefreshCookie(res)
-      res.status(401).json({
-        error: { code: 'TOKEN_REVOKED', message: 'No hay sesión que renovar. Vuelve a entrar.' },
-      })
-      return
+      throw tokenRevoked()
     }
 
     const result = await service.refresh({ refreshToken: token, ...clientInfo(req) })
