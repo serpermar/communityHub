@@ -36,14 +36,21 @@ import { Client } from 'pg'
 const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 
 // El orden importa. 02_rls.sql crea `app_runtime` y depende de las tablas de
-// 01; 02b_auth.sql, 02c_communities.sql, 02d_members.sql y 03_storage.sql
-// dependen del rol de 02; 04_verify.sql comprueba que todo lo anterior existe.
+// 01; 02b_auth.sql, 02c_communities.sql, 02d_members.sql, 02e_incidents.sql y
+// 03_storage.sql dependen del rol de 02; 04_verify.sql comprueba que todo lo
+// anterior existe.
+//
+// 02e va después de 02d porque su predicado de visibilidad se apoya en
+// app_role_in() y app_is_assigned_provider(), que nacen en 02_rls.sql, y en
+// nada de 02d. Si algún día 02d dejara de definir app_role_in(), 02e se
+// aplicaría con un predicado que devuelve siempre false.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
   '02b_auth.sql',
   '02c_communities.sql',
   '02d_members.sql',
+  '02e_incidents.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

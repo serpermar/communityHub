@@ -543,7 +543,208 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 10. Buckets de Storage
+-- 10. Incidencias (02e_incidents.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lo que más se comprueba aquí es que NO haya permisos de escritura: que las once
+-- funciones estén cerradas por arriba es menos grave que que app_runtime pueda
+-- escribir en la tabla saltándoselas.
+do $$
+declare
+  v_fallos text := '';
+  r        record;
+  v_fn     text[] := array[
+    'app_can_see_incident', 'app_incident_community',
+    'app_list_incidents', 'app_get_incident', 'app_list_incident_comments',
+    'app_create_incident', 'app_update_incident_content',
+    'app_set_incident_priority', 'app_assign_incident',
+    'app_transition_incident', 'app_soft_delete_incident'
+  ];
+  v_def text;
+  v_name text;
+begin
+  -- Las once tienen que existir, ser SECURITY DEFINER, tener search_path fijo y no
+  -- ser ejecutables por PUBLIC.
+  --
+  -- `foreach` exige una variable escalar. Con un `record` falla con "cannot assign
+  -- non-composite value to a record variable", que además suena a que el problema
+  -- está en la consulta de dentro.
+  foreach v_name in array v_fn loop
+    if not exists (
+      select 1 from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = v_name
+    ) then
+      v_fallos := v_fallos || ' falta ' || v_name || '();';
+    end if;
+  end loop;
+
+  for r in
+    select p.proname, p.prosecdef, p.proconfig, pg_get_functiondef(p.oid) as def
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = any(v_fn)
+  loop
+    if not r.prosecdef then
+      v_fallos := v_fallos || ' ' || r.proname || ' ya no es SECURITY DEFINER;';
+    end if;
+
+    if r.proconfig is null
+       or not exists (select 1 from unnest(r.proconfig) as c where c like 'search\_path=%')
+    then
+      v_fallos := v_fallos || ' ' || r.proname || ' necesita search_path fijo;';
+    end if;
+
+    if exists (
+      select 1 from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = r.proname
+         and grantee = 'PUBLIC'
+    ) then
+      v_fallos := v_fallos || ' ' || r.proname || ' sigue siendo ejecutable por PUBLIC;';
+    end if;
+  end loop;
+
+  -- incidents no puede tener ninguna política de escritura. Ni una más restrictiva:
+  -- sin permiso de INSERT ni UPDATE, no hay nada que una política pueda decidir.
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'incidents' and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' incidents tiene politica de escritura; deberia ser solo lectura;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'incidents'
+       and policyname = 'incidents_select_scoped'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta incidents_select_scoped de SELECT;';
+  end if;
+
+  -- Y que el permiso de escritura no exista para app_runtime, anon, authenticated
+  -- ni PUBLIC. Se excluyen postgres (owner) y service_role (que recibe todo por
+  -- ALTER DEFAULT PRIVILEGES), como en 02d.
+  if exists (
+    select 1 from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'incidents'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' incidents tiene escritura concedida a un rol que no debe;';
+  end if;
+
+  -- D-1: la columna que hace falta para I-9.
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'incidents'
+       and column_name = 'needs_review'
+       and data_type = 'boolean'
+       and is_nullable = 'NO'
+       and column_default = 'false'
+  ) then
+    v_fallos := v_fallos || ' incidents.needs_review deberia ser boolean not null default false;';
+  end if;
+
+  -- Las longitudes en la base de datos, no solo en el zod del backend.
+  if not exists (select 1 from pg_constraint where conname = 'incidents_description_length') then
+    v_fallos := v_fallos || ' falta incidents_description_length;';
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'incident_comments_body_length') then
+    v_fallos := v_fallos || ' falta incident_comments_body_length;';
+  end if;
+
+  -- La secuencia del código legible no se puede gastar desde fuera. Se mira el ACL
+  -- con aclexplode y no con role_usage_grants porque esa vista calcula
+  -- has_sequence_privilege para cada rol del clúster, incluidos los superusuarios
+  -- de Supabase que heredan del owner sin que nadie les conceda nada.
+  if not exists (
+    select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = 'incident_reference_code_seq' and c.relkind = 'S'
+  ) then
+    v_fallos := v_fallos || ' falta incident_reference_code_seq;';
+  end if;
+
+  if exists (
+    select 1
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral aclexplode(c.relacl) as a
+     where n.nspname = 'public'
+       and c.relname = 'incident_reference_code_seq'
+       and (
+         a.grantee = 0
+         or a.grantee in (
+              select oid from pg_roles
+               where rolname in ('app_runtime', 'anon', 'authenticated')
+            )
+       )
+  ) then
+    v_fallos := v_fallos || ' incident_reference_code_seq no deberia ser usable fuera del owner;';
+  end if;
+
+  -- Las DOS copias del predicado de visibilidad. app_can_see_incident la usa ocho
+  -- funciones; app_list_incidents la copia porque el listado necesita limit/offset
+  -- reales en el motor. Si alguien edita una y olvida la otra, el listado y el
+  -- detalle empiezan a discrepar sin que ninguna consulta falle, que es el fallo
+  -- más difícil de detectar de todo el bloque.
+  foreach v_name in array array['app_can_see_incident', 'app_list_incidents'] loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_name;
+
+    if v_def like '%app_is_member_of(%'
+       and v_def like '%app_role_in(%'
+       and v_def like '%app_is_assigned_provider(%'
+    then
+      null;
+    else
+      v_fallos := v_fallos || ' ' || r || ' no cita las tres condiciones de visibilidad;';
+    end if;
+  end loop;
+
+  -- Y que app_can_see_incident filtre el borrado lógico, que la política de
+  -- 02_rls.sql no hacía y es lo que hace que un GET de una incidencia borrada
+  -- responda 404 en vez de 200 con un cuerpo de incidencia.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_can_see_incident';
+
+  if v_def not like '%deleted_at is null%' then
+    v_fallos := v_fallos || ' app_can_see_incident deberia filtrar deleted_at;';
+  end if;
+
+  -- D-3 y D-4, escritas en SQL para que no dependan de que nadie lea el documento:
+  -- el contenido admite a PRESIDENT, el estado no.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_update_incident_content';
+
+  if v_def not like '%PRESIDENT%' then
+    v_fallos := v_fallos || ' D-3: el contenido deberia admitir a PRESIDENT;';
+  end if;
+
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_transition_incident';
+
+  if v_def like '%PRESIDENT%' then
+    v_fallos := v_fallos || ' D-4: el estado no deberia admitir a PRESIDENT;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'Las incidencias no son seguras:%', v_fallos;
+  end if;
+
+  raise notice 'OK · incidencias solo lectura, % funciones cerradas, escritura solo por funcion',
+    array_length(v_fn, 1);
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 11. Buckets de Storage
 -- ----------------------------------------------------------------------------
 do $$
 declare
@@ -569,7 +770,7 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 11. INFORME
+-- 12. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -615,6 +816,29 @@ where routine_schema = 'public'
     'app_auth_find_user_by_email',
     'app_auth_find_session_by_hash',
     'app_auth_revoke_family'
+  )
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de incidencias (debe ser 11)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_can_see_incident', 'app_incident_community',
+    'app_list_incidents', 'app_get_incident', 'app_list_incident_comments',
+    'app_create_incident', 'app_update_incident_content',
+    'app_set_incident_priority', 'app_assign_incident',
+    'app_transition_incident', 'app_soft_delete_incident'
+  )
+union all
+select 'Grants de incidencias a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_can_see_incident', 'app_incident_community',
+    'app_list_incidents', 'app_get_incident', 'app_list_incident_comments',
+    'app_create_incident', 'app_update_incident_content',
+    'app_set_incident_priority', 'app_assign_incident',
+    'app_transition_incident', 'app_soft_delete_incident'
   )
   and grantee = 'PUBLIC'
 union all

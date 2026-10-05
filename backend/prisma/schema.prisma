@@ -23,15 +23,15 @@ model AiCache {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model AiChatMessages {
-  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  session_id       String           @db.Uuid
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id       String         @db.Uuid
   role             String
   content          String
   tool_calls       Json?
   citations        Json?
   tokens_in        Int?
   tokens_out       Int?
-  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
   ai_chat_sessions AiChatSessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([session_id, created_at], map: "ai_chat_messages_session_idx")
@@ -40,16 +40,16 @@ model AiChatMessages {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model AiChatSessions {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id          String             @db.Uuid
-  community_id     String?            @db.Uuid
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String           @db.Uuid
+  community_id     String?          @db.Uuid
   title            String?
   model_used       String?
-  created_at       DateTime           @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime         @default(now()) @db.Timestamptz(6)
   ai_chat_messages AiChatMessages[]
-  communities      Communities?       @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users            Users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  communities      Communities?     @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            Users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([user_id, updated_at(sort: Desc)], map: "ai_chat_sessions_user_idx")
   @@map("ai_chat_sessions")
@@ -90,6 +90,7 @@ model Announcements {
   updated_at   DateTime              @default(now()) @db.Timestamptz(6)
   users        Users?                @relation(fields: [author_id], references: [id], onUpdate: NoAction)
   communities  Communities           @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
   @@map("announcements")
 }
 
@@ -100,7 +101,7 @@ model AreaSlots {
   reservation_id String       @db.Uuid
   starts_at      DateTime     @db.Timestamptz(6)
   ends_at        DateTime     @db.Timestamptz(6)
-  common_areas   CommonAreas @relation(fields: [common_area_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  common_areas   CommonAreas  @relation(fields: [common_area_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reservations   Reservations @relation(fields: [reservation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([common_area_id, starts_at], map: "area_slots_no_overlap_uidx")
@@ -162,44 +163,48 @@ model CommonAreas {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Communities {
-  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                String
-  slug                String              @unique(map: "communities_slug_uidx")
-  description         String?
-  address_line1       String
-  city                String
-  province            String?
-  postal_code         String?
-  country             String              @default("ES")
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  slug                  String                 @unique(map: "communities_slug_uidx")
+  description           String?
+  address_line1         String
+  city                  String
+  province              String?
+  postal_code           String?
+  country               String                 @default("ES")
   // Anulables a propósito (spec 02, C-7): `NULL` significa "sin localizar
   // todavía", no "en el centro del mapa". Tiene que reflejar el `drop not null`
   // de 02c_communities.sql, o Prisma rechaza el `NULL` al deserializar la fila y
   // el endpoint que la devuelve falla con un 500 en lugar de devolver
   // `latitude: null`.
-  latitude            Decimal?            @db.Decimal(9, 6)
-  longitude           Decimal?            @db.Decimal(9, 6)
-  timezone            String              @default("Europe/Madrid")
-  registration_number String?
-  is_active           Boolean             @default(true)
-  created_by          String?             @db.Uuid
-  created_at          DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime            @default(now()) @db.Timestamptz(6)
-  deleted_at          DateTime?           @db.Timestamptz(6)
-  ai_chat_sessions    AiChatSessions[]
-  announcements       Announcements[]
-  audit_logs          AuditLogs[]
-  common_areas        CommonAreas[]
-  users               Users?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  community_members   CommunityMembers[]
+  //
+  // COMENTARIO A MANO: `prisma db pull` lo borra. Este archivo es GENERADO; la
+  // fuente de verdad es supabase/sql/. Si algo se pierde aquí, no está perdido:
+  // está en 02c_communities.sql.
+  latitude              Decimal?               @db.Decimal(9, 6)
+  longitude             Decimal?               @db.Decimal(9, 6)
+  timezone              String                 @default("Europe/Madrid")
+  registration_number   String?
+  is_active             Boolean                @default(true)
+  created_by            String?                @db.Uuid
+  created_at            DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime               @default(now()) @db.Timestamptz(6)
+  deleted_at            DateTime?              @db.Timestamptz(6)
+  ai_chat_sessions      AiChatSessions[]
+  announcements         Announcements[]
+  audit_logs            AuditLogs[]
+  common_areas          CommonAreas[]
+  users                 Users?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   community_invitations CommunityInvitations[]
-  documents           Documents[]
-  expenses            Expenses[]
-  incident_drafts     IncidentDrafts[]
-  incidents           Incidents[]
-  invoices            Invoices[]
-  notifications       Notifications[]
-  reservations        Reservations[]
-  votes               Votes[]
+  community_members     CommunityMembers[]
+  documents             Documents[]
+  expenses              Expenses[]
+  incident_drafts       IncidentDrafts[]
+  incidents             Incidents[]
+  invoices              Invoices[]
+  notifications         Notifications[]
+  reservations          Reservations[]
+  votes                 Votes[]
 
   @@index([city])
   @@map("communities")
@@ -229,19 +234,28 @@ model CommunityMembers {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 ///
 /// `community_invitations_live_uidx` (unicidad de email por comunidad entre las no usadas) NO aparece aquí: es un índice PARCIAL con `where accepted_at is null`, y Prisma no sabe declararlos. Si algún día se regenera este archivo con `prisma db pull`, ese índice seguirá en la base de datos y disappearing de aquí no lo borra; está en 02d_members.sql.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+///
+/// COMENTARIO A MANO: `community_invitations_live_uidx` (unicidad de email por
+/// comunidad entre las no usadas) NO aparece aquí: es un índice PARCIAL con
+/// `where accepted_at is null`, y Prisma no sabe declararlos. Que no esté en este
+/// archivo no lo borra de la base de datos; está en 02d_members.sql.
+///
+/// COMENTARIO A MANO: `prisma db pull` borra este bloque. La fuente de verdad es
+/// supabase/sql/.
 model CommunityInvitations {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  community_id String    @db.Uuid
-  email        String
-  code_hash    String
-  invited_by   String    @db.Uuid
-  expires_at   DateTime  @db.Timestamptz(6)
-  accepted_at  DateTime? @db.Timestamptz(6)
-  accepted_by  String?   @db.Uuid
-  created_at   DateTime  @default(now()) @db.Timestamptz(6)
-  communities                                      Communities @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users_community_invitations_accepted_by          Users?      @relation("community_invitations_accepted_by", fields: [accepted_by], references: [id], onUpdate: NoAction)
-  users_community_invitations_invited_by           Users       @relation("community_invitations_invited_by", fields: [invited_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                                      String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  community_id                            String      @db.Uuid
+  email                                   String
+  code_hash                               String
+  invited_by                              String      @db.Uuid
+  expires_at                              DateTime    @db.Timestamptz(6)
+  accepted_at                             DateTime?   @db.Timestamptz(6)
+  accepted_by                             String?     @db.Uuid
+  created_at                              DateTime    @default(now()) @db.Timestamptz(6)
+  users_community_invitations_accepted_by Users?      @relation("community_invitations_accepted_by", fields: [accepted_by], references: [id], onUpdate: NoAction)
+  communities                             Communities @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_community_invitations_invited_by  Users       @relation("community_invitations_invited_by", fields: [invited_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([community_id, code_hash], map: "community_invitations_code_uidx")
   @@index([community_id, created_at(sort: Desc)], map: "community_invitations_listing_idx")
@@ -374,6 +388,7 @@ model Incidents {
   deleted_at                            DateTime?            @db.Timestamptz(6)
   created_at                            DateTime             @default(now()) @db.Timestamptz(6)
   updated_at                            DateTime             @default(now()) @db.Timestamptz(6)
+  needs_review                          Boolean              @default(false)
   incident_comments                     IncidentComments[]
   incident_drafts                       IncidentDrafts[]
   users_incidents_assigned_to_idTousers Users?               @relation("incidents_assigned_to_idTousers", fields: [assigned_to_id], references: [id], onUpdate: NoAction)
@@ -447,7 +462,7 @@ model Reservations {
   created_at     DateTime           @default(now()) @db.Timestamptz(6)
   updated_at     DateTime           @default(now()) @db.Timestamptz(6)
   area_slots     AreaSlots[]
-  common_areas   CommonAreas       @relation(fields: [common_area_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  common_areas   CommonAreas        @relation(fields: [common_area_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   communities    Communities        @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users          Users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -483,56 +498,57 @@ model Sessions {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model Users {
-  id                                                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                                                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                                                 String
   password_hash                                         String
   full_name                                             String
   phone                                                 String?
   avatar_url                                            String?
-  global_role                                           user_global_role    @default(NEIGHBOR)
-  status                                                String              @default("ACTIVE")
-  email_verified_at                                     DateTime?           @db.Timestamptz(6)
-  last_login_at                                         DateTime?           @db.Timestamptz(6)
-  created_at                                            DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at                                            DateTime            @default(now()) @db.Timestamptz(6)
-  deleted_at                                            DateTime?           @db.Timestamptz(6)
+  global_role                                           user_global_role       @default(NEIGHBOR)
+  status                                                String                 @default("ACTIVE")
+  email_verified_at                                     DateTime?              @db.Timestamptz(6)
+  last_login_at                                         DateTime?              @db.Timestamptz(6)
+  created_at                                            DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime               @default(now()) @db.Timestamptz(6)
+  deleted_at                                            DateTime?              @db.Timestamptz(6)
   ai_chat_sessions                                      AiChatSessions[]
   ai_usage                                              AiUsage[]
   announcements                                         Announcements[]
   audit_logs                                            AuditLogs[]
   common_areas                                          CommonAreas[]
   communities                                           Communities[]
-  community_members_community_members_invited_byTousers CommunityMembers[] @relation("community_members_invited_byTousers")
-  community_members_community_members_user_idTousers    CommunityMembers[] @relation("community_members_user_idTousers")
-  community_invitations_accepted_by CommunityInvitations[] @relation("community_invitations_accepted_by")
-  community_invitations_invited_by  CommunityInvitations[] @relation("community_invitations_invited_by")
+  community_invitations_accepted_by                     CommunityInvitations[] @relation("community_invitations_accepted_by")
+  community_invitations_invited_by                      CommunityInvitations[] @relation("community_invitations_invited_by")
+  community_members_community_members_invited_byTousers CommunityMembers[]     @relation("community_members_invited_byTousers")
+  community_members_community_members_user_idTousers    CommunityMembers[]     @relation("community_members_user_idTousers")
   document_acl                                          DocumentAcl[]
   documents                                             Documents[]
   expenses                                              Expenses[]
   incident_comments                                     IncidentComments[]
   incident_drafts                                       IncidentDrafts[]
-  incidents_incidents_assigned_to_idTousers             Incidents[]         @relation("incidents_assigned_to_idTousers")
-  incidents_incidents_reporter_idTousers                Incidents[]         @relation("incidents_reporter_idTousers")
+  incidents_incidents_assigned_to_idTousers             Incidents[]            @relation("incidents_assigned_to_idTousers")
+  incidents_incidents_reporter_idTousers                Incidents[]            @relation("incidents_reporter_idTousers")
   invoices                                              Invoices[]
   notifications                                         Notifications[]
   reservations                                          Reservations[]
   sessions                                              Sessions[]
   vote_responses                                        VoteResponses[]
   votes                                                 Votes[]
+
   @@map("users")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model VoteOptions {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  vote_id        String           @db.Uuid
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vote_id        String          @db.Uuid
   label          String
   position       Int
-  is_abstention  Boolean          @default(false)
-  created_at     DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
-  votes          Votes            @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  is_abstention  Boolean         @default(false)
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime        @default(now()) @db.Timestamptz(6)
+  votes          Votes           @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   vote_responses VoteResponses[]
 
   @@unique([vote_id, position], map: "vote_options_vote_position_uidx")
@@ -542,16 +558,16 @@ model VoteOptions {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model VoteResponses {
-  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  vote_id      String       @db.Uuid
-  option_id    String       @db.Uuid
-  user_id      String       @db.Uuid
-  weight       Int          @default(1)
-  created_at   DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime     @default(now()) @db.Timestamptz(6)
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vote_id      String      @db.Uuid
+  option_id    String      @db.Uuid
+  user_id      String      @db.Uuid
+  weight       Int         @default(1)
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime    @default(now()) @db.Timestamptz(6)
   vote_options VoteOptions @relation(fields: [option_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  votes        Votes        @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        Users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  votes        Votes       @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([vote_id, user_id], map: "vote_responses_unique_vote_uidx")
   @@index([option_id], map: "vote_responses_option_idx")
@@ -583,6 +599,7 @@ model Votes {
   vote_responses    VoteResponses[]
   communities       Communities            @relation(fields: [community_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users             Users?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
   @@map("votes")
 }
 
