@@ -176,7 +176,11 @@ $$;
 --
 -- `count(*) over ()` da el total sin paginar en la MISMA pasada, que es lo que
 -- quiere el `meta` de la API. Con un COUNT aparte, el listado de la página 5 de 3
--- saldría con total 0.
+-- saldría con el total en una fila que no existe: una ventana se evalúa sobre las
+-- filas que SALEN, y `returns table` lleva el total dentro de cada una, así que con
+-- cero filas no hay dónde ponerlo. El backend resuelve ese caso concreto (página más
+-- allá del final) con una segunda llamada a esta misma función con `offset 0`, y por
+-- eso el total sale de aquí y no de un COUNT aparte.
 create or replace function app_list_incidents(
   p_community_id uuid,
   p_status       incident_status     default null,
@@ -220,7 +224,7 @@ begin
   -- Un miembro de otra comunidad no obtiene una lista vacía sino un 403: decir
   -- "no hay incidencias" a quien no es miembro confirma que esa comunidad existe.
   if not app_is_member_of(p_community_id) then
-    raise exception 'no es miembro de la comunidad' using errcode = '42501';
+    raise exception 'forbidden_role: no es miembro de la comunidad' using errcode = '42501';
   end if;
 
   return query
@@ -370,7 +374,7 @@ begin
   end if;
 
   if not app_is_member_of(p_community_id) then
-    raise exception 'no es miembro de la comunidad' using errcode = '42501';
+    raise exception 'forbidden_role: no es miembro de la comunidad' using errcode = '42501';
   end if;
 
   v_priority := coalesce(p_priority, 'MEDIUM');
@@ -434,7 +438,7 @@ declare
   v_reporter  uuid;
 begin
   if not app_can_see_incident(p_incident) then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
   select i.community_id, i.reporter_id into v_community, v_reporter
@@ -445,7 +449,7 @@ begin
   if v_reporter <> app_current_user_id()
      and app_role_in(v_community) not in ('ADMIN', 'PRESIDENT')
   then
-    raise exception 'solo el reporter, un ADMIN o un PRESIDENT pueden editar el contenido'
+    raise exception 'forbidden_role: solo el reporter, un ADMIN o un PRESIDENT pueden editar el contenido'
       using errcode = '42501';
   end if;
 
@@ -483,17 +487,17 @@ declare
   v_community uuid;
 begin
   if not app_can_see_incident(p_incident) then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
   select i.community_id into v_community from incidents i where i.id = p_incident;
 
   if not app_is_admin_of(v_community) then
-    raise exception 'solo un ADMIN puede cambiar la prioridad' using errcode = '42501';
+    raise exception 'incident_requires_admin: solo un ADMIN puede cambiar la prioridad' using errcode = '42501';
   end if;
 
   if p_priority is null then
-    raise exception 'prioridad obligatoria' using errcode = '22023';
+    raise exception 'incident_priority_required: la prioridad es obligatoria' using errcode = '22023';
   end if;
 
   update incidents
@@ -532,13 +536,13 @@ declare
   v_community uuid;
 begin
   if not app_can_see_incident(p_incident) then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
   select i.community_id into v_community from incidents i where i.id = p_incident;
 
   if not app_is_admin_of(v_community) then
-    raise exception 'solo un ADMIN puede asignar' using errcode = '42501';
+    raise exception 'incident_requires_admin: solo un ADMIN puede asignar' using errcode = '42501';
   end if;
 
   if p_provider_user_id is not null and not exists (
@@ -549,7 +553,7 @@ begin
        and m.role = 'PROVIDER'
        and m.status = 'ACTIVE'
   ) then
-    raise exception 'el usuario indicado no es un proveedor activo de esta comunidad'
+    raise exception 'incident_assignee_not_provider: el usuario indicado no es un proveedor activo de esta comunidad'
       using errcode = '22023';
   end if;
 
@@ -604,7 +608,7 @@ declare
   v_is_assigned_provider boolean;
 begin
   if not app_can_see_incident(p_incident) then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
   select i.community_id, i.status into v_community, v_from
@@ -615,21 +619,43 @@ begin
 
   -- Guarda de actor.
   if not v_is_admin and not v_is_assigned_provider then
-    raise exception 'no puede cambiar el estado de esta incidencia'
+    raise exception 'forbidden_role: no puede cambiar el estado de esta incidencia'
       using errcode = '42501';
   end if;
 
-  -- Guarda de grafo. Se escribe como una tabla de pares para que el caso
-  -- CANCELLED -> CANCELLED no tenga que tratarlo aparte: no está en la tabla, así
-  -- que cae en el 409 igual que cualquier otra arista imposible.
+  -- Guarda de "esta arista es solo del ADMIN" (D-4 y §10).
+  --
+  -- Va ANTES y SEPARADA de la guarda de grafo, y el orden es el motivo de que exista
+  -- como guarda propia: reabrir (RESOLVED -> OPEN) y cancelar (-> CANCELLED) son
+  -- de ADMIN. Si el "y v_is_admin" estuviera dentro de la arista del grafo, un
+  -- PROVIDER asignado que intenta reabrir caeria en `incident_invalid_transition` y
+  -- recibiria un 409 ("ese cambio de estado no se puede"), cuando lo que falta no es
+  -- una arista sino un permiso. El cliente necesita distinguirlos: con un 409 se
+  -- ofrece elegir otro estado destino, y no hay ninguno que sirva.
+  --
+  -- La condicion es una copia exacta de las dos aristas que antes llevaban "y
+  -- v_is_admin" DENTRO del grafo, y copiarlas sin el rol es lo que evita el 403
+  -- equivocado en dos casos: OPEN -> OPEN de un proveedor debe seguir siendo 409
+  -- ("transicion al estado actual"), y CANCELLED -> CANCELLED tambien, porque
+  -- CANCELLED no es un origen valido de ninguna arista y lo que le falta al proveedor
+  -- no es un permiso sino una arista.
+  if not v_is_admin
+     and (   (v_from = 'RESOLVED' and p_new_status = 'OPEN')
+          or (v_from in ('OPEN', 'IN_PROGRESS', 'RESOLVED') and p_new_status = 'CANCELLED')) then
+    raise exception 'forbidden_role: reabrir y cancelar solo puede hacerlo un ADMIN'
+      using errcode = '42501';
+  end if;
+
+  -- Guarda de grafo, y aqui ya no hay nada de roles dentro. Se escribe como una tabla
+  -- de pares para que el caso CANCELLED -> CANCELLED no tenga que tratarlo aparte: no
+  -- está en la tabla, así que cae en el 409 igual que cualquier otra arista imposible.
   if not (
        (v_from = 'OPEN'        and p_new_status = 'IN_PROGRESS')
     or (v_from = 'IN_PROGRESS' and p_new_status = 'RESOLVED')
-    or (v_from = 'RESOLVED'    and p_new_status = 'OPEN'      and v_is_admin)
-    or (v_from in ('OPEN', 'IN_PROGRESS', 'RESOLVED')
-        and p_new_status = 'CANCELLED' and v_is_admin)
+    or (v_from = 'RESOLVED'    and p_new_status = 'OPEN')
+    or (v_from in ('OPEN', 'IN_PROGRESS', 'RESOLVED') and p_new_status = 'CANCELLED')
   ) then
-    raise exception 'transicion invalida de % a %', v_from, p_new_status
+    raise exception 'incident_invalid_transition: de % a % no se puede', v_from, p_new_status
       using errcode = '22023';
   end if;
 
@@ -649,7 +675,7 @@ begin
   if not found then
     -- Solo llega aquí si otra transacción cambió el estado entre el SELECT y este
     -- UPDATE. El grafo era válido para el estado que ella leyó, no para el actual.
-    raise exception 'transicion invalida desde el estado actual'
+    raise exception 'incident_invalid_transition: el estado actual ya no es el de partida'
       using errcode = '22023';
   end if;
 end;
@@ -676,20 +702,20 @@ declare
   v_community uuid;
 begin
   if not app_can_see_incident(p_incident) then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
   select i.community_id into v_community from incidents i where i.id = p_incident;
 
   if not app_is_admin_of(v_community) then
-    raise exception 'solo un ADMIN puede borrar una incidencia' using errcode = '42501';
+    raise exception 'incident_requires_admin: solo un ADMIN puede borrar una incidencia' using errcode = '42501';
   end if;
 
   update incidents set deleted_at = now()
    where id = p_incident and deleted_at is null;
 
   if not found then
-    raise exception 'incidencia no encontrada' using errcode = 'P0002';
+    raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 end;
 $$;
@@ -779,6 +805,35 @@ revoke execute on function app_set_incident_priority(uuid, incident_priority) fr
 revoke execute on function app_assign_incident(uuid, uuid) from public;
 revoke execute on function app_transition_incident(uuid, incident_status) from public;
 revoke execute on function app_soft_delete_incident(uuid) from public;
+
+-- ----------------------------------------------------------------------------
+-- 6.5 Los comentarios no se editan
+-- ----------------------------------------------------------------------------
+--
+-- I-7: los comentarios no se editan ni se borran en este bloque. Una corrección es
+-- un DELETE + uno nuevo, y ese es un cambio de modelo que se decide en su propia
+-- spec.
+--
+-- 02_rls.sql (5.4) dejó una política `comments_update_author` y un
+-- `grant insert, update on ... incident_comments ...` para app_runtime que la
+-- esquemática de 02 traía de serie. No hay endpoint que los use, pero "no hay
+-- endpoint" no es una defensa: `app_runtime` es un rol de base de datos, no de HTTP, y
+-- lo que puede hacer con un `UPDATE` no depende de que Express conozca la ruta.
+--
+-- Se quita el permiso, no solo la política. Quitar solo la política dejaría el
+-- `UPDATE` concedido y sin regla, es decir denegado por RLS pero por casualidad y no
+-- por diseño, que es la forma de permiso que reaparece en cuanto alguien añade un
+-- `alter table ... disable row level security` por un motivo que no recuerda.
+drop policy if exists comments_update_author on incident_comments;
+
+revoke update on incident_comments from app_runtime;
+revoke update on incident_comments from anon, authenticated;
+
+-- No hay política de escritura en la tabla, y con ella tampoco `DELETE`. Se deja el
+-- `INSERT` a propósito: comentar no tiene regla de dominio que justifique una función
+-- `SECURITY DEFINER`, y lo que sí importa -- que la incidencia sea visible y que el
+-- autor seas tú -- ya está en `comments_insert_author`. La comprobación va en la
+-- autocomprobación de más abajo, que es donde pueden ir los `if`.
 
 -- ----------------------------------------------------------------------------
 -- 7. Autocomprobación
@@ -998,6 +1053,29 @@ begin
        and pg_get_functiondef(p.oid) like '%PRESIDENT%'
   ) then
     v_fallos := v_fallos || ' D-4: el estado no deberia admitir a PRESIDENT;';
+  end if;
+
+  -- I-7: los comentarios no se editan ni se borran. Ni permiso ni política. La
+  -- política de 02_rls.sql era el reverso del permiso: quitar solo una de las dos
+  -- cosas deja la otra puesta, que es como se reabre un agujero.
+  if exists (
+    select 1
+      from pg_policies
+     where tablename = 'incident_comments'
+       and cmd in ('UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' incident_comments no deberia permitir UPDATE ni DELETE (I-7);';
+  end if;
+
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'incident_comments'
+       and privilege_type in ('UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' incident_comments tiene UPDATE/DELETE concedido a un rol que no deberia (I-7);';
   end if;
 
   if v_fallos <> '' then

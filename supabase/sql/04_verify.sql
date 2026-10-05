@@ -657,6 +657,31 @@ begin
     v_fallos := v_fallos || ' falta incident_comments_body_length;';
   end if;
 
+  -- I-7: los comentarios no se editan ni se borran. Ni política ni permiso. Se
+  -- comprueba el permiso con role_table_grants y no con has_table_privilege por el
+  -- mismo motivo que la secuencia: esta vista calcula la pregunta para cada rol del
+  -- clúster y los superusuarios de Supabase aparecerían como concessionarios aunque no
+  -- se les haya concedido nada.
+  --
+  -- El INSERT sí se permite, a propósito: comentar no tiene regla de dominio que
+  -- justifique una función, y la visibilidad la pone comments_insert_author.
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'incident_comments' and cmd in ('UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' incident_comments tiene politica de UPDATE/DELETE; I-7 dice que no se editan;';
+  end if;
+
+  if exists (
+    select 1 from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'incident_comments'
+       and privilege_type in ('UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' incident_comments tiene UPDATE/DELETE concedido a un rol que no deberia;';
+  end if;
+
   -- La secuencia del código legible no se puede gastar desde fuera. Se mira el ACL
   -- con aclexplode y no con role_usage_grants porque esa vista calcula
   -- has_sequence_privilege para cada rol del clúster, incluidos los superusuarios

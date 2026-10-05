@@ -286,6 +286,7 @@ as $$
       from incidents i
      where i.id = target
        and i.deleted_at is null
+       and app_is_member_of(i.community_id)
        and (
          app_role_in(i.community_id) in ('ADMIN', 'PRESIDENT')
          or i.reporter_id = app_current_user_id()
@@ -295,10 +296,15 @@ as $$
 $$;
 ```
 
-Es el mismo predicado que ya tienen `incidents_select_scoped` y
-`app_is_assigned_provider` en `02_rls.sql`, con dos añadidos: `deleted_at is null`
-(I-6) y el `exists` sobre la fila concreta en lugar de sobre la fila que se está
-evaluando.
+Es el mismo predicado que ya tiene `incidents_select_scoped` en `02_rls.sql`, con
+dos añadidos: `deleted_at is null` (I-6) y el `exists` sobre la fila concreta en
+lugar de sobre la fila que se está evaluando.
+
+El `app_is_member_of` no es opcional aunque `app_role_in` ya exija `ACTIVE`:
+`app_role_in` solo cubre la rama de los gestores. Sin él, las otras dos ramas
+—`reporter_id = ...` y `app_is_assigned_provider`— seguirían dando acceso a un
+miembro **suspendido**, que es exactamente lo que la suspensión tiene que quitar.
+Es un forgetting fácil, porque `app_is_member_of` parece redundante al leerlo.
 
 Se usa en `app_get_incident`, `app_update_incident_content`, `app_set_incident_priority`,
 `app_assign_incident`, `app_transition_incident`, `app_soft_delete_incident`,
@@ -388,16 +394,27 @@ recorre las dos primeras aristas y solo si `assigned_to_id` es el suyo.
   una transición que además sería inválida tiene que recibir `403`, no `409`. Si el
   grafo se comprobara primero, todo `403` de este endpoint acabaría siendo `409` y
   el cliente no podría distinguir "no puedes" de "eso no se puede".
-- Guarda de grafo: si `(status_actual, p_new_status)` no está en la tabla →
-  `incident_invalid_transition` (`23514`, 409).
+- Guarda de "esta arista es solo del ADMIN": `RESOLVED → OPEN` y `→ CANCELLED` (desde
+  cualquiera de los otros tres) → `42501` (`forbidden_role`). Es **otra** guarda, y no
+  un `v_is_admin` dentro de la arista, por el mismo motivo que la anterior pero al
+  revés: con el requisito de `ADMIN` dentro del grafo, un `PROVIDER` asignado que
+  intenta reabrir caería en `incident_invalid_transition` y recibiría un `409` ("no se
+  puede"), cuando lo que falta no es una arista sino un permiso. Con un `409` el
+  cliente ofrece elegir otro estado destino, y no hay ninguno que sirva.
+  La guarda mira **el origen también**, no solo el destino: `OPEN` solo es destino
+  válido desde `RESOLVED`, y si mirara solo el destino convertiría el `OPEN → OPEN` de
+  un proveedor (que es `409` por ser una transición al estado actual) en un `403`.
+- Guarda de grafo, y aquí ya no hay nada de roles dentro: si
+  `(status_actual, p_new_status)` no está en la tabla → `incident_invalid_transition`
+  (`22023`, 409).
 - `p_new_status = status_actual` es una transición inválida, no un no-op: un `PATCH`
   que devuelve `200` sin haber cambiado nada es peor que un `409`.
 - `resolved_at`: `now()` al entrar en `RESOLVED`, `null` al salir (I-13). Lo pone
   la función, no la aplicación.
 
-La estructura del cuerpo es: guarda de contexto, visibilidad, actor, grafo,
-escritura. En ese orden, porque cada guarda es más específica que la anterior y el
-error que ve quien llama debe ser el más informativo.
+La estructura del cuerpo es: guarda de contexto, visibilidad, actor, arista de solo
+`ADMIN`, grafo, escritura. En ese orden, porque cada guarda es más específica que la
+anterior y el error que ve quien llama debe ser el más informativo.
 
 ### 5.7 `app_soft_delete_incident(p_incident uuid) returns void`
 
@@ -613,12 +630,30 @@ título que se llamase `incident_invalid_transition` no puede convertirse en un 
 | Sentinel | `errcode` | HTTP |
 |---|---|---|
 | `incident_not_found` | `P0002` | 404 |
-| `incident_invalid_transition` | `23514` | 409 `CONFLICT` |
+| `incident_invalid_transition` | `22023` | 409 `CONFLICT` |
 | `incident_assignee_not_provider` | `22023` | 400 |
+| `incident_priority_required` | `22023` | 400 |
+| `forbidden_role` | `42501` | 403 |
+| `incident_requires_admin` | `42501` | 403 |
 | `sin contexto de usuario` | `42501` | 401 |
-| `forbidden_role`, `incident_requires_admin` | `42501` | 403 |
-| `el título es obligatorio`, `la descripción es obligatoria`, `la categoría es obligatoria`, `la prioridad es obligatoria` | `22023` | 400 |
-| — (`22P02`, uuid inválido) | `22P02` | 400 |
+| — (`22P02`, uuid o enum inválido) | `22P02` | 400 |
+| — (`23514`, CHECK de longitud de la base) | `23514` | 400 |
+
+Dos decisiones que no son obvias y que conviene escribir para que nadie las
+"arregle" después:
+
+**La transición inválida es `22023`, no `23514`.** El borrador de esta tabla decía
+`23514`, y es un error: `23514` es también lo que salta cuando el título es
+demasiado corto o la descripción demasiado larga, porque en este bloque la
+longitud se comprueba en la base de datos (§4f). Con las dos cosas en `23514`, un
+título de tres letras y una transición imposible se distinguen solo por el sentinel
+dentro del mensaje, y si un día Prisma reescribe ese mensaje el título corto se
+devolvería como un 409 en lugar de un 400. Con `22023` los dos casos ocupan
+`errcode` distintos y son inequívocos aunque el sentinel se pierda.
+
+**El `23514` sin sentinel es un 400, no un 409 ni un 500.** Es el único `errcode`
+que aquí no lleva sentinel propio, y llegar a él significa que un CHECK de la
+tabla saltó: eso es un formulario mal rellenado.
 
 Un `42501` desconocido cae en `403` y un `23505` desconocido en `409`, por el mismo
 motivo que en el bloque 03: una política que se cierra de más debe dar un 403 y no
@@ -638,12 +673,12 @@ backend/src/incidents/service.ts                  NUEVO
 backend/src/incidents/controller.ts               NUEVO
 backend/src/incidents/routes.ts                   NUEVO
 backend/src/incidents/__tests__/validators.unit.test.ts        NUEVO
-backend/src/incidents/__tests__/incidents.api.integration.test.ts  NUEVO
+backend/src/incidents/__tests__/errors.unit.test.ts            NUEVO
+backend/src/__tests__/incidents.api.integration.test.ts         NUEVO
 
 backend/prisma/apply-sql.ts        MODIFICADO   añade '02e_incidents.sql'
 backend/prisma/schema.prisma       MODIFICADO   `npx prisma db pull`, gana needs_review
 backend/src/app.ts                 MODIFICADO   monta los dos routers
-backend/src/__tests__/helpers.ts   MODIFICADO   makeProvider() y fixture de incidencia
 supabase/sql/04_verify.sql         MODIFICADO   sección nueva antes del INFORME
 docs/API.md                        MODIFICADO
 docs/SECURITY.md                   MODIFICADO
@@ -656,6 +691,15 @@ que no resuelve, que solo falla al compilar.
 `02e_incidents.sql` va en la lista de `apply-sql.ts` **después** de
 `02d_members.sql` y **antes** de `03_storage.sql`: recrea políticas que existen en
 `02_rls.sql` y usa `app_role_in()`, que aparece en `02_rls.sql`.
+
+Y una corrección de este listado frente al borrador: el test de integración **no** va
+en `src/incidents/__tests__/`, sino en `src/__tests__/`, que es donde ya están los
+otros tres `*.api.integration.test.ts`. Los unitarios sí van junto al módulo, como los
+de `members/` y `communities/`. Son dos convenciones distintas y la que se rompe al
+inventarse una tercera es la que luego cuesta. `helpers.ts` no se toca: el fixture de
+incidencia que ya existía (`makeIncident`) ha servido, y `makeProvider()` no hizo
+falta porque los escenarios de este bloque necesitan un `PROVIDER` con sesión, que es
+`makeMember(u, c, 'PROVIDER')` más un login.
 
 ---
 
@@ -683,8 +727,22 @@ Ninguna. Este bloque no introduce secretos ni variables nuevas.
   información oculta sobre el usuario.
 - Un `PROVIDER` **suspendido** desaparece de la lista de asignables, y lo que tenía
   asignado deja de verlo.
-- `ADMIN_SA` que no es miembro de la comunidad recibe `403` en las ocho rutas.
-- Un título que se llame `incident_invalid_transition` produce un `400`, no un `409`.
+- `ADMIN_SA` que no es miembro recibe `403` en las **dos** rutas de comunidad
+  (listado y alta) y `404` en las **seis** de incidencia. No es una discrepancia: la
+  comunidad existe y que no seas miembro de ella se puede decir sin filtrar nada,
+  mientras que la incidencia no es visible para ti y un `403` confirmaría que ese id
+  existe (C-8). Este criterio decía antes `403` en las ocho rutas.
+- Un `NEIGHBOR` que intenta editar la incidencia de **otro vecino** de su misma
+  comunidad recibe `404`, no `403`: no la ve, así que el permiso de escribir en ella
+  ni siquiera llega a plantearse. Y el mismo vecino, sobre **su** incidencia, recibe
+  `403`, que es el caso en el que la regla de rol es la que decide.
+- La traducción de un error de PL/pgSQL exige el par (errcode, sentinel). Se comprueba
+  en `incidents/__tests__/errors.unit.test.ts` y **no** por la API: el mensaje de un
+  `CHECK` reventado no lleva los datos de la fila, así que no se puede hacer llegar un
+  sentinel de cliente hasta el mensaje de error por la vía normal. El criterio decía
+  antes "un título que se llame `incident_invalid_transition` produce un `400`", que
+  además es falso: ese título tiene 27 caracteres y es perfectamente válido, así que
+  el `POST` devuelve `201`.
 
 ### Visibilidad
 
@@ -695,16 +753,31 @@ Ninguna. Este bloque no introduce secretos ni variables nuevas.
   encuentra por fragmento de título con acentos y mayúsculas.
 - Paginación: `meta` trae `page`, `limit`, `total` y `totalPages`, y `total` es el
   total **sin** paginar.
-- `limit: 1000` se acota a 100.
+- `limit: 1000` es un `400`, no un `100`: el contrato de §7.3 fija `limit` entre 1 y
+  100, y el recorte a 100 de `app_list_incidents()` es la segunda capa, para quien
+  llame a la función sin pasar por el esquema (§5.8). Este criterio decía antes "se
+  acota a 100", que es lo que hace la función y no la API, y contradecía a §7.3. Se
+  mantiene el contrato: un `4xx` que nombra el campo es mejor que un `200` con una
+  página de tamaño distinto del pedido.
 
 ### Transiciones
 
 - `OPEN → IN_PROGRESS → RESOLVED`, hecho por el `ADMIN` y hecho por el `PROVIDER`
   asignado.
 - `OPEN → RESOLVED` directo es `409`.
-- `RESOLVED → OPEN` por `ADMIN` reabre; por el `PROVIDER` asignado es `403`.
+- `RESOLVED → OPEN` por `ADMIN` reabre; por el `PROVIDER` asignado es `403`, **no**
+  `409`. Es la razón de que `app_transition_incident()` tenga una guarda de "esta
+  arista es solo del ADMIN" separada de la guarda de grafo (§5.6): si el requisito de
+  `ADMIN` estuviera dentro de la arista, el proveedor caería en
+  `incident_invalid_transition` y el cliente le ofrecería elegir otro estado destino,
+  cuando no existe ninguno que sirva.
 - `→ CANCELLED` por `ADMIN` desde los tres estados; por el `PROVIDER` asignado es
-  `403`.
+  `403`, por el mismo motivo.
+- `OPEN → OPEN` de un `PROVIDER` asignado sigue siendo `409` ("transición al estado
+  actual"), no `403`: `OPEN` solo es destino válido desde `RESOLVED`, y la guarda de
+  "solo del ADMIN" mira también el origen por eso.
+- `CANCELLED → CANCELLED` es `409` también para el `PROVIDER`, porque `CANCELLED` no
+  es origen de ninguna arista y lo que le falta no es un permiso sino una arista.
 - Desde `CANCELLED` no se sale: cualquier transición es `409`.
 - Una transición al estado actual es `409`.
 - `resolved_at` tiene valor al entrar en `RESOLVED` y es `null` al reabrir.
