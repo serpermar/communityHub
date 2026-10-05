@@ -337,6 +337,31 @@ Dos niveles: **rol global** (staff del SaaS) y **rol dentro de la comunidad** (`
 | Gestionar miembros y roles | — | — | ✅ | — |
 | Invocar IA y herramientas MCP | ✅ | ✅ | ✅ | ✅ (scope limitado) |
 
+**Lagunas de esta tabla, pendientes de cerrar en el spec 05 (Common Areas +
+Reservations).** No son errores de la tabla: son capacidades que la tabla no nombra y
+que el bloque 05 tiene que decidir antes de escribir SQL, porque cambian el modelo.
+
+La que más pesa es que el ER de §3 define `reservations.status` como
+`PENDING | CONFIRMED | CANCELLED`, pero **ninguna fila dice quién pasa de `PENDING` a
+`CONFIRMED`**. "Reservar zona común" está marcado `✅` para los tres roles de la
+comunidad, así que parece que cualquiera reserva y ya está; entonces `PENDING` no
+significa nada y el estado sobra. O al revés: la reserva se confirma sola y `PENDING`
+no existe. Las dos cosas no caben a la vez.
+
+Las otras dos son de privacidad y de propiedad:
+
+- **Ver las reservas de otros.** La tabla dice quién *crea* una reserva, no quién la
+  *ve*. Y "ver" importa: en una washing machine el horario ocupado de la Finca es
+  información que todo el mundo ve de todas formas, pero el motivo por el que lo
+  reservas no lo es. Lo mismo que en incidencias, donde un vecino solo ve las suyas:
+  aquí hay que decidir si `GET /communities/:id/reservations` devuelve las de todos o
+  solo las propias, y `GET /reservations/me` sugiere que hay dos lecturas.
+- **Cancelar una reserva ajena.** No hay fila. La intuición es que solo quien la
+  crea la cancela, y que `ADMIN` puede, pero intuir no es decidir.
+
+Lo que sí está claro y no se toca: `PROVIDER` no reserva (ya sale en `—`), porque no
+vive en la comunidad, y "Gestionar zonas comunes" es de `ADMIN` únicamente.
+
 Implementación:
 
 - **Middleware `requireRole(...roles)`** para el coarse check sobre el `community_members.role` de la comunidad extraída del recurso.
@@ -835,20 +860,35 @@ Defensa en profundidad, aplicada desde el primer commit (no como fase final).
 | **2** | Auth completo + RBAC base | spec 01 aprobada; tests de register/login/refresh + test de aislamiento |
 | **3** | Communities, Members, Users | spec 02–03; policy de comunidad con tests |
 | **4** | Incidents + Comments | spec 04; reglas de transición de estado |
-| **5** | Announcements | spec 06 |
-| **6** | Common Areas + Reservations (con slots) | spec 05; test de reserva duplicada y concurrencia |
-| **7** | Documents + ACL | spec 07; test de descarga no autorizada |
-| **8** | Finance (expenses, invoices, summary) | spec 08 |
-| **9** | Voting | spec 09; test de voto único y quórum |
+| **5** | Common Areas + Reservations (con slots) | spec 05–06; test de reserva duplicada y concurrencia |
+| **6** | Announcements | spec 07 |
+| **7** | Documents + ACL | spec 08; test de descarga no autorizada |
+| **8** | Finance (expenses, invoices, summary) | spec 09 |
+| **9** | Voting | spec 10; test de voto único y quórum |
 | **10** | Dashboard + Recharts | métricas correctas |
 | **11** | Integraciones externas (weather, map) | degradación limpia si falla |
-| **12** | AI Assistant (tool calling) | spec 10; respuesta con citas |
-| **13** | AI Incident Assistant (draft + confirmación) | spec 10; nunca crea sin humano |
-| **14** | MCP server + skills + agents | spec 11–12; auditoría de tool calls |
+| **12** | AI Assistant (tool calling) | spec 11; respuesta con citas |
+| **13** | AI Incident Assistant (draft + confirmación) | spec 11; nunca crea sin humano |
+| **14** | MCP server + skills + agents | sin spec todavía |
 | **15** | Agents de desarrollo (testing, security, documentation) | workflow SDD operativo |
 | **16** | Hardening, CI/CD completo, docs, demo | README/ARCHITECTURE/SECURITY/CONTRIBUTING/API/AI-DEVELOPMENT |
 
 Cada fase empieza con spec aprobada y termina con tests, security review y documentación. Ninguna fase avanza saltándose la anterior.
+
+**Sobre los números de spec.** Los que mandan son los nombres de fichero de `specs/`, no esta
+tabla. Antes estaba al revés y por eso los números no cuadraban a partir de la fase 5: la
+tabla decía "fase 5: Announcements → spec 06" cuando `specs/06-reservations.md` es de
+reservas, y de ahí en adelante todo iba desplazado una posición. Ahora cada fila apunta al
+fichero que le toca.
+
+Dos consecuencias de que manden los ficheros, y ninguna es un problema:
+
+- La fase 5 cubre **spec 05–06** (áreas comunes y reservas) porque son el mismo bloque:
+  las reservas sin zonas no significan nada. Es el mismo caso que la fase 3 con spec 02–03,
+  así que un bloque que cubre dos specs ya tiene precedente y no hay que renombrar once
+  ficheros ni dejar huecos en la numeración.
+- Las fases 14 y 15 no tienen spec todavía, porque `specs/` llega hasta la 11. No es un
+  olvido: es que aún no se han escrito.
 
 ---
 
