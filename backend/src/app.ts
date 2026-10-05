@@ -25,6 +25,7 @@ import { env } from './config/env.js'
 import { createAuthRouter } from './auth/routes.js'
 import { createCommunitiesRouter } from './communities/routes.js'
 import { createInvitationRedeemRouter, createInvitationsRouter, createMembersRouter } from './members/routes.js'
+import { createIncidentRouter, createIncidentsRouter } from './incidents/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -162,6 +163,12 @@ export function createApp(): Express {
   // El canje va aparte porque NO es una ruta de comunidad: al canjear no se sabe
   // todavia en que comunidad se entra, y la comunidad la decide el codigo (M-10).
   app.use('/api/v1/invitations', createInvitationRedeemRouter())
+
+  // Incidencias, en dos routers porque las ocho rutas no comparten prefijo (spec 04):
+  // dos llevan la comunidad en la URL y seis llevan la incidencia. El orden entre
+  // routers no importa, cada uno solo atiende las suyas.
+  app.use('/api/v1/communities', createIncidentsRouter())
+  app.use('/api/v1', createIncidentRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

@@ -175,21 +175,32 @@ backend entero.
 
 Conceder `execute` sobre una función `SECURITY DEFINER` a un rol equivocado es
 equivalente a conceder el permiso que la función ejerce, porque la función se
-ejecuta **saltándose RLS**. Por eso las dos que hay tienen los permisos
+ejecuta **saltándose RLS**. Por eso las que hay tienen los permisos
 restringidos a mano:
 
 | Función | Puede ejecutarla | Qué hace |
 |---|---|---|
 | `app_create_community(...)` | `app_runtime` | Crea una comunidad y a su primer `ADMIN` |
 | `app_is_global_admin()` | `app_runtime` | Responde si el usuario del contexto es `ADMIN_SA` |
+| `app_can_see_incident(uuid)` | `app_runtime` | Visibilidad de una incidencia |
+| `app_incident_community(uuid)` | `app_runtime` | Comunidad de una incidencia visible |
+| `app_list_incidents(...)` | `app_runtime` | Listado ya filtrado por rol |
+| `app_get_incident(uuid)` | `app_runtime` | Una incidencia, ya filtrada |
+| `app_list_incident_comments(uuid)` | `app_runtime` | Comentarios de una visible |
+| `app_create_incident(...)` | `app_runtime` | Alta. El reporter lo pone el servidor |
+| `app_update_incident_content(...)` | `app_runtime` | Edición del contenido |
+| `app_set_incident_priority(uuid, ...)` | `app_runtime` | Prioridad. Solo `ADMIN` |
+| `app_assign_incident(uuid, ...)` | `app_runtime` | Asignación. Solo `ADMIN` |
+| `app_transition_incident(uuid, ...)` | `app_runtime` | Cambio de estado |
+| `app_soft_delete_incident(uuid)` | `app_runtime` | Borrado lógico. Solo `ADMIN` |
 
-Las dos llevan `revoke ... from public` en el mismo fichero que las crea. El test
-`public, anon y authenticated no pueden ejecutar app_create_community` lo
-comprueba con `has_function_privilege`, que es la pregunta correcta: pregunta al
-catálogo, no deduce del texto del `GRANT`.
-
-`04_verify.sql` lo falla si el recuento no es el esperado, así que un `GRANT`
-nuevo que se colara en otro fichero también lo delata.
+Las trece llevan `revoke ... from public` y `set search_path = public, pg_temp`: las once
+de `02e_incidents.sql`, `app_create_community` en `02c_communities.sql` y
+`app_is_global_admin` en `02_rls.sql`.
+`04_verify.sql` lo falla si el recuento no es el esperado, así que un `GRANT` nuevo
+que se colara en otro fichero también lo delata, y comprueba con
+`has_function_privilege`, que es la pregunta correcta: pregunta al catálogo, no
+deduce del texto del `GRANT`.
 
 El detalle que hace que esto no sea una escalada de privilegios trivial está en
 que **`app_is_global_admin()` no acepta ningún usuario como parámetro**
@@ -197,6 +208,105 @@ que **`app_is_global_admin()` no acepta ningún usuario como parámetro**
 es escalada con una llamada: quien pueda ejecutarla pregunta por cualquier
 usuario. El predicado va fijado a `app_current_user_id()`, que sale del contexto
 de la sesión y no de la petición.
+
+### Por qué las escrituras de incidencias son funciones y no `UPDATE`
+
+`app_runtime` **no** tiene `INSERT` ni `UPDATE` sobre `incidents`, y `incidents`
+**no** tiene política de `INSERT` ni de `UPDATE`. No es una medida de rendimiento:
+es que la política de `UPDATE` que había antes solo comprobaba que el llamante
+fuera miembro y un reporter, y se saltaba todo el dominio de golpe. Con
+`INSERT`/`UPDATE` concedidos, cualquiera que llegara hasta la tabla podría poner
+`status = 'RESOLVED'` sin pasar por el grafo.
+
+Como no hay escritura directa, todas las reglas viven dentro de la función, que
+es el **único sitio donde el motor las ve**. El backend no las duplica: si lo
+hiciera habría dos reglas que se pueden desincronizar, y la que se desincronice
+sería la de TypeScript, que nadie audita.
+
+La excepción única es `incident_comments`, que sí va por el cliente de Prisma: solo
+`INSERT`, con la política puesta por el backend. Es deliberado y está anotado en el
+sitio: un comentario no tiene estado, ni prioridad, ni transiciones, así que no hay
+regla de dominio que justifique una capa `SECURITY DEFINER`. Lo que sí importa —que
+la incidencia sea visible— lo pone `comments_insert_author` de `02_rls.sql`, no el
+código.
+
+Y como `app_runtime` es un rol de **base de datos** y no de HTTP, "no hay endpoint"
+no es una defensa: `02_rls.sql` traía un `grant update` y una política
+`comments_update_author` que ningún endpoint usaba, pero que allowían reescribir un
+comentario entero desde el rol de la aplicación. I-7 dice que los comentarios no se
+editan, así que `02e_incidents.sql` revoca el `UPDATE` **y** suelta la política.
+Quitar solo la política dejaría el permiso concedido y sin regla: denegado por
+casualidad, y no por diseño.
+
+### Visibilidad de una incidencia: 404 en vez de 403
+
+El predicado es el mismo en las lecturas y en las escrituras, y es lo que impide
+que un vecino exista para su vecino:
+
+- `ADMIN` y `PRESIDENT` ven todas las de su comunidad.
+- `NEIGHBOR` ve las suyas.
+- `PROVIDER` ve las que tiene **asignadas**.
+
+Lo que **no** existe y no se ve es un `404`, nunca un `403`, y por dos motivos: un
+`403` confirmaría que el id existe, y un `410` confirmaría que estuvo. El borrado
+lógico es invisible a propósito, así que después de borrar la incidencia tampoco
+la ve quien lareportedo.
+
+Y hay una consecuencia menos obvia: **un miembro suspendido también pierde el
+acceso**, porque el predicado incluye `app_is_member_of()`, y eso mira el estado
+de la membresía. El token sigue siendo válido quince minutos; lo que se corta es
+el rol.
+
+### Por qué el rol se comprueba en dos capas
+
+El backend comprueba el rol en el middleware **y** las funciones de SQL lo
+comprueban otra vez dentro de la transacción, contra la fila.
+
+La razón es que el middleware no es el único camino: PostgREST llega a las mismas
+funciones sin pasar por Express. Una comprobación que solo vive en el backend
+protege el backend y nada más. La de SQL protege el dato.
+
+En el `PUT` hay además una comprobación de rol en el servicio, antes de escribir,
+que **no** es la que protege: es la primera capa, y está para que el mensaje sea
+el bueno y para no escribir el contenido de una incidencia antes de fallar por la
+prioridad. Si se borrara, el endpoint seguiría siendo seguro.
+
+### Un error de negocio no se confunde con un permiso
+
+`app_transition_incident()` tiene **cuatro** guardas y el orden importa: contexto,
+visibilidad, actor, arista-de-solo-`ADMIN`, grafo.
+
+La cuarta existe por un error que se cometió al escribirla: al principio el
+requisito de `ADMIN` para reabrir y cancelar estaba **dentro** de la arista del
+grafo (`… and v_is_admin`). Con eso, un `PROVIDER` asignado que intentaba reabrir
+caía en `incident_invalid_transition` y recibía un `409` — "ese cambio no se puede"
+— cuando lo que faltaba era un **permiso**. El `409` invites a elegir otro estado
+destino, y no hay ninguno que sirva.
+
+Separándolo, el `PROVIDER` recibe `403` y el `NEIGHBOR` un `409` de verdad por una
+transición que no existe. La guarda mira también el origen, no solo el destino,
+para no convertir el `OPEN → OPEN` de un `PROVIDER` (que es un `409` por ser una
+transición al estado actual) en un `403`.
+
+### Traducir errores sin regalar un `409`
+
+Los errores de negocio se levantan con un **sentinel** al principio del mensaje y
+un `errcode` de PostgreSQL. La traducción a HTTP exige **las dos cosas**, y no
+solo el sentinel.
+
+Un sentinel es texto que viaja dentro del mensaje de Postgres, que es justo donde
+acabaría cualquier valor que venga del cliente. Si la traducción mirase solo el
+texto, un título que se llamase `incident_invalid_transition` podría convertirse
+en un `409`.
+
+`incident_invalid_transition` usa `22023` y **no** `23514`, aunque los dos sean un
+`CHECK` reventado, para que un título demasiado corto y una transición imposible
+se distinguan aunque el texto se pierda. Y un `23514` **sin** sentinel conocido es
+un `400`: es un formulario mal rellenado.
+
+Un `42501` desconocido cae en `403` y no en `500`, por el mismo motivo que en el
+bloque 03: si una política se cierra de más, el síntoma tiene que ser un `403` y no
+un error interno que nadie sabe mirar.
 
 ---
 
@@ -317,13 +427,25 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 | Comprobación | Qué demuestra |
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
-| `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas. Sin base de datos |
-| `npm run test:integration` | Los 7 endpoints contra Postgres real: aislamiento entre comunidades, rotación, reutilización, envelope, rate limit |
+| `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
+| `npm run test:integration` | Los 26 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, y las ocho rutas de incidencias con sus seis roles |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
-| `04_verify.sql` | Que el esquema y los permisos están donde deben, sin depender del código |
+| `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
 Los 7 endpoints y los criterios 1 a 19 de la spec tienen su test. La lista está
-en `specs/01-authentication.md`, sección 10.
+en `specs/01-authentication.md`, sección 10. Del bloque 04, los criterios de
+`specs/04-incidents.md` sección 10 tienen su test, y en la base de datos se
+comprueba además lo que no se puede pedir por HTTP: que `incidents` no tiene
+política de escritura, que las once funciones siguen siendo `SECURITY DEFINER` con
+`search_path` fijo y no ejecutables por `PUBLIC`, que la secuencia del código legible
+no es usable desde fuera, y que `app_can_see_incident` y `app_list_incidents` siguen
+mencionando las mismas tres condiciones.
+
+Ese último es el más importante de todos y no falla nunca por casualidad: si
+alguien edita el predicado y olvida el listado, el detalle y la lista empiezan a
+discrepar **sin que nada falle**, porque las dos consultas funcionan. Es el fallo más
+difícil de detectar de todo el bloque, así que se comprueba con `pg_get_functiondef`
+en vez de confiar en que alguien se acuerde.
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 
@@ -334,6 +456,12 @@ Usuario A de comunidad 1 intenta leer una incidencia de comunidad 2  ->  0 filas
 No es un 403. Con RLS, la consulta simplemente no ve la fila. Un 403 confirmaría
 que la fila existe y que solo le negaron el paso; cero filas no revela ni que
 exista.
+
+Y el mismo razonamiento aplicado a `incident_comments`: un vecino que lista los
+comentarios de la incidencia de otro recibe `0 filas`, no un `403`. La política
+`comments_select_via_incident` de `02_rls.sql` resuelve primero si la incidencia es
+visible y solo entonces filtra por autor, así que el comentario hereda el alcance de
+su incidencia sin que ninguna ruta tenga que comprobarlo.
 
 ---
 

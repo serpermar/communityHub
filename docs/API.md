@@ -198,6 +198,182 @@ a propósito.
 
 ---
 
+## Incidencias
+
+Ocho rutas en **dos** routers, porque no comparten prefijo: dos llevan la comunidad
+en la URL y las otras seis llevan la incidencia. Que las de incidencia no lleven
+`communityId` es intencionado: la incidencia ya tiene comunidad, y pedir las dos
+cosas es pedir lo mismo dos veces.
+
+La comunidad sale de la propia incidencia, y por eso un `ADMIN_SA` o cualquier
+usuario de otra comunidad recibe **`404`** en estas seis rutas, no `403`: un `403`
+confirmaría que ese id existe.
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "referenceCode": "INC-2026-000001",
+  "title": "Fuga de agua en el pasillo del 3º",
+  "description": "Empieza el martes...",
+  "category": "PLUMBING",      // ELEVATOR | ELECTRICITY | PLUMBING
+                               // CLEANING | SECURITY | HEATING | OTHER
+  "priority": "HIGH",          // LOW | MEDIUM | HIGH | CRITICAL
+  "status": "IN_PROGRESS",     // OPEN | IN_PROGRESS | RESOLVED | CANCELLED
+  "location": "Pasillo 3º",    // null si no se dijo
+  "reporterId": "uuid",
+  "reporterName": "Marta Ruiz",
+  "assignedToId": "uuid",      // null si no hay proveedor asignado
+  "assignedToName": "Manolo",
+  "needsReview": false,
+  "createdVia": "MANUAL",
+  "resolvedAt": null,          // fecha al entrar en RESOLVED, null al salir
+  "createdAt": "2026-10-05T10:00:00.000Z",
+  "updatedAt": "2026-10-05T10:00:00.000Z"
+}
+```
+
+`referenceCode` es `INC-<año>-<6 dígitos>`, único, y es lo que la gente dice en voz
+alta. **No es una ruta**: las URLs van por `id`.
+
+`email` **no** sale. Para un listado de incidencias no hace falta, y
+`GET /members` ya es la excepción acotada que expone correos.
+
+Un comentario es `{ id, incidentId, authorId, authorName, body, createdAt }`, y no
+tiene ni `PUT` ni `DELETE`: no se editan ni se borran desde la API.
+
+### Qué ve cada rol
+
+Lo decide la base de datos, fila a fila, no el backend. La misma ruta devuelve
+cosas distintas según quién la llame.
+
+| | Lista | Abre | Comenta | Asignado |
+|---|---|---|---|---|
+| `ADMIN` | todas | todas | sí | sí |
+| `PRESIDENT` | todas | todas | sí | no |
+| `NEIGHBOR` | **las suyas** | las suyas | las suyas | no |
+| `PROVIDER` | **las asignadas** | las asignadas | las asignadas | sí |
+
+### `GET /api/v1/communities/:communityId/incidents`
+
+Lo visible, en orden `created_at desc`. Filtros opcionales, combinables:
+`status`, `priority`, `category` y `q` (fragmento de título, con acentos y sin
+distinguir mayúsculas).
+
+```
+200 → { "data": [ …incidencias ],
+        "meta": { "page": 1, "limit": 20, "total": 42, "totalPages": 3 } }
+```
+
+`total` es el total **sin paginar**, que es lo que hace útil la paginación. Una
+página más allá del final devuelve `data: []` pero conserva el `total` real, para
+que el cliente no dibuje "página 5 de 0".
+
+`page` empieza en 1. `limit` va de 1 a 100, y `limit=1000` es un `400` que nombra
+el campo, no un `200` con 100 filas: un `4xx` que explica el problema es mejor que
+un recorte silencioso.
+
+### `POST /api/v1/communities/:communityId/incidents`
+
+Alta por cualquier miembro activo salvo `PROVIDER`: informar de un problema es cosa
+de quien vive en la comunidad, y el proveedor reporta por el trabajo que le asigna
+el `ADMIN`.
+
+```
+201 → { "data": …incidencia }
+      Location: /api/v1/incidents/{id}
+400 → cuerpo inválido, con el campo concreto en `details`
+403 → el rol no puede abrir incidencias
+```
+
+El reporter **no** se manda: lo pone el servidor, y mandarlo es un `400` en vez de
+un `201` que lo ignoraría en silencio. Lo mismo con `status` o `needsReview`.
+
+`needsReview` no se manda y no se decide en el cliente: es `true` si la prioridad es
+`CRITICAL` **y** quien la abre es un `NEIGHBOR`. Lo decide la misma transacción que
+la inserta.
+
+### `GET /api/v1/incidents/:id`
+
+```
+200 → { "data": …incidencia }
+404 → no existe, está borrada, o no es visible para ti
+```
+
+### `PUT /api/v1/incidents/:id`
+
+Reemplazo **completo** del contenido: `title`, `description` y `category` son
+obligatorios. Es un `PUT`, no un `PATCH`, y no hay `PATCH` de contenido.
+
+Opcionales y con permisos distintos:
+
+- `location`: `null` **o** `""` la borran.
+- `priority`: solo `ADMIN`.
+- `assignedToId`: solo `ADMIN`, y `null` desasigna.
+
+```
+200 → { "data": …incidencia }
+403 → tu rol no permite cambiar la prioridad o la asignación
+404 → no existe o no es visible
+```
+
+Enviar solo el contenido no toca ni el estado, ni la prioridad, ni el `assignedToId`.
+Y un `NEIGHBOR` que manda `priority` recibe `403`, no un `200` que lo ignoró.
+
+### `PATCH /api/v1/incidents/:id/status`
+
+```
+200 → { "data": …incidencia }
+403 → tu rol no puede cambiar el estado, o esta arista es solo del ADMIN
+409 → la transición no existe desde el estado actual
+```
+
+El grafo:
+
+| De | A | Quién |
+|---|---|---|
+| `OPEN` | `IN_PROGRESS` | `ADMIN`, o el `PROVIDER` **asignado** |
+| `IN_PROGRESS` | `RESOLVED` | `ADMIN`, o el `PROVIDER` **asignado** |
+| `RESOLVED` | `OPEN` | solo `ADMIN` |
+| cualquiera de los tres | `CANCELLED` | solo `ADMIN` |
+| `CANCELLED` | — | estado final |
+
+`403` y `409` significan cosas distintas y el cliente las tiene que tratar distinto:
+un `409` ofrece elegir otro estado destino, y un `403` no tiene nada que ofrecer.
+
+Dos `PATCH` simultáneos desde el mismo estado **no** se pierden: uno entra y el
+otro recibe `409`. Nunca los dos `200`.
+
+`PRESIDENT` no aparece en el grafo, en ninguna fila.
+
+### `DELETE /api/v1/incidents/:id`
+
+```
+204 → sin cuerpo
+403 → solo `ADMIN`
+404 → no existe, o ya estaba borrada
+```
+
+Borrado lógico, y **para todos los roles desaparece**: ni el reporter ni el
+proveedor asignado la vuelven a ver. Un `DELETE` repetido es `404`, no un `204`
+idempotente.
+
+### Comentarios
+
+```
+GET  /api/v1/incidents/:id/comments    200 → { "data": [ …comentarios ] }
+POST /api/v1/incidents/:id/comments    201 → { "data": …comentario }
+                                        400 → cuerpo inválido
+                                        404 → no existe o no es visible
+```
+
+El listado va en `created_at asc` y no se pagina. El autor es el llamante y no se
+manda.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
@@ -209,9 +385,14 @@ a propósito.
 | 401 | `INVALID_CREDENTIALS` | Login con email o contraseña incorrectos |
 | 403 | `FORBIDDEN` | Autenticado pero sin permiso |
 | 404 | `NOT_FOUND` | El endpoint no existe, o el recurso sí pero está dado de baja |
-| 409 | `CONFLICT` | El slug ya existe, o el email en el registro |
+| 409 | `CONFLICT` | El slug ya existe, el email en el registro, o una transición de estado que no existe |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
+
+Un mismo `code` puede venir de sitios distintos, y por eso el mensaje importa aunque
+el cliente no debería leerlo: un `CONFLICT` puede ser "el slug está pillado" o "de
+`OPEN` no se puede pasar a `RESOLVED`". Si el cliente necesita distinguirlos, no
+puede con el `code` todavía.
 
 El cliente decide **por el `code`**, nunca por el mensaje: el mensaje es para las
 personas y puede cambiar; el código es parte del contrato.
