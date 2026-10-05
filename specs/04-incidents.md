@@ -1,6 +1,6 @@
 # Spec 04 — Incidencias
 
-> **Estado: APPROVED.** Aprobada por el desarrollador el 05/10/2026.
+> **Estado: IMPLEMENTED.**
 > Las cuatro decisiones de §12 (D-1 a D-4) están tomadas.
 > **Fase:** 4 (incidencias). Precedida de `01-authentication`, `02-communities`
 > y `03-members`.
