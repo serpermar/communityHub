@@ -228,9 +228,12 @@ end $$;
 -- ----------------------------------------------------------------------------
 -- 5.1 users
 -- ----------------------------------------------------------------------------
--- Un usuario solo se ve a sí mismo. La comunidad no necesita ver la fila
--- completa de los vecinos: expone nombre y número de unidad vía community_members
--- en la capa de aplicación.
+-- Un usuario solo se ve a sí mismo con una consulta directa. El nombre y el
+-- email de los vecinos NO salen de aquí: community_members no los tiene, y
+-- exponerlos exigiría abrir esta política a cualquier usuario con el que se
+-- comparte una comunidad. Lo resuelve app_list_community_members()
+-- (02d_members.sql), que hace el join en una función con guarda de pertenencia
+-- y devuelve dos columnas. Esta política se queda como estaba.
 drop policy if exists users_select_self on users;
 create policy users_select_self on users
   for select using (id = app_current_user_id());
@@ -956,7 +959,12 @@ grant select on
 -- rastro de auditoría.
 grant select on expenses to app_runtime;
 
-grant insert, update on users, community_members, incidents, incident_comments,
+-- insert, update. community_members NO está en ninguna de las dos listas de
+-- escritura: desde 02d_members.sql sus únicas entradas son funciones SECURITY
+-- DEFINER, que no pasan por RLS (spec 03, M-3). El permiso de escritura se le
+-- revoca allí explícitamente, porque quitarlo de esta lista no deshace un GRANT
+-- ya aplicado.
+grant insert, update on users, incidents, incident_comments,
   reservations, area_slots, document_acl, notifications, vote_responses,
   ai_chat_sessions, ai_chat_messages, incident_drafts, ai_usage
   to app_runtime;

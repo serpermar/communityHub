@@ -16,6 +16,7 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:apply": "tsx prisma/apply-sql.ts",
+    "db:verify": "tsx prisma/apply-sql.ts --verify",
     "check:db": "tsx src/check-db.ts",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run --config vitest.config.ts",

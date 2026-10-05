@@ -14,11 +14,18 @@
 //   protocolo simple, que sí admite varias.
 //
 // Uso:
-//   npm run db:apply                      aplica contra MIGRATION_DATABASE_URL
-//   npm run db:apply -- --verify          ejecuta además 04_verify.sql
-//   npm run db:apply -- --url "postgres://..."   aplica contra otra URL
+//   npm run db:apply                            aplica contra MIGRATION_DATABASE_URL
+//   npm run db:verify                           aplica y además ejecuta 04_verify.sql
+//   npm run db:apply -- --url "postgres://..."  aplica contra otra URL
 //
-// Los archivos son idempotentes, así que reaplicarlos no rompe nada.
+// `db:verify` es un script aparte y no un flag documentado a propósito:
+// `npm run db:apply -- --verify` NO hace lo que parece bajo PowerShell, que se
+// come el `--verify` y ejecuta la verificación sin ejecutar nada: ni aviso, ni
+// fallo, ni 04_verify.sql. Es el peor modo de fallo posible en un verificador,
+// y bastaría con que un día el único "en verde" fuera el de un comando que no
+// llegó a comprobar nada. Un script sin flags se comporta igual en cualquier
+// shell. Para aplicarlo a mano contra otra base:
+//   npx tsx prisma/apply-sql.ts --verify
 // ---------------------------------------------------------------------------
 
 import 'dotenv/config'
@@ -29,9 +36,16 @@ import { Client } from 'pg'
 const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 
 // El orden importa. 02_rls.sql crea `app_runtime` y depende de las tablas de
-// 01; 02b_auth.sql, 02c_communities.sql y 03_storage.sql dependen del rol de 02;
-// 04_verify.sql comprueba que todo lo anterior existe.
-const FILES = ['01_schema.sql', '02_rls.sql', '02b_auth.sql', '02c_communities.sql', '03_storage.sql']
+// 01; 02b_auth.sql, 02c_communities.sql, 02d_members.sql y 03_storage.sql
+// dependen del rol de 02; 04_verify.sql comprueba que todo lo anterior existe.
+const FILES = [
+  '01_schema.sql',
+  '02_rls.sql',
+  '02b_auth.sql',
+  '02c_communities.sql',
+  '02d_members.sql',
+  '03_storage.sql',
+]
 const VERIFY = '04_verify.sql'
 
 function arg(name: string): string | undefined {
@@ -45,8 +59,10 @@ const url =
   process.env.DATABASE_URL
 
 if (!url) {
-  console.error('Falta MIGRATION_DATABASE_URL en el .env (o usa --url).')
-  process.exit(1)
+  // Se lanza en vez de llamar a process.exit(1), por lo mismo que al final del
+  // script: exit() trunca stdout en Windows y el mensaje es justo lo único que
+  // hace falta ver.
+  throw new Error('Falta MIGRATION_DATABASE_URL en el .env (o usa --url).')
 }
 
 // `onnotice` no aparece en los tipos de `pg`, aunque el cliente lo soporta desde
@@ -118,35 +134,50 @@ const options: PgClientOptions = {
 // PgClientOptions, que es el tipo que si conoce `onnotice`.
 const client = new Client(options)
 
-console.log(`TLS: ${tls.note}`)
+// Todo lo que viene después va en una función y no en el nivel superior, por un
+// motivo concreto: `process.exit()` se cierra SÍ O SÍ, y en Windows eso trunca lo
+// que hubiera pendiente en stdout cuando stdout es una tubería (una tarea de CI,
+// `> log.txt`, `| Tee-Object`). Con el proceso cerrándose a la fuerza, el final
+// del informe y los RAISE NOTICE de 04_verify.sql se perdían, y con ellos el
+// mensaje de error si la verificación fallaba.
+//
+// Es decir: el verificador se callaba justo cuando tenía algo que decir, que es
+// la peor forma de fallar. Con `process.exitCode` y terminación natural, Node
+// vacía stdout antes de salir y no hace falta process.exit() en ningún sitio.
+async function main(): Promise<void> {
+  console.log(`TLS: ${tls.note}`)
 
-try {
-  await client.connect()
-} catch (error) {
-  console.error('No se ha podido conectar:', error instanceof Error ? error.message : error)
-  process.exit(1)
-}
-
-const files = process.argv.includes('--verify') ? [...FILES, VERIFY] : FILES
-let failed = false
-
-for (const file of files) {
-  const sql = readFileSync(resolve(SQL_DIR, file), 'utf8')
-  process.stdout.write(`${file} `)
   try {
-    await client.query(sql)
-    console.log('· aplicado')
+    await client.connect()
   } catch (error) {
-    failed = true
-    console.log('· FALLÓ')
-    console.error(error instanceof Error ? error.message : error)
-    break
+    console.error('No se ha podido conectar:', error instanceof Error ? error.message : error)
+    process.exitCode = 1
+    return
   }
+
+  const files = process.argv.includes('--verify') ? [...FILES, VERIFY] : FILES
+  let failed = false
+
+  for (const file of files) {
+    const sql = readFileSync(resolve(SQL_DIR, file), 'utf8')
+    process.stdout.write(`${file} `)
+    try {
+      await client.query(sql)
+      console.log('· aplicado')
+    } catch (error) {
+      failed = true
+      console.log('· FALLÓ')
+      console.error(error instanceof Error ? error.message : error)
+      break
+    }
+  }
+
+  if (!failed && files.includes(VERIFY)) {
+    console.log('\n04_verify.sql terminó sin excepciones: todo en verde.')
+  }
+
+  await client.end()
+  process.exitCode = failed ? 1 : 0
 }
 
-if (!failed && files.includes(VERIFY)) {
-  console.log('\n04_verify.sql terminó sin excepciones: todo en verde.')
-}
-
-await client.end()
-process.exit(failed ? 1 : 0)
+await main()

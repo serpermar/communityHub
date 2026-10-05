@@ -146,6 +146,22 @@ export async function makeMember(userId: string, communityId: string, role: memb
   })
 }
 
+/**
+ * El ADMIN de una comunidad.
+ *
+ * Existe como funcion aparte y no como `makeMember(u, c, 'ADMIN')` porque el
+ * nombre dice lo que el test necesita saber. Un ADMIN es el unico rol que puede
+ * invitar y cambiar roles (M-2), asi que en la mayoria de los tests de la spec 03
+ * esa distincion es justo lo que se esta probando, y tenerla en el nombre evita
+ * tener que subir a mirar el enum para saber si el actor puede o no.
+ *
+ * Los fixtures se siembran con `admin` (privilegio) por la regla de este archivo:
+ * sembrar con privilegio, afirmar con restriccion.
+ */
+export async function makeAdmin(userId: string, communityId: string): Promise<void> {
+  await makeMember(userId, communityId, 'ADMIN')
+}
+
 export async function makeIncident(
   communityId: string,
   reporterId: string,
@@ -227,6 +243,34 @@ export async function readUserSafe(userId: string) {
   return admin.users.findUnique({
     where: { id: userId },
     select: { id: true, email: true, full_name: true, global_role: true, status: true, deleted_at: true },
+  })
+}
+
+/**
+ * La fila de membresia de un usuario en una comunidad, leida con privilegio.
+ *
+ * Para afirmar que un cambio se aplico DE VERDAD y no solo que la API respondio 200.
+ * Un 200 con el cuerpo inventado pasaria el test de la respuesta y dejaria la
+ * tabla como estaba, que es el fallo que mas veces se cuela en un endpoint que
+ * escribe.
+ */
+export async function readMembership(userId: string, communityId: string) {
+  return admin.communityMembers.findUnique({
+    where: { community_id_user_id: { community_id: communityId, user_id: userId } },
+  })
+}
+
+/**
+ * Las invitaciones de una comunidad, con `code_hash` incluido.
+ *
+ * El `code_hash` sale a proposito, y por una razon que conviene tener presente al
+ * escribir un assert: es lo que hay que mirar para comprobar que la tabla NO
+ * guarda el codigo en claro. Un `select` sin el hash no podria demostrar eso.
+ */
+export async function readInvitations(communityId: string) {
+  return admin.communityInvitations.findMany({
+    where: { community_id: communityId },
+    orderBy: { created_at: 'desc' },
   })
 }
 

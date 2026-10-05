@@ -571,7 +571,7 @@ no dentro del mensaje de la base de datos.
 | `npm run test:unit` | verde, sin base de datos |
 | `npm run test:integration` | verde, contra Supabase real |
 | `npm run check:db` | en verde |
-| `npm run db:apply -- --verify` | `02d_members.sql` aplicado, `04_verify.sql` sin excepciones |
+| `npm run db:verify` | `02d_members.sql` aplicado, `04_verify.sql` sin excepciones |
 | `npm run smoke` | sin regresiones en autenticación |
 
 ---

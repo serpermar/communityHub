@@ -24,6 +24,7 @@ import { logger } from './config/logger.js'
 import { env } from './config/env.js'
 import { createAuthRouter } from './auth/routes.js'
 import { createCommunitiesRouter } from './communities/routes.js'
+import { createInvitationRedeemRouter, createInvitationsRouter, createMembersRouter } from './members/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -150,6 +151,17 @@ export function createApp(): Express {
 
   app.use('/api/v1/auth', createAuthRouter())
   app.use('/api/v1/communities', createCommunitiesRouter())
+
+  // Miembros e invitaciones cuelgan del mismo prefijo que las comunidades, y van
+  // en routers aparte porque son otro dominio (spec 03). El orden entre los tres
+  // no importa: cada router solo atiende las rutas que declara y el que no
+  // coincide pasa al siguiente.
+  app.use('/api/v1/communities', createMembersRouter())
+  app.use('/api/v1/communities', createInvitationsRouter())
+
+  // El canje va aparte porque NO es una ruta de comunidad: al canjear no se sabe
+  // todavia en que comunidad se entra, y la comunidad la decide el codigo (M-10).
+  app.use('/api/v1/invitations', createInvitationRedeemRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

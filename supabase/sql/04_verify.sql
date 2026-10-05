@@ -23,7 +23,8 @@ declare
     'announcements', 'documents', 'document_acl', 'expenses', 'invoices',
     'votes', 'vote_options', 'vote_responses', 'notifications', 'sessions',
     'audit_logs', 'ai_chat_sessions', 'ai_chat_messages',
-    'incident_drafts', 'ai_usage', 'ai_cache'
+    'incident_drafts', 'ai_usage', 'ai_cache',
+    'community_invitations'
   ];
   missing text;
 begin
@@ -149,6 +150,8 @@ do $$
 declare
   required text[] := array[
     'community_members_scope_uidx',    -- un rol por usuario y comunidad
+    'community_invitations_code_uidx', -- un codigo por comunidad
+    'community_invitations_live_uidx', -- una invitacion viva por email y comunidad
     'incidents_reference_code_uidx',   -- código único por comunidad
     'area_slots_no_overlap_uidx',       -- una reserva por slot (sin carrera)
     'vote_responses_unique_vote_uidx',  -- un voto por usuario
@@ -417,7 +420,130 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 9. Buckets de Storage
+-- 9. Miembros (02d_members.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lo que se comprueba aquí, y por qué importa más que en otros bloques:
+--
+--   Que community_members NO tenga políticas de INSERT, UPDATE ni DELETE. Es la
+--   diferencia entre que el invariante de M-3 (el último ADMIN no se degrada)
+--   viva en una función SECURITY DEFINER, que es el motor, o que viva en la
+--   capa HTTP, que es una sugerencia. Con una política de UPDATE, un ADMIN
+--   cambia su propio role por la vía que quiera y la comunidad se queda sin
+--   nadie que la administre, sin arreglo por API.
+--
+--   Lo mismo con community_invitations y el INSERT: si hubiera política, el
+--   cliente podría elegir expires_at y romper la caducidad de 7 días.
+do $$
+declare
+  v_fallos text := '';
+  v_name   text;
+  v_fn     text[] := array[
+    'app_get_community_member', 'app_list_community_members',
+    'app_invite_to_community', 'app_redeem_invitation',
+    'app_set_member_role', 'app_set_member_status'
+  ];
+begin
+  -- community_members en solo lectura.
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'community_members'
+       and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' community_members tiene politica de escritura;';
+  end if;
+
+  -- Y el permiso de app_runtime tambien fuera: si lo tiene, alguien podría
+  -- escribir en la tabla desde una consulta que no pase por las funciones.
+  if exists (
+    select 1 from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'community_members'
+       and grantee = 'app_runtime'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' app_runtime todavia puede escribir en community_members;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'community_members'
+       and policyname = 'members_select_own_community'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta members_select_own_community de SELECT;';
+  end if;
+
+  -- Invitaciones: sin escritura por politica, y sin INSERT para nadie.
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'community_invitations'
+       and cmd in ('INSERT', 'UPDATE')
+  ) then
+    v_fallos := v_fallos || ' community_invitations tiene politica de escritura;';
+  end if;
+
+  -- Sin INSERT para el rol de la aplicación. Se excluyen el dueño (postgres,
+  -- owner y por tanto con todos los privilegios) y service_role (la clave de
+  -- administración de Supabase, que los tiene por defecto en toda tabla nueva):
+  -- que puedan insertar es lo esperado, lo que no puede es app_runtime.
+  if exists (
+    select 1 from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'community_invitations'
+       and privilege_type = 'INSERT'
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' community_invitations tiene INSERT concedido a un rol que no debe;';
+  end if;
+
+  -- Las seis funciones de miembros: existen, son SECURITY DEFINER con
+  -- search_path fijo, y no las puede ejecutar cualquiera.
+  foreach v_name in array v_fn loop
+    if not exists (
+      select 1 from pg_proc p
+      join pg_namespace ns on ns.oid = p.pronamespace
+      where ns.nspname = 'public' and p.proname = v_name
+    ) then
+      v_fallos := v_fallos || ' falta ' || v_name || '();';
+      continue;
+    end if;
+
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace ns on ns.oid = p.pronamespace
+       where ns.nspname = 'public'
+         and p.proname = v_name
+         and p.prosecdef
+         and exists (
+           select 1 from unnest(p.proconfig) as c
+            where c like 'search\_path=%'
+         )
+    ) then
+      v_fallos := v_fallos || ' ' || v_name || ' no es SECURITY DEFINER con search_path fijo;';
+    end if;
+
+    if exists (
+      select 1
+        from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = v_name
+         and grantee in ('PUBLIC', 'anon', 'authenticated')
+    ) then
+      v_fallos := v_fallos || ' ' || v_name || ' es ejecutable por un rol publico;';
+    end if;
+  end loop;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de miembros no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · members en solo lectura, invitaciones por funcion, % funciones de miembros cerradas', array_length(v_fn, 1);
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 10. Buckets de Storage
 -- ----------------------------------------------------------------------------
 do $$
 declare
@@ -443,7 +569,7 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 10. INFORME
+-- 11. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
