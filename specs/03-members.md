@@ -1,6 +1,6 @@
 # Spec 03 — Miembros
 
-> **Estado: APPROVED.** Aprobada por el desarrollador el 2026-10-05. Decisiones
+> **Estado: IMPLEMENTED.**
 > que van dentro de la aprobación, tal cual están descritas aquí: **M-1**
 > (entrada por código de invitación, sin alta directa), **M-3** (el último ADMIN
 > bloqueado, sin prohibición de auto-cambiarse), **M-9** (la invitación no tiene
