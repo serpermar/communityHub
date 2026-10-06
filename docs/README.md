@@ -442,6 +442,11 @@ El estado de cada pieza:
 | `schema.prisma` | `backend/prisma/` | Derivado con `prisma db pull`. 24 modelos, 19 ENUMs |
 | Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` |
 | Autenticación | `backend/src/auth/` | Hecho: los 7 endpoints, 49 tests de integración |
+| Comunidades | `backend/src/communities/` | Hecho: los 4 endpoints |
+| Miembros e invitaciones | `backend/src/members/` | Hecho: los 7 endpoints |
+| Incidencias | `backend/src/incidents/` | Hecho: los 8 endpoints |
+| Zonas comunes | `backend/src/common-areas/` | Hecho: los 4 endpoints |
+| Reservas | `backend/src/reservations/` | Hecho: los 6 endpoints |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:

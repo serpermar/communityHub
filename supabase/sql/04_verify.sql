@@ -795,7 +795,226 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 12. INFORME
+-- 13. Zonas comunes (02f_common_areas.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lista de aceptación de la spec 05 §10. Las comprobaciones de las seis
+-- funciones SECURITY DEFINER con search_path fijo y grants ya viven en la
+-- autocomprobación de 02f (se comprueban dos veces a propósito: aquí falla
+-- db:verify aunque alguien coja 04_verify.sql suelto, y allí falla el propio
+-- archivo al aplicarse).
+do $$
+declare
+  v_fallos text := '';
+  v_fn     text;
+  v_def    text;
+  v_valid  boolean;
+begin
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'common_areas'
+       and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' common_areas tiene politica de escritura;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'common_areas'
+       and policyname = 'areas_select_member'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta areas_select_member;';
+  end if;
+
+  -- app_runtime sin escritura. Sin esto, un olvido de politica bastaria para
+  -- que PostgREST aceptara un UPDATE directo sobre las zonas.
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'common_areas'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' app_runtime (u otro rol) conserva escritura en common_areas;';
+  end if;
+
+  -- Las seis funciones, SECURITY DEFINER con search_path fijo.
+  for v_fn in
+    select unnest(array[
+      'app_common_area_community', 'app_list_common_areas',
+      'app_get_common_area', 'app_get_area_availability',
+      'app_create_common_area', 'app_update_common_area'
+    ])
+  loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_fn;
+
+    if v_def is null then
+      v_fallos := v_fallos || ' falta ' || v_fn || '();';
+    elsif v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
+    elsif v_def not like '%set search_path =%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  -- El CHECK de longitud, y si sigue sin validar (02f lo crea not valid y
+  -- avisa; aquí db:verify lo informa en cada ejecucion).
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'common_areas_name_length'
+       and conrelid = 'public.common_areas'::regclass
+  ) then
+    v_fallos := v_fallos || ' falta common_areas_name_length;';
+  else
+    select convalidated into v_valid
+      from pg_constraint
+     where conname = 'common_areas_name_length'
+       and conrelid = 'public.common_areas'::regclass;
+
+    if not v_valid then
+      raise notice 'AVISO · common_areas_name_length existe pero sigue sin validar (not valid).';
+    end if;
+  end if;
+
+  -- El indice unico del nombre por comunidad (CA-2).
+  if not exists (
+    select 1
+      from pg_index i join pg_class c on c.oid = i.indexrelid
+     where c.relname = 'common_areas_community_name_uidx'
+       and i.indisunique
+  ) then
+    v_fallos := v_fallos || ' falta common_areas_community_name_uidx unico;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'Las zonas comunes no pasan la verificacion:%', v_fallos;
+  end if;
+
+  raise notice 'OK · zonas comunes: solo lectura RLS, escritura solo por funcion, 6 funciones SECURITY DEFINER, CHECK de nombre presente';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 14. Reservas (02g_reservations.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lista de aceptación de la spec 06 §10. Igual que la anterior: las ocho
+-- funciones ya se comprueban en la autocomprobación de 02g, y aquí se
+-- comprueba de nuevo porque este es el archivo que db:verify ejecuta siempre.
+do $$
+declare
+  v_fallos text := '';
+  v_fn     text;
+  v_def    text;
+  v_expr   text;
+  v_n      integer;
+begin
+  -- reservations y area_slots: sin politicas de escritura. La de SELECT de
+  -- reservations debe seguir siendo la recreada de R-5: app_is_member_of y
+  -- SIN filtro por user_id ni rol (con uno, el listado de comunidad dejaria de
+  -- ver las reservas ajenas justo donde la spec 06 §6 dice que las ve).
+  if exists (
+    select 1 from pg_policies
+     where tablename in ('reservations', 'area_slots')
+       and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' reservations/area_slots tiene politica de escritura;';
+  end if;
+
+  select coalesce(min(qual), '') into v_expr
+    from pg_policies
+   where tablename = 'reservations'
+     and policyname = 'reservations_select_scoped'
+     and cmd = 'SELECT';
+
+  if v_expr = '' then
+    v_fallos := v_fallos || ' falta reservations_select_scoped;';
+  elsif v_expr not like '%app_is_member_of%' then
+    v_fallos := v_fallos || ' reservations_select_scoped no usa app_is_member_of;';
+  elsif v_expr like '%user_id%' then
+    v_fallos := v_fallos || ' reservations_select_scoped filtra por user_id (R-5 pide comunidad entera);';
+  end if;
+
+  -- app_runtime sin escritura sobre las dos tablas.
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name in ('reservations', 'area_slots')
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' app_runtime (u otro rol) conserva escritura en reservations/area_slots;';
+  end if;
+
+  -- El indice del solape, unico y SIN condicion. Con un where parcial, dos
+  -- reservas CANCELLED con slots huerfanos no chocarian y el modelo de R-4
+  -- dependeria de que nadie olvide borrar slots.
+  if not exists (
+    select 1
+      from pg_index i join pg_class c on c.oid = i.indexrelid
+     where c.relname = 'area_slots_no_overlap_uidx'
+       and i.indisunique
+       and i.indpred is null
+  ) then
+    v_fallos := v_fallos || ' area_slots_no_overlap_uidx debe ser unico y sin condicion;';
+  end if;
+
+  -- Las ocho funciones.
+  for v_fn in
+    select unnest(array[
+      'app_can_see_reservation', 'app_reservation_community',
+      'app_create_reservation', 'app_confirm_reservation',
+      'app_cancel_reservation', 'app_list_community_reservations',
+      'app_list_user_reservations', 'app_get_reservation'
+    ])
+  loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_fn;
+
+    if v_def is null then
+      v_fallos := v_fallos || ' falta ' || v_fn || '();';
+    elsif v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
+    elsif v_def not like '%set search_path =%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  -- Default de status y valores del enum (R-2). Si el default cambiara a
+  -- PENDING, toda reserva naceria esperando aprobacion aunque la zona no la
+  -- requiera, y el flujo de la spec 06 D-1 se romperia sin error visible.
+  select pg_get_expr(d.adbin, d.adrelid) into v_expr
+    from pg_attrdef d
+    join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+   where d.adrelid = 'public.reservations'::regclass
+     and a.attname = 'status';
+
+  if v_expr is null or v_expr not like '%CONFIRMED%' then
+    v_fallos := v_fallos || ' reservations.status debe tener default CONFIRMED;';
+  end if;
+
+  select count(*)::integer into v_n
+    from pg_enum e
+   where e.enumtypid = 'public.reservation_status'::regtype;
+
+  if v_n <> 3 then
+    v_fallos := v_fallos || ' reservation_status debe tener exactamente 3 valores;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'Las reservas no pasan la verificacion:%', v_fallos;
+  end if;
+
+  raise notice 'OK · reservas: solo lectura RLS y grants, reservations_select_scoped de comunidad, indice de solape unico sin condicion, 8 funciones SECURITY DEFINER';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 15. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -866,6 +1085,25 @@ where routine_schema = 'public'
     'app_transition_incident', 'app_soft_delete_incident'
   )
   and grantee = 'PUBLIC'
+union all
+select 'Funciones de zonas comunes (debe ser 6)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_common_area_community', 'app_list_common_areas',
+    'app_get_common_area', 'app_get_area_availability',
+    'app_create_common_area', 'app_update_common_area'
+  )
+union all
+select 'Funciones de reservas (debe ser 8)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_can_see_reservation', 'app_reservation_community',
+    'app_create_reservation', 'app_confirm_reservation',
+    'app_cancel_reservation', 'app_list_community_reservations',
+    'app_list_user_reservations', 'app_get_reservation'
+  )
 union all
 select 'Buckets', count(*)::text from storage.buckets
 union all

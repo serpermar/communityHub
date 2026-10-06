@@ -36,14 +36,20 @@ import { Client } from 'pg'
 const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 
 // El orden importa. 02_rls.sql crea `app_runtime` y depende de las tablas de
-// 01; 02b_auth.sql, 02c_communities.sql, 02d_members.sql, 02e_incidents.sql y
-// 03_storage.sql dependen del rol de 02; 04_verify.sql comprueba que todo lo
-// anterior existe.
+// 01; 02b_auth.sql, 02c_communities.sql, 02d_members.sql, 02e_incidents.sql,
+// 02f_common_areas.sql, 02g_reservations.sql y 03_storage.sql dependen del rol
+// de 02; 04_verify.sql comprueba que todo lo anterior existe.
 //
 // 02e va después de 02d porque su predicado de visibilidad se apoya en
 // app_role_in() y app_is_assigned_provider(), que nacen en 02_rls.sql, y en
 // nada de 02d. Si algún día 02d dejara de definir app_role_in(), 02e se
 // aplicaría con un predicado que devuelve siempre false.
+//
+// 02f y 02g van ANTES de 03_storage.sql y en ese orden entre sí: 02f usa
+// app_is_member_of/app_role_in de 02_rls, y 02g usa app_common_area_community
+// de 02f (la creación de reservas resuelve la zona por ahí). Los dos son
+// idempotentes: se pueden re-aplicar sobre una base ya desplegada, que es lo
+// que hace falta para desplegar este bloque en producción sin rehechos.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
@@ -51,6 +57,8 @@ const FILES = [
   '02c_communities.sql',
   '02d_members.sql',
   '02e_incidents.sql',
+  '02f_common_areas.sql',
+  '02g_reservations.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

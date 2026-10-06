@@ -337,30 +337,32 @@ Dos niveles: **rol global** (staff del SaaS) y **rol dentro de la comunidad** (`
 | Gestionar miembros y roles | — | — | ✅ | — |
 | Invocar IA y herramientas MCP | ✅ | ✅ | ✅ | ✅ (scope limitado) |
 
-**Lagunas de esta tabla, pendientes de cerrar en el spec 05 (Common Areas +
-Reservations).** No son errores de la tabla: son capacidades que la tabla no nombra y
-que el bloque 05 tiene que decidir antes de escribir SQL, porque cambian el modelo.
+**Lagunas de esta tabla — cerradas en los specs 05 y 06 (bloque 05).** Eran
+capacidades que la tabla no nombra y que había que decidir antes de escribir SQL,
+porque cambiaban el modelo. Las tres están decididas y documentadas, con la
+alternativa descartada y su porqué:
 
-La que más pesa es que el ER de §3 define `reservations.status` como
-`PENDING | CONFIRMED | CANCELLED`, pero **ninguna fila dice quién pasa de `PENDING` a
-`CONFIRMED`**. "Reservar zona común" está marcado `✅` para los tres roles de la
-comunidad, así que parece que cualquiera reserva y ya está; entonces `PENDING` no
-significa nada y el estado sobra. O al revés: la reserva se confirma sola y `PENDING`
-no existe. Las dos cosas no caben a la vez.
+1. **Quién pasa de `PENDING` a `CONFIRMED`.** Nadie lo hace siempre: el estado
+   nace de la zona. Si `common_areas.requires_approval` es `false` (default), la
+   reserva nace `CONFIRMED` y ocupa sus `area_slots` en la misma transacción; si
+   es `true`, nace `PENDING` **sin slots**, y confirma solo `ADMIN` con
+   `POST /reservations/:id/confirm`. Así `PENDING` significa exactamente "esta
+   zona pide aprobación y aún no la tiene" y el estado sobra solo para quien no
+   lo usa. → `specs/06-reservations.md` R-2, R-3 y D-1, D-2.
+2. **Quién ve las reservas de otros.** Cualquier miembro activo de la comunidad
+   ve la agenda completa (`GET /communities/:id/reservations`), porque el horario
+   ocupado es información comunitaria; `notes` **no**: va `null` salvo para el
+   dueño, `ADMIN` y `PRESIDENT`. `GET /reservations/me` es la lectura propia, en
+   todas las comunidades, con `notes`. → R-5 y D-4.
+3. **Quién cancela.** El dueño cancela las suyas, `ADMIN` cancela cualquier
+   reserva de su comunidad (`PENDING` incluida, que es su rechazo); el
+   `PRESIDENT` no. Cancelar es `status = 'CANCELLED'`, `cancelled_at` y **borrado
+   de sus `area_slots`** —sin esto el hueco seguiría ocupado para siempre—, sin
+   `DELETE` físico de la fila. → R-4 y D-3.
 
-Las otras dos son de privacidad y de propiedad:
-
-- **Ver las reservas de otros.** La tabla dice quién *crea* una reserva, no quién la
-  *ve*. Y "ver" importa: en una washing machine el horario ocupado de la Finca es
-  información que todo el mundo ve de todas formas, pero el motivo por el que lo
-  reservas no lo es. Lo mismo que en incidencias, donde un vecino solo ve las suyas:
-  aquí hay que decidir si `GET /communities/:id/reservations` devuelve las de todos o
-  solo las propias, y `GET /reservations/me` sugiere que hay dos lecturas.
-- **Cancelar una reserva ajena.** No hay fila. La intuición es que solo quien la
-  crea la cancela, y que `ADMIN` puede, pero intuir no es decidir.
-
-Lo que sí está claro y no se toca: `PROVIDER` no reserva (ya sale en `—`), porque no
-vive en la comunidad, y "Gestionar zonas comunes" es de `ADMIN` únicamente.
+`PROVIDER` no reserva (ya sale en `—`), porque no vive en la comunidad, y
+"Gestionar zonas comunes" es de `ADMIN` únicamente —las dos cosas, ya claras
+antes, se confirman en R-1 y CA-1 de `specs/05-common-areas.md`.
 
 Implementación:
 
@@ -412,9 +414,11 @@ POST   /api/v1/communities/:communityId/common-areas
 PUT    /api/v1/common-areas/:id
 GET    /api/v1/common-areas/:id/availability?date
 POST   /api/v1/common-areas/:id/reservations
-GET    /api/v1/communities/:communityId/reservations
-GET    /api/v1/reservations/me
+GET    /api/v1/communities/:communityId/reservations    ?commonAreaId&date&status&page
+GET    /api/v1/reservations/me                          ?status&page
+GET    /api/v1/reservations/:id
 PATCH  /api/v1/reservations/:id/cancel
+POST   /api/v1/reservations/:id/confirm                (ADMIN; cierra la laguna 1 de §5)
 
 # ── ANNOUNCEMENTS ─────────────────────────────────────
 GET    /api/v1/communities/:communityId/announcements
@@ -897,7 +901,7 @@ Dos consecuencias de que manden los ficheros, y ninguna es un problema:
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | **Aislamiento entre comunidades mal implementado** (bug más grave posible) | Crítico | `community_id` obligatorio, policies centralizadas, tests adversariales por comunidad, índice único de scope |
-| Solape de reservas (condición de carrera) | Alto | Tabla `area_slots` + índice único parcial; test de concurrencia |
+| Solape de reservas (condición de carrera) | Alto | Tabla `area_slots` + índice único `unique (common_area_id, starts_at)` **sin condición**; test de concurrencia |
 | AI alucinando datos de negocio | Alto | Solo tools, nunca DB; citas obligatorias; validación de enum; sin tool = "no lo sé" |
 | Tool calling con parámetros inventados | Alto | zod en cada tool; error explícito al modelo |
 | Prompt injection desde contenido de usuario | Alto | El contenido de usuario es dato, nunca instrucción; el system prompt no concede autoridad al contenido; whitelist de tools |

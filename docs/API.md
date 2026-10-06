@@ -374,6 +374,276 @@ manda.
 
 ---
 
+## Zonas comunes
+
+Cuatro rutas en **dos** routers: dos llevan la comunidad en la URL y las otras dos
+la zona. Como en incidencias, la comunidad de una zona sale de la propia fila, y
+por eso un usuario de otra comunidad (o un `ADMIN_SA` que no es miembro) recibe
+**`404`** en `PUT /common-areas/:id` y en la disponibilidad, no `403`.
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "name": "Piscina comunitaria",
+  "type": "SWIMMING_POOL",       // PADEL_COURT | COMMUNITY_ROOM | GYM
+                                 // TERRACE | PLAYGROUND | GARAGE | OTHER
+  "description": "text o null",
+  "capacity": 20,                // null = sin límite
+  "slotMinutes": 60,             // 30 | 60 | 90 | 120
+  "openTime": "08:00",           // hora de pared de la comunidad
+  "closeTime": "22:00",
+  "maxDailyReservations": 10,    // null = sin límite diario
+  "requiresApproval": false,
+  "isActive": true,              // false = dada de baja
+  "createdBy": "uuid o null",
+  "createdAt": "2026-10-06T10:00:00.000Z",
+  "updatedAt": "2026-10-06T10:00:00.000Z"
+}
+```
+
+### `GET /api/v1/communities/:communityId/common-areas`
+
+Todas las zonas de la comunidad, `is_active` incluido, en orden alfabético. Cualquier
+miembro activo lee el listado, sin distinguir rol: el `ADMIN` necesita ver las dadas
+de baja para reactivarlas, y al vecino no le hace daño saber que la sala cerró.
+
+```
+200 → { "data": [ …zonas ] }
+403 → no es miembro de la comunidad
+```
+
+### `POST /api/v1/communities/:communityId/common-areas`
+
+Solo `ADMIN`. `PRESIDENT`, `NEIGHBOR` y `PROVIDER` reciben `403`, tanto en la ruta
+como dentro de la transacción: la comprobación está en las dos capas a propósito.
+
+```jsonc
+{ "name": "Sala de actos", "type": "COMMUNITY_ROOM", "requiresApproval": true }
+```
+
+```
+201 → { "data": { …zona } }      // sin Location: no hay GET /common-areas/:id
+400 → cuerpo inválido (el nombre corto, una rejilla fuera de {30,60,90,120}…)
+403 → el rol no puede gestionar zonas
+409 → el nombre ya existe en ESTA comunidad
+```
+
+Los campos ausentes usan el default de la columna: `type: OTHER`, `slotMinutes: 60`,
+`08:00`–`22:00`, `isActive: true` y `null` en lo anulable. `communityId`, `id`,
+`createdBy` y `updatedAt` no se aceptan en el cuerpo: los pone el servidor, y
+mandarlos es un `400` por `.strict()`.
+
+### `PUT /api/v1/common-areas/:id`
+
+Reemplazo **completo** de la configuración: los diez campos son obligatorios
+(`description`, `capacity` y `maxDailyReservations` admiten `null`, que significa
+"sin límite"). Solo `ADMIN`, y el `403` lo decide la función con la fila delante.
+
+```
+200 → { "data": { …zona } }
+400 → falta un campo o la forma no cuadra
+403 → tu rol no puede gestionar zonas
+404 → la zona no existe o no es visible
+409 → el nombre choca con el de otra zona
+```
+
+`slotMinutes` **no reescribe `area_slots`**: los slots son filas históricas de
+"quién tenía la zona a las 10:00", y recalcularlos con otra rejilla destruiría la
+ocupación pasada. Cambiar la rejilla solo afecta a reservas nuevas.
+
+### `GET /api/v1/common-areas/:id/availability?date=YYYY-MM-DD`
+
+La rejilla de un día, calculada en la **timezone de la comunidad**: `openTime` y
+`closeTime` son hora de pared, y a las 10:00 de Valencia la piscina está abierta
+aunque en UTC sean las 08:00.
+
+```jsonc
+{ "data": { "date": "2026-10-10", "slotMinutes": 60,
+            "openTime": "08:00", "closeTime": "22:00",
+            "slots": [ { "startsAt": "…Z", "endsAt": "…Z", "status": "FREE" } ] } }
+```
+
+- `status` es `FREE` u `OCCUPIED`, y sale de `area_slots` sin mirar `reservations`:
+  la existencia del slot **es** la ocupación, y solo las reservas confirmadas
+  escriben slots. El cliente no necesita saber de quién es el hueco.
+- La fecha es obligatoria y estricta (`YYYY-MM-DD`, día real): `400` si falta o si
+  la cadena no es una fecha de calendario.
+- La zona **dada de baja devuelve su rejilla** (`200`): la disponibilidad es
+  informativa; quién prohíbe reservar sobre ella es el alta de reservas.
+
+---
+
+## Reservas
+
+Seis rutas en **dos** routers: la de comunidad cuelga de
+`/api/v1/communities` y las otras cinco de `/api/v1`. Como en incidencias y zonas,
+la comunidad sale de la propia fila, y un usuario de otra comunidad recibe **`404`**
+en las cuatro rutas que llevan `:id` de zona o de reserva.
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "communityName": "Barrio Alto",
+  "commonAreaId": "uuid",
+  "commonAreaName": "Piscina comunitaria",
+  "userId": "uuid",
+  "userName": "Marta Ruiz",
+  "startsAt": "2026-10-13T10:00:00.000Z",
+  "endsAt": "2026-10-13T11:00:00.000Z",
+  "status": "CONFIRMED",          // PENDING | CONFIRMED | CANCELLED
+  "attendees": 3,                 // null = no se dijo
+  "notes": "Traigo la pata de mesa",  // null: sin notas, o redactadas
+  "cancelledAt": null,
+  "createdAt": "…",
+  "updatedAt": "…"
+}
+```
+
+`notes` puede ser `null` por dos motivos distintos y la API **no los distingue**:
+porque no se dijo nada, o porque no es tuya. Distinguirlos solo beneficiaría a un
+atacante que quisiera saber si hay texto oculto.
+
+### `POST /api/v1/common-areas/:id/reservations`
+
+Alta por `NEIGHBOR`, `PRESIDENT` y `ADMIN`. **`PROVIDER` no reserva**: trabaja en la
+comunidad, no la usa. El rol se comprueba en el guard de la ruta y se repite dentro
+de la transacción.
+
+```jsonc
+{ "startsAt": "2026-10-13T10:00:00.000Z",
+  "endsAt": "2026-10-13T11:00:00.000Z",
+  "attendees": 3, "notes": "texto" }   // attendees y notes opcionales
+```
+
+```
+201 → { "data": { …reserva } }
+      Location: /api/v1/reservations/{id}
+400 → forma o reglas de negocio (ver abajo)
+403 → el rol no puede reservar (guard de la ruta)
+404 → la zona no existe, no es visible, o tu membresía no está activa
+409 → ese hueco ya está ocupado
+```
+
+`status` no se manda: nace de `requiresApproval` de la zona (`true` → `PENDING`,
+`false` → `CONFIRMED`). Aceptarlo del cliente sería saltarse la aprobación por un
+JSON. Tampoco `userId` ni `communityId`.
+
+Los cuatro `400` de negocio, y qué los provoca:
+
+| Mensaje | Causa |
+|---|---|
+| La reserva no puede empezar en el pasado | `startsAt` < ahora |
+| Las horas deben encajar en la rejilla | hora local que no es múltiplo de `slotMinutes` |
+| La reserva cae fuera del horario | local antes de `openTime` o después de `closeTime`, o cruza medianoche local |
+| La asistencia supera la capacidad | `attendees` > `capacity` de la zona |
+| Se ha alcanzado el límite diario | ya hay `maxDailyReservations` reservas **CONFIRMED** ese día local |
+| Esa zona común está dada de baja | `isActive: false` |
+
+El límite diario cuenta solo `CONFIRMED`: una `PENDING` no ocupa el calendario, y
+hacer que la cola de aprobación consumiera plaza significaría que una cola pudiera
+bloquear un día entero.
+
+**El solape no se comprueba, se demuestra.** No hay un "está libre" antes del
+insert: dos peticiones simultáneas al mismo hueco pasarían cualquier comprobación
+hecha en TypeScript. La única autoridad es el índice único
+`(common_area_id, starts_at)`; una gana y la otra recibe `409`. A la pregunta
+"¿puedo reservar a las 10:00?", la respuesta fiable es intentarlo.
+
+### `GET /api/v1/communities/:communityId/reservations`
+
+Cualquier miembro activo lee **todas** las reservas de su comunidad (también
+`PROVIDER`), con `notes` redactado por fila: lo decide la base de datos, no el
+backend.
+
+| | Ve las reservas | Ve `notes` |
+|---|---|---|
+| `ADMIN` | todas | todas |
+| `PRESIDENT` | todas | todas |
+| `NEIGHBOR` | todas | solo las suyas |
+| `PROVIDER` | todas | ninguna |
+
+Filtros opcionales, combinables: `commonAreaId` (UUID), `date` (día **local** de la
+comunidad), `status`, `page`, `limit`. Sin `status` salen `PENDING` y `CONFIRMED`;
+las canceladas solo si se piden con `?status=CANCELLED`, porque la agenda por
+defecto es lo que va a pasar.
+
+```
+200 → { "data": [ …reservas ], "meta": { …paginación } }
+400 → filtro con forma inválida
+403 → no es miembro
+```
+
+### `GET /api/v1/reservations/:id`
+
+```
+200 → { "data": { …reserva } }
+400 → el `:id` no es un UUID
+404 → no existe, o no es visible para ti
+```
+
+Un vecino que abre la reserva de otro recibe el detalle **con `notes: null`**: la
+visibilidad de la fila es de comunidad entera, la redacción es una capa aparte.
+
+### `POST /api/v1/reservations/:id/confirm`
+
+Solo `ADMIN` (`R-3`). El rol lo decide la función dentro de la transacción; la ruta
+no filtra por rol, para que haya un único dueño de la regla.
+
+```
+200 → { "data": { …reserva, "status": "CONFIRMED" } }
+403 → no eres ADMIN de esa comunidad
+404 → no existe o no es visible
+409 → la reserva no está PENDING, o su hueco lo acaba de tomar otra
+```
+
+El orden importa: **primero los slots, después el status**. Si el hueco se ocupó
+mientras la reserva esperaba aprobación, el `409` sale y la reserva **sigue
+`PENDING`** — ni confirmada a medias ni auto-cancelada: quien decide si
+rechazarla o reprogramarla es el `ADMIN` que la estaba confirmando. Por eso dos
+`PENDING` pueden compartir hueco (ninguna escribe slots) y la segunda en ser
+confirmada recibe `409`.
+
+### `PATCH /api/v1/reservations/:id/cancel`
+
+Dueño o `ADMIN`. Un `PRESIDENT`, aunque sea de la comunidad, recibe `403`.
+
+```
+200 → { "data": { …reserva, "status": "CANCELLED", "cancelledAt": "…" } }
+400 → el cuerpo no está vacío ({"status": …} es 400, no un 200 que lo ignora)
+403 → no eres el dueño ni un ADMIN
+409 → ya estaba cancelada
+```
+
+El cuerpo debe ser `{}` o ausente: cancelar es cancelar, no hay nada que cambiar.
+
+Cancelar **borra sus slots**: los slots son el calendario, y sin ese borrado la
+zona quedaría bloqueada para siempre por una reserva que la aplicación dice
+cancelada. Los tres cambios (status, `cancelledAt`, slots) son atómicos.
+
+### `GET /api/v1/reservations/me`
+
+La agenda propia **en todas las comunidades**, sin `:communityId` a propósito: el
+alcance lo pone la función con el usuario de la sesión, y `notes` sale siempre sin
+redactar porque todas las filas son del llamante.
+
+Filtros: `status`, `page`, `limit`. No hay `commonAreaId` ni `date`: sin comunidad
+en la ruta no tendrían ancla. Preguntar por las reservas de otro no da `403`, da
+lista propia: decir "existe y no es tuya" también es filtrar.
+
+```
+200 → { "data": [ …reservas con communityName ], "meta": { … } }
+401 → sin sesión
+400 → filtro desconocido o con forma inválida
+```
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
@@ -385,7 +655,7 @@ manda.
 | 401 | `INVALID_CREDENTIALS` | Login con email o contraseña incorrectos |
 | 403 | `FORBIDDEN` | Autenticado pero sin permiso |
 | 404 | `NOT_FOUND` | El endpoint no existe, o el recurso sí pero está dado de baja |
-| 409 | `CONFLICT` | El slug ya existe, el email en el registro, o una transición de estado que no existe |
+| 409 | `CONFLICT` | El slug ya existe, el email en el registro, una transición de estado que no existe, un nombre de zona repetido, o un hueco de reserva ya ocupado |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 

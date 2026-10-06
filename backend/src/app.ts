@@ -26,6 +26,8 @@ import { createAuthRouter } from './auth/routes.js'
 import { createCommunitiesRouter } from './communities/routes.js'
 import { createInvitationRedeemRouter, createInvitationsRouter, createMembersRouter } from './members/routes.js'
 import { createIncidentRouter, createIncidentsRouter } from './incidents/routes.js'
+import { createCommonAreaRouter, createCommonAreasRouter } from './common-areas/routes.js'
+import { createReservationRouter, createReservationsRouter } from './reservations/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -169,6 +171,16 @@ export function createApp(): Express {
   // routers no importa, cada uno solo atiende las suyas.
   app.use('/api/v1/communities', createIncidentsRouter())
   app.use('/api/v1', createIncidentRouter())
+
+  // Zonas comunes (spec 05) y reservas (spec 06), tambien en dos routers cada
+  // una por lo mismo: dos rutas de zona cuelgan de la comunidad y las otras dos
+  // de `/api/v1`; la ruta de reservas de comunidad cuelga de la comunidad y las
+  // otras cinco de `/api/v1`. Ningun orden entre routers: cada uno solo atiende
+  // las suyas.
+  app.use('/api/v1/communities', createCommonAreasRouter())
+  app.use('/api/v1', createCommonAreaRouter())
+  app.use('/api/v1/communities', createReservationsRouter())
+  app.use('/api/v1', createReservationRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

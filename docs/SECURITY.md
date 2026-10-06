@@ -193,14 +193,33 @@ restringidos a mano:
 | `app_assign_incident(uuid, ...)` | `app_runtime` | Asignación. Solo `ADMIN` |
 | `app_transition_incident(uuid, ...)` | `app_runtime` | Cambio de estado |
 | `app_soft_delete_incident(uuid)` | `app_runtime` | Borrado lógico. Solo `ADMIN` |
+| `app_common_area_community(uuid)` | `app_runtime` | Comunidad de una zona visible |
+| `app_list_common_areas(uuid)` | `app_runtime` | Listado de zonas de una comunidad |
+| `app_get_common_area(uuid)` | `app_runtime` | Una zona, para el `PUT` y los tests |
+| `app_get_area_availability(uuid, date)` | `app_runtime` | Rejilla de un día, con `FREE`/`OCCUPIED` |
+| `app_create_common_area(...)` | `app_runtime` | Alta. Solo `ADMIN` |
+| `app_update_common_area(...)` | `app_runtime` | `PUT` completo. Solo `ADMIN` |
+| `app_can_see_reservation(uuid)` | `app_runtime` | Visibilidad de una reserva |
+| `app_reservation_community(uuid)` | `app_runtime` | Comunidad de una reserva visible |
+| `app_create_reservation(...)` | `app_runtime` | Alta. Rol, rejilla, horario, límite y slots |
+| `app_confirm_reservation(uuid)` | `app_runtime` | Confirmación. Solo `ADMIN` |
+| `app_cancel_reservation(uuid)` | `app_runtime` | Cancelación. Dueño o `ADMIN`; borra slots |
+| `app_list_community_reservations(...)` | `app_runtime` | Listado por comunidad, `notes` redactado |
+| `app_list_user_reservations(...)` | `app_runtime` | Agenda propia, todas las comunidades |
+| `app_get_reservation(uuid)` | `app_runtime` | Detalle, `notes` redactado |
 
-Las trece llevan `revoke ... from public` y `set search_path = public, pg_temp`: las once
-de `02e_incidents.sql`, `app_create_community` en `02c_communities.sql` y
-`app_is_global_admin` en `02_rls.sql`.
-`04_verify.sql` lo falla si el recuento no es el esperado, así que un `GRANT` nuevo
-que se colara en otro fichero también lo delata, y comprueba con
-`has_function_privilege`, que es la pregunta correcta: pregunta al catálogo, no
-deduce del texto del `GRANT`.
+Las trece de incidencias llevan `revoke ... from public` y
+`set search_path = public, pg_temp`: las once de `02e_incidents.sql`,
+`app_create_community` en `02c_communities.sql` y `app_is_global_admin` en
+`02_rls.sql`. Las catorce nuevas de `02f_common_areas.sql` y
+`02g_reservations.sql` repiten la misma receta, y **cada fichero trae su propia
+autocomprobación**: un `DO` que falla en `db:verify` si una función pierde el
+`SECURITY DEFINER`, el `search_path`, la revocación de `PUBLIC`, o si
+`common_areas`/`reservations`/`area_slots` recupera una política o un permiso de
+escritura. Aplicar el fichero «sin errores» no demuestra nada; lo que demuestra es
+que ese bloque revienta al instalarse mal. `04_verify.sql` lo repite en las
+secciones 13 y 14, y comprueba los permisos con `has_function_privilege`, que es
+la pregunta correcta: pregunta al catálogo, no deduce del texto del `GRANT`.
 
 El detalle que hace que esto no sea una escalada de privilegios trivial está en
 que **`app_is_global_admin()` no acepta ningún usuario como parámetro**
@@ -307,6 +326,67 @@ un `400`: es un formulario mal rellenado.
 Un `42501` desconocido cae en `403` y no en `500`, por el mismo motivo que en el
 bloque 03: si una política se cierra de más, el síntoma tiene que ser un `403` y no
 un error interno que nadie sabe mirar.
+
+### El solape de reservas: dejar que el índice decida
+
+`area_slots_no_overlap_uidx` es `unique (common_area_id, starts_at)` **sin
+condición**, y esa ausencia de `where` es la defensa, no un detalle de estilo.
+Con un índice parcial, dos reservas que solapen a medias (10:00–11:00 y
+10:30–11:30) podrían convivir, y el «imposible por construcción» dejaría de
+serlo.
+
+Y no hay, deliberadamente, un `select … where overlaps` antes del `insert`:
+entre ese select y ese insert caben dos peticiones concurrentes en la piscina, y
+la segunda entraría creyendo que el hueco está libre. Un `check-then-insert` en
+TypeScript tendría la misma ventana, y más ancha todavía, porque pasa por red.
+La única autoridad es el índice: las dos escriben, una gana y la otra recibe
+`409`. Es el patrón de «a la pregunta *¿está libre?*, la respuesta fiable es
+intentarlo».
+
+El mismo criterio gobierna la confirmación, con el orden **primero slots,
+después status**: si el hueco se ocupó mientras la reserva esperaba aprobación,
+el `409` revienta y la reserva **sigue `PENDING`** — ni confirmada a medias ni
+auto-cancelada. Confirmar a medias dejaría el sistema mintiendo, y
+auto-cancelarla decidiría por el `ADMIN` algo que solo él puede decidir.
+
+### Cancelar no es `UPDATE status`
+
+`app_runtime` no tiene `INSERT`, `UPDATE` ni `DELETE` sobre `reservations` ni
+`area_slots`, y `02g_reservations.sql` revoca los que `02_rls.sql` había
+concedido. Cancelar son **tres cambios atómicos** —`status`, `cancelled_at` y el
+borrado de los slots— dentro de `app_cancel_reservation()`, y esa función es la
+única que puede ejecutar el borrado porque es la dueña de los datos.
+
+Sin el tercer paso, la piscina quedaría bloqueada para siempre por una reserva
+que la aplicación dice cancelada: el índice no distingue «reserva real» de
+«reserva muerta», así que nadie podría reservar ese hueco nunca más. Es el fallo
+silencioso más caro del bloque, y por eso no hay forma de llegar a un `UPDATE` de
+status por la API: ni endpoint, ni permiso, ni política.
+
+### Las notas de una reserva se redactan en SQL
+
+RLS decide **fila a fila** y no sabe escribir en una columna: devuelve filas
+enteras o no devuelve nada. Por eso la redacción de `notes` vive en un `CASE`
+dentro de las tres funciones de lectura (`app_list_community_reservations`,
+`app_get_reservation`, y la propia de `app_list_user_reservations`, donde no hace
+falta porque todas las filas son del llamante): el dueño, un `ADMIN` y un
+`PRESIDENT` ven el texto; el resto recibe `null`.
+
+Y `null` significa a la vez «no dije nada» y «no es tuya», a propósito:
+distinguir los dos casos solo beneficiaría a un atacante que quisiera saber si
+hay texto oculto. Un listado que dijera `notes_ocultas` le confirmaría a un
+vecino que la reserva de al lado tiene notas.
+
+### 404 también en zonas y reservas
+
+Las rutas `PUT /common-areas/:id`, la disponibilidad y las cuatro de reserva con
+`:id` no llevan comunidad en la URL: la resuelve el guard contra la fila. Un id
+inexistente, el de otra comunidad, el de una comunidad a la que ya no perteneces
+o el de una zona de una comunidad donde estás **suspendido** son el mismo `404`,
+y por el mismo motivo que en incidencias (C-8): un `403` confirmaría que ese id
+existe — y en el caso de la suspensión, que antes sí lo veías. La suspensión
+corta la visibilidad, no solo el permiso, porque `app_is_member_of()` exige
+membresía `ACTIVE`.
 
 ---
 
@@ -428,7 +508,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 26 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, y las ocho rutas de incidencias con sus seis roles |
+| `npm run test:integration` | Los 36 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, y de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -440,6 +520,17 @@ política de escritura, que las once funciones siguen siendo `SECURITY DEFINER` 
 `search_path` fijo y no ejecutables por `PUBLIC`, que la secuencia del código legible
 no es usable desde fuera, y que `app_can_see_incident` y `app_list_incidents` siguen
 mencionando las mismas tres condiciones.
+
+De los bloques 05 y 06, los criterios de `specs/05-common-areas.md` y
+`specs/06-reservations.md` (sección 10) tienen su test de integración, y en la base
+de datos se comprueba además lo que por HTTP no se ve: que `common_areas`,
+`reservations` y `area_slots` siguen sin política de escritura y sin permiso de
+escritura para nadie que no deba; que las catorce funciones siguen siendo
+`SECURITY DEFINER` con `search_path` fijo y sin ejecutar desde `PUBLIC`; que
+`area_slots_no_overlap_uidx` sigue siendo **único y sin condición**; que
+`reservations.status` tiene default `CONFIRMED` y el enum exactamente tres valores;
+y que la política de `SELECT` de `reservations` filtra por comunidad
+(`app_is_member_of`) y **no** por `user_id`, que es la regla entera de R-5.
 
 Ese último es el más importante de todos y no falla nunca por casualidad: si
 alguien edita el predicado y olvida el listado, el detalle y la lista empiezan a

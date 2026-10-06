@@ -79,6 +79,17 @@ const ID = {
   incAscensorA: '33333333-3333-4222-8222-222222222222',
   incFarolaB: '33333333-3333-4333-8333-333333333333',
   incRoturaB: '33333333-3333-4444-8444-444444444444',
+
+  // Zonas comunes
+  zonaPiscinaA: '44444444-4444-4111-8111-111111111111',
+  zonaPadelA: '44444444-4444-4222-8222-222222222222',
+  zonaSalonB: '44444444-4444-3333-8333-333333333333',
+
+  // Reservas
+  resPiscinaMarta: '55555555-5555-4111-8111-111111111111',
+  resPiscinaAna: '55555555-5555-4222-8222-222222222222',
+  resPadelMarta: '55555555-5555-3333-8333-333333333333',
+  resSalonCarlos: '55555555-5555-4444-8444-444444444444',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -143,7 +154,7 @@ async function main() {
   //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
   //                   poder es dar de alta comunidades, no leer las que hay. Al
   //                   crear una desde la API entra en ella como ADMIN.
-  console.log('  1/5  Usuarios')
+  console.log('  1/7  Usuarios')
   await prisma.users.createMany({
     data: [
       {
@@ -202,7 +213,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
-  console.log('  2/5  Comunidades')
+  console.log('  2/7  Comunidades')
   await prisma.communities.createMany({
     data: [
       {
@@ -241,7 +252,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
-  console.log('  3/5  Membresías')
+  console.log('  3/7  Membresías')
   await prisma.communityMembers.createMany({
     data: [
       {
@@ -291,7 +302,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
-  console.log('  4/5  Incidencias')
+  console.log('  4/7  Incidencias')
   await prisma.incidents.createMany({
     data: [
       {
@@ -355,7 +366,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
-  console.log('  5/5  Gastos')
+  console.log('  5/7  Gastos')
   await prisma.expenses.createMany({
     data: [
       {
@@ -389,17 +400,179 @@ async function main() {
   })
 
   // -------------------------------------------------------------------------
+  // Zonas comunes
+  // -------------------------------------------------------------------------
+  // Tres zonas, una por comunidad B y dos en A, para que el listado tenga
+  // contenido en las dos. La de pádel lleva requires_approval: es la que
+  // demuestra R-2 (nace PENDING) frente a la piscina, que nace CONFIRMED.
+  //
+  // open_time y close_time NO se escriben: usan el default de la columna
+  // (08:00-22:00), y no ponerlos evita adivinar como convierte Prisma un Date
+  // a una columna `time` en cada zona horaria. Las reservas de abajo caen
+  // dentro de ese horario.
+  console.log('  6/7  Zonas comunes')
+  await prisma.commonAreas.createMany({
+    data: [
+      {
+        id: ID.zonaPiscinaA,
+        community_id: ID.comunidadA,
+        name: 'Piscina comunitaria',
+        type: 'SWIMMING_POOL',
+        description: 'Piscina climatizada de 25 metros, con zona de solárium.',
+        capacity: 25,
+        slot_minutes: 60,
+        max_daily_reservations: 10,
+        requires_approval: false,
+        created_by: ID.anaAdmin,
+      },
+      {
+        id: ID.zonaPadelA,
+        community_id: ID.comunidadA,
+        name: 'Pista de pádel',
+        type: 'PADEL_COURT',
+        description: 'Pista cubierta con iluminación. Raquetas disponibles en el vestuario.',
+        capacity: 4,
+        slot_minutes: 90,
+        max_daily_reservations: 6,
+        // true a proposito: una reserva aqui nace PENDING y necesita
+        // confirmacion de ADMIN. La piscina de al lado nace CONFIRMED. Con las
+        // dos, la demo cubre los dos caminos de R-2 sin trucos.
+        requires_approval: true,
+        created_by: ID.anaAdmin,
+      },
+      {
+        id: ID.zonaSalonB,
+        community_id: ID.comunidadB,
+        name: 'Salón de actos',
+        type: 'COMMUNITY_ROOM',
+        description: 'Salón polivalente con capacidad para 60 personas.',
+        capacity: 60,
+        slot_minutes: 60,
+        max_daily_reservations: 4,
+        requires_approval: false,
+        created_by: ID.carlosVecino,
+      },
+    ],
+  })
+
+  // -------------------------------------------------------------------------
+  // Reservas
+  // -------------------------------------------------------------------------
+  // Cuatro reservas: tres CONFIRMED con sus area_slots (que es lo que la
+  // disponibilidad pinta como OCCUPIED) y una PENDING sin slots, que es como
+  // app_create_reservation() deja las de las zonas con requires_approval.
+  //
+  // Las horas van en UTC y son las locales de Madrid (octubre, UTC+2) para que
+  // la rejilla cuadre: la piscina tiene slots de 60 min y la de pádel de 90,
+  // y la funcion alinea contra la medianoche LOCAL de la comunidad.
+  //
+  // Se insertan directamente con el rol postgres, igual que las incidencias:
+  // el seed poblaria filas que RLS no le deja crear si fuera app_runtime. La
+  // logica de dominio (solape, limites) no se ejercita aqui; eso es de los
+  // tests de integracion, que llaman a las funciones de verdad.
+  console.log('  7/7  Reservas')
+  await prisma.reservations.createMany({
+    data: [
+      {
+        id: ID.resPiscinaMarta,
+        community_id: ID.comunidadA,
+        common_area_id: ID.zonaPiscinaA,
+        user_id: ID.martaVecina,
+        starts_at: new Date('2026-10-10T10:00:00.000Z'),
+        ends_at: new Date('2026-10-10T11:00:00.000Z'),
+        status: 'CONFIRMED',
+        attendees: 3,
+        notes: 'Con dos niños pequeños, si es posible en la zona de poca profundidad.',
+      },
+      {
+        id: ID.resPiscinaAna,
+        community_id: ID.comunidadA,
+        common_area_id: ID.zonaPiscinaA,
+        user_id: ID.anaAdmin,
+        starts_at: new Date('2026-10-10T12:00:00.000Z'),
+        ends_at: new Date('2026-10-10T13:00:00.000Z'),
+        status: 'CONFIRMED',
+        attendees: 2,
+        notes: null,
+      },
+      {
+        id: ID.resPadelMarta,
+        community_id: ID.comunidadA,
+        common_area_id: ID.zonaPadelA,
+        user_id: ID.martaVecina,
+        starts_at: new Date('2026-10-11T07:00:00.000Z'),
+        ends_at: new Date('2026-10-11T08:30:00.000Z'),
+        // PENDING y sin area_slots: la zona tiene requires_approval, y es el
+        // estado que app_confirm_reservation() tiene que promover. Si llevara
+        // slots, el hueco estaria bloqueado por una reserva que nadie ha
+        // aprobado todavia.
+        status: 'PENDING',
+        attendees: 4,
+        notes: 'Primera vez, mejor por la mañana.',
+      },
+      {
+        id: ID.resSalonCarlos,
+        community_id: ID.comunidadB,
+        common_area_id: ID.zonaSalonB,
+        user_id: ID.carlosVecino,
+        starts_at: new Date('2026-10-12T15:00:00.000Z'),
+        ends_at: new Date('2026-10-12T17:00:00.000Z'),
+        status: 'CONFIRMED',
+        attendees: 40,
+        notes: 'Reunión de vecinos extraordinaria.',
+      },
+    ],
+  })
+
+  // Los slots de las tres CONFIRMED. Dos por la reserva de dos horas del
+  // salón: un slot es un hueco de slot_minutes, no la reserva entera. El indice
+  // unico (common_area_id, starts_at) es el que aqui daria un error si dos
+  // reservas disputaran el mismo hueco — y no lo hacen.
+  await prisma.areaSlots.createMany({
+    data: [
+      {
+        common_area_id: ID.zonaPiscinaA,
+        reservation_id: ID.resPiscinaMarta,
+        starts_at: new Date('2026-10-10T10:00:00.000Z'),
+        ends_at: new Date('2026-10-10T11:00:00.000Z'),
+      },
+      {
+        common_area_id: ID.zonaPiscinaA,
+        reservation_id: ID.resPiscinaAna,
+        starts_at: new Date('2026-10-10T12:00:00.000Z'),
+        ends_at: new Date('2026-10-10T13:00:00.000Z'),
+      },
+      {
+        common_area_id: ID.zonaSalonB,
+        reservation_id: ID.resSalonCarlos,
+        starts_at: new Date('2026-10-12T15:00:00.000Z'),
+        ends_at: new Date('2026-10-12T16:00:00.000Z'),
+      },
+      {
+        common_area_id: ID.zonaSalonB,
+        reservation_id: ID.resSalonCarlos,
+        starts_at: new Date('2026-10-12T16:00:00.000Z'),
+        ends_at: new Date('2026-10-12T17:00:00.000Z'),
+      },
+    ],
+  })
+
+  // -------------------------------------------------------------------------
   // Resumen
   // -------------------------------------------------------------------------
-  const [u, c, m, i, e] = await Promise.all([
+  const [u, c, m, i, e, z, r] = await Promise.all([
     prisma.users.count(),
     prisma.communities.count(),
     prisma.communityMembers.count(),
     prisma.incidents.count(),
     prisma.expenses.count(),
+    prisma.commonAreas.count(),
+    prisma.reservations.count(),
   ])
 
-  console.log(`\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos\n`)
+  console.log(
+    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas\n`,
+  )
 
   console.log(`\n  Para entrar en cada rol:\n`)
   console.log(`    ADMIN      ana@comunidad-a.test     · ${TEST_PASSWORD}`)
