@@ -207,19 +207,25 @@ restringidos a mano:
 | `app_list_community_reservations(...)` | `app_runtime` | Listado por comunidad, `notes` redactado |
 | `app_list_user_reservations(...)` | `app_runtime` | Agenda propia, todas las comunidades |
 | `app_get_reservation(uuid)` | `app_runtime` | Detalle, `notes` redactado |
+| `app_announcement_community(uuid)` | `app_runtime` | Comunidad de un aviso |
+| `app_list_announcements(...)` | `app_runtime` | Tablón filtrado por rol, ventana y paginación |
+| `app_create_announcement(...)` | `app_runtime` | Alta. `PRESIDENT` y `ADMIN`; el autor es la sesión |
+| `app_update_announcement(...)` | `app_runtime` | `PUT` completo. `PRESIDENT` y `ADMIN` |
+| `app_delete_announcement(uuid)` | `app_runtime` | Borrado lógico. Solo `ADMIN` |
 
 Las trece de incidencias llevan `revoke ... from public` y
 `set search_path = public, pg_temp`: las once de `02e_incidents.sql`,
 `app_create_community` en `02c_communities.sql` y `app_is_global_admin` en
-`02_rls.sql`. Las catorce nuevas de `02f_common_areas.sql` y
-`02g_reservations.sql` repiten la misma receta, y **cada fichero trae su propia
-autocomprobación**: un `DO` que falla en `db:verify` si una función pierde el
-`SECURITY DEFINER`, el `search_path`, la revocación de `PUBLIC`, o si
-`common_areas`/`reservations`/`area_slots` recupera una política o un permiso de
-escritura. Aplicar el fichero «sin errores» no demuestra nada; lo que demuestra es
-que ese bloque revienta al instalarse mal. `04_verify.sql` lo repite en las
-secciones 13 y 14, y comprueba los permisos con `has_function_privilege`, que es
-la pregunta correcta: pregunta al catálogo, no deduce del texto del `GRANT`.
+`02_rls.sql`. Las catorce de `02f_common_areas.sql` y `02g_reservations.sql`, y
+las cinco de `02h_announcements.sql`, repiten la misma receta, y **cada fichero
+trae su propia autocomprobación**: un `DO` que falla en `db:verify` si una
+función pierde el `SECURITY DEFINER`, el `search_path`, la revocación de
+`PUBLIC`, o si `common_areas`/`reservations`/`area_slots`/`announcements`
+recupera una política o un permiso de escritura. Aplicar el fichero «sin
+errores» no demuestra nada; lo que demuestra es que ese bloque revienta al
+instalarse mal. `04_verify.sql` lo repite en las secciones 13, 14 y 15, y
+comprueba los permisos con `has_function_privilege`, que es la pregunta
+correcta: pregunta al catálogo, no deduce del texto del `GRANT`.
 
 El detalle que hace que esto no sea una escalada de privilegios trivial está en
 que **`app_is_global_admin()` no acepta ningún usuario como parámetro**
@@ -508,7 +514,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 36 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, y de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado |
+| `npm run test:integration` | Los 40 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, y de avisos la ventana por rol, el `authorId` inalterable y el soft delete |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -537,6 +543,13 @@ alguien edita el predicado y olvida el listado, el detalle y la lista empiezan a
 discrepar **sin que nada falle**, porque las dos consultas funcionan. Es el fallo más
 difícil de detectar de todo el bloque, así que se comprueba con `pg_get_functiondef`
 en vez de confiar en que alguien se acuerde.
+
+Del bloque 07, los criterios de `specs/07-announcements.md` (sección 10) tienen
+su test de integración, y en la base de datos se comprueba lo que por HTTP no se
+ve: que `announcements` sigue sin política de `INSERT`, `UPDATE` ni `DELETE` y
+sin permiso de escritura para `app_runtime`, que las cinco funciones siguen
+siendo `SECURITY DEFINER` con `search_path` fijo, ejecutables por `app_runtime`
+y no por `PUBLIC`, y que el índice de orden y el `CHECK` de ventana existen.
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 

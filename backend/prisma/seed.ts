@@ -90,6 +90,11 @@ const ID = {
   resPiscinaAna: '55555555-5555-4222-8222-222222222222',
   resPadelMarta: '55555555-5555-3333-8333-333333333333',
   resSalonCarlos: '55555555-5555-4444-8444-444444444444',
+
+  // Avisos
+  avisoJuntaA: '66666666-6666-4111-8111-111111111111',
+  avisoCorteA: '66666666-6666-4222-8222-222222222222',
+  avisoProgramadoB: '66666666-6666-3333-8333-333333333333',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -154,7 +159,7 @@ async function main() {
   //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
   //                   poder es dar de alta comunidades, no leer las que hay. Al
   //                   crear una desde la API entra en ella como ADMIN.
-  console.log('  1/7  Usuarios')
+  console.log('  1/8  Usuarios')
   await prisma.users.createMany({
     data: [
       {
@@ -213,7 +218,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
-  console.log('  2/7  Comunidades')
+  console.log('  2/8  Comunidades')
   await prisma.communities.createMany({
     data: [
       {
@@ -252,7 +257,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
-  console.log('  3/7  Membresías')
+  console.log('  3/8  Membresías')
   await prisma.communityMembers.createMany({
     data: [
       {
@@ -302,7 +307,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
-  console.log('  4/7  Incidencias')
+  console.log('  4/8  Incidencias')
   await prisma.incidents.createMany({
     data: [
       {
@@ -366,7 +371,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
-  console.log('  5/7  Gastos')
+  console.log('  5/8  Gastos')
   await prisma.expenses.createMany({
     data: [
       {
@@ -410,7 +415,7 @@ async function main() {
   // (08:00-22:00), y no ponerlos evita adivinar como convierte Prisma un Date
   // a una columna `time` en cada zona horaria. Las reservas de abajo caen
   // dentro de ese horario.
-  console.log('  6/7  Zonas comunes')
+  console.log('  6/8  Zonas comunes')
   await prisma.commonAreas.createMany({
     data: [
       {
@@ -470,7 +475,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime. La
   // logica de dominio (solape, limites) no se ejercita aqui; eso es de los
   // tests de integracion, que llaman a las funciones de verdad.
-  console.log('  7/7  Reservas')
+  console.log('  7/8  Reservas')
   await prisma.reservations.createMany({
     data: [
       {
@@ -558,9 +563,76 @@ async function main() {
   })
 
   // -------------------------------------------------------------------------
+  // Avisos
+  // -------------------------------------------------------------------------
+  // Tres avisos, uno por cada caso de la ventana de AN-4, con fechas FIJAS y no
+  // relativas a `now()` para que dos ejecuciones del seed sean comparables:
+  //
+  //   avisoJuntaA        publicado (2026-10-01) y fijado: lo ven todos, y
+  //                      encima el primero por AN-8 (`is_pinned desc`).
+  //   avisoCorteA        caducado (2026-09-01 → 2026-09-30): NEIGHBOR y
+  //                      PROVIDER no lo ven, ADMIN y PRESIDENT si (AN-7), que
+  //                      es lo que permite reabrirlo o borrarlo.
+  //   avisoProgramadoB   programado (2026-11-01): mismo reparto por rol, y es
+  //                      el que demuestra que lo que "esta por llegar" se
+  //                      revisa antes de que salga.
+  //
+  // Como las fechas son fijas, con el tiempo el programado dejara de serlo y el
+  // caducado lleva mas caducado: es el precio de la determinismo, y el mismo
+  // que ya pagan las reservas de la seccion anterior. Los tests de integracion
+  // crean sus propios avisos con fechas relativas justamente por eso.
+  //
+  // Se insertan directamente con el rol postgres, igual que las incidencias:
+  // el seed poblaria filas que RLS no le deja crear si fuera app_runtime, y la
+  // logica de dominio (la ventana, el rol de autoria) no se ejercita aqui; eso
+  // es de los tests, que llaman a las funciones de verdad.
+  console.log('  8/8  Avisos')
+  await prisma.announcements.createMany({
+    data: [
+      {
+        id: ID.avisoJuntaA,
+        community_id: ID.comunidadA,
+        title: 'Junta general de vecinos: jueves 8 de octubre',
+        body: 'En el salón de actos a las 19:00. Orden del día: aprobación de cuentas, estado de la rampa del portal B y renovación del contrato de limpieza.',
+        type: 'MEETING',
+        priority: 'HIGH',
+        is_pinned: true,
+        publish_at: new Date('2026-10-01T09:00:00.000Z'),
+        // Sin expires_at: un aviso fijado no caduca, y null es "no caduca
+        // nunca".
+        author_id: ID.luisPresidente,
+      },
+      {
+        id: ID.avisoCorteA,
+        community_id: ID.comunidadA,
+        title: 'Corte de agua programado el día 30 de septiembre',
+        body: 'El suministro estuvo cortado de 09:00 a 13:00 por el arreglo de la bajante del sótano. Ya está restablecido.',
+        type: 'URGENT',
+        priority: 'MEDIUM',
+        // caducado a proposito: es el caso que distingue el listado de un
+        // vecino (no lo ve) del de un ADMIN (si, para poder reabrirlo).
+        publish_at: new Date('2026-09-01T08:00:00.000Z'),
+        expires_at: new Date('2026-09-30T22:00:00.000Z'),
+        author_id: ID.anaAdmin,
+      },
+      {
+        id: ID.avisoProgramadoB,
+        community_id: ID.comunidadB,
+        title: 'Cambio de horario de piscina a partir de noviembre',
+        body: 'Del 1 de noviembre la piscina abre de 08:00 a 21:00. El cambio responde a la propuesta vecinal de la última asamblea.',
+        type: 'GENERAL',
+        priority: 'MEDIUM',
+        // programado a proposito: el segundo caso de AN-7.
+        publish_at: new Date('2026-11-01T09:00:00.000Z'),
+        author_id: ID.carlosVecino,
+      },
+    ],
+  })
+
+  // -------------------------------------------------------------------------
   // Resumen
   // -------------------------------------------------------------------------
-  const [u, c, m, i, e, z, r] = await Promise.all([
+  const [u, c, m, i, e, z, r, a] = await Promise.all([
     prisma.users.count(),
     prisma.communities.count(),
     prisma.communityMembers.count(),
@@ -568,10 +640,11 @@ async function main() {
     prisma.expenses.count(),
     prisma.commonAreas.count(),
     prisma.reservations.count(),
+    prisma.announcements.count(),
   ])
 
   console.log(
-    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas\n`,
+    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos\n`,
   )
 
   console.log(`\n  Para entrar en cada rol:\n`)

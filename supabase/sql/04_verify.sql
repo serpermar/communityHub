@@ -1014,7 +1014,206 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 15. INFORME
+-- 15. Avisos (02h_announcements.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lista de aceptación de la spec 07 §10. Igual que las anteriores: las cinco
+-- funciones ya se comprueban en la autocomprobación de 02h, y aquí se repiten
+-- porque este es el archivo que db:verify ejecuta siempre, y porque dos
+-- comprobaciones del mismo hecho en archivos distintos solo fallan cuando las
+-- dos se rompen, que es exactamente lo que se quiere de una red de seguridad.
+do $$
+declare
+  v_fallos text := '';
+  v_fn     text;
+  v_def    text;
+  v_expr   text;
+  v_n      integer;
+begin
+  -- announcements: sin politicas de escritura. La de SELECT se queda y es
+  -- deliberadamente mas debil que la ventana de AN-4 (no filtra publish_at ni
+  -- deleted_at): ninguna ruta la usa, porque toda lectura pasa por
+  -- app_list_announcements() (AN-3).
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'announcements'
+       and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' announcements tiene politica de escritura;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'announcements'
+       and policyname = 'announcements_select_member'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta announcements_select_member de SELECT;';
+  end if;
+
+  -- app_runtime (y cualquier rol que no sea el dueño o service_role) sin
+  -- escritura sobre la tabla: la escritura va por funcion (AN-2, D-1).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'announcements'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' app_runtime (u otro rol) conserva escritura en announcements;';
+  end if;
+
+  -- Las cinco funciones: existen, SECURITY DEFINER, search_path fijo, con
+  -- execute para app_runtime y sin execute para PUBLIC.
+  for v_fn in
+    select unnest(array[
+      'app_announcement_community', 'app_list_announcements',
+      'app_create_announcement', 'app_update_announcement',
+      'app_delete_announcement'
+    ])
+  loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_fn;
+
+    if v_def is null then
+      v_fallos := v_fallos || ' falta ' || v_fn || '();';
+      continue;
+    end if;
+
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
+    end if;
+
+    if v_def not like '%set search_path =%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
+    end if;
+
+    if not exists (
+      select 1
+        from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = v_fn
+         and grantee = 'app_runtime'
+    ) then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es ejecutable por app_runtime;';
+    end if;
+
+    if exists (
+      select 1
+        from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = v_fn
+         and grantee = 'PUBLIC'
+    ) then
+      v_fallos := v_fallos || ' ' || v_fn || ' sigue siendo ejecutable por PUBLIC;';
+    end if;
+  end loop;
+
+  -- Los dos CHECK de longitud (§4a), con aviso si alguien los valido ya
+  -- (validarlos revalida las filas existentes: paso deliberado, no accidente).
+  for v_expr in
+    select unnest(array['announcements_title_length', 'announcements_body_length'])
+  loop
+    if not exists (
+      select 1
+        from pg_constraint
+       where conname = v_expr
+         and conrelid = 'public.announcements'::regclass
+         and contype = 'c'
+    ) then
+      v_fallos := v_fallos || ' falta ' || v_expr || ';';
+    elsif exists (
+      select 1
+        from pg_constraint
+       where conname = v_expr
+         and conrelid = 'public.announcements'::regclass
+         and convalidated = false
+    ) then
+      raise notice 'AVISO: % existe pero sigue sin validar (not valid).', v_expr;
+    end if;
+  end loop;
+
+  -- El orden de AN-8 y la ventana de AN-4. Ambos ya se cubrian en las
+  -- secciones 1 y 5; se reiteran por ser el soporte directo de este bloque.
+  if not exists (
+    select 1
+      from pg_index i join pg_class c on c.oid = i.indexrelid
+     where c.relname = 'announcements_community_publish_idx'
+  ) then
+    v_fallos := v_fallos || ' falta announcements_community_publish_idx;';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_constraint
+     where conname = 'announcements_dates_valid'
+       and conrelid = 'public.announcements'::regclass
+       and contype = 'c'
+  ) then
+    v_fallos := v_fallos || ' falta announcements_dates_valid;';
+  end if;
+
+  -- La ventana por rol del listado (AN-7): PRESIDENT y ADMIN ven programados
+  -- y caducados, el resto solo lo publicado y vivo. Sin esto, un aviso
+  -- caducado se vuelve inalcanzable para quien tiene que borrarlo.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_list_announcements';
+
+  if v_def is null
+     or v_def not like '%app_is_member_of(%'
+     or v_def not like '%publish_at <= now()%'
+     or v_def not like '%PRESIDENT%'
+  then
+    v_fallos := v_fallos || ' el listado no aplica la ventana por rol (AN-4/AN-7);';
+  end if;
+
+  -- AN-9: author_id solo de la sesion en el alta, y el borrado solo de ADMIN
+  -- con su sentinel (AN-5).
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_create_announcement';
+
+  if v_def is null
+     or v_def not like '%app_current_user_id()%'
+     or v_def not like '%PRESIDENT%'
+  then
+    v_fallos := v_fallos || ' el alta no pone author_id desde la sesion ni admite PRESIDENT (AN-1/AN-9);';
+  end if;
+
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_delete_announcement';
+
+  if v_def is null
+     or v_def not like '%announcement_requires_admin%'
+     or v_def not like '%deleted_at = now()%'
+  then
+    v_fallos := v_fallos || ' el borrado no es soft delete solo de ADMIN con announcement_requires_admin (AN-5);';
+  end if;
+
+  -- Y que la tabla tenga exactamente dos CHECK de longitud nuevos.
+  select count(*)::integer into v_n
+    from pg_constraint
+   where conrelid = 'public.announcements'::regclass
+     and contype = 'c'
+     and conname in ('announcements_title_length', 'announcements_body_length');
+
+  if v_n <> 2 then
+    v_fallos := v_fallos || ' announcements deberia tener exactamente announcements_title_length y announcements_body_length;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'Los avisos no pasan la verificacion:%', v_fallos;
+  end if;
+
+  raise notice 'OK · avisos: solo lectura RLS y grants, 5 funciones SECURITY DEFINER, CHECK de longitud presentes, ventana por rol en el listado';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 16. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -1104,6 +1303,25 @@ where ns.nspname = 'public'
     'app_cancel_reservation', 'app_list_community_reservations',
     'app_list_user_reservations', 'app_get_reservation'
   )
+union all
+select 'Funciones de avisos (debe ser 5)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_announcement_community', 'app_list_announcements',
+    'app_create_announcement', 'app_update_announcement',
+    'app_delete_announcement'
+  )
+union all
+select 'Grants de avisos a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_announcement_community', 'app_list_announcements',
+    'app_create_announcement', 'app_update_announcement',
+    'app_delete_announcement'
+  )
+  and grantee = 'PUBLIC'
 union all
 select 'Buckets', count(*)::text from storage.buckets
 union all

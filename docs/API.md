@@ -644,6 +644,152 @@ lista propia: decir "existe y no es tuya" también es filtrar.
 
 ---
 
+## Avisos
+
+Cuatro rutas en **dos** routers: las dos de comunidad cuelgan de
+`/api/v1/communities` y las otras dos de `/api/v1`. Como en incidencias, zonas y
+reservas, la comunidad de `PUT` y `DELETE` sale de la propia fila, así que un
+usuario de otra comunidad recibe **`404`** en ellas, no `403`: un `403`
+confirmaría que ese id existe.
+
+Tampoco hay `GET /announcements/:id`, igual que no lo hay en zonas comunes: el
+listado **es** la lectura. Un aviso se localiza en su tablón.
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "title": "Corte de agua el jueves",     // 3–120
+  "body": "El jueves de 9:00 a 14:00…",   // 1–5000
+  "type": "MAINTENANCE",                  // GENERAL | URGENT | MAINTENANCE | MEETING
+  "priority": "HIGH",                     // LOW | MEDIUM | HIGH
+  "isPinned": true,
+  "publishAt": "2026-10-06T09:00:00.000Z",
+  "expiresAt": "2026-10-10T00:00:00.000Z", // null = no caduca
+  "authorId": "uuid",                     // null si el autor se dio de baja
+  "authorName": "Ana Ruiz Delgado",       // null si el autor se dio de baja
+  "createdAt": "2026-10-05T10:00:00.000Z",
+  "updatedAt": "2026-10-05T10:00:00.000Z"
+}
+```
+
+`authorName` sale de `users.full_name`, y solo puede leerse desde una función:
+el módulo no tiene ningún `SELECT` directo contra la tabla.
+
+### Qué ve cada rol
+
+La ventana (programado y caducado) se aplica en el listado **por rol**, no con
+un parámetro:
+
+| | Publicado y vivo | Programado | Caducado | Borrado |
+|---|---|---|---|---|
+| `NEIGHBOR` | ✅ | ❌ | ❌ | ❌ |
+| `PROVIDER` | ✅ | ❌ | ❌ | ❌ |
+| `PRESIDENT` | ✅ | ✅ | ✅ | ❌ |
+| `ADMIN` | ✅ | ✅ | ✅ | ❌ |
+
+Quien gestiona ve los programados para poder corregirlos antes de que salgan, y
+los caducados para poder borrarlos o reabrirlos: con la ventana aplicada a
+todos, un aviso caducado sería inalcanzable. **Nadie ve nunca uno borrado**,
+gestión incluida.
+
+### `GET /api/v1/communities/:communityId/announcements`
+
+Cualquier miembro activo lee el tablón de su comunidad, con el orden fijado:
+`isPinned` primero y `publishAt` descendente dentro de cada grupo.
+
+| Filtro | Forma | Efecto |
+|---|---|---|
+| `type` | enum de tipos | solo ese tipo |
+| `q` | hasta 100 caracteres | `ilike` sobre `title` y `body` |
+| `page` | entero ≥ 1 (por defecto 1) | desplazamiento |
+| `limit` | 1–100 (por defecto 20) | tamaño de página |
+
+Parámetro desconocido (`?pinned=true`), `type` fuera de enum, `page=0`,
+`limit=101` o `q` vacío son `400`: los filtros son estos y ninguno más.
+
+```
+200 → { "data": [ …avisos ], "meta": { page, limit, total, totalPages } }
+400 → filtro con forma inválida
+403 → no es miembro (o la membresía no está activa)
+```
+
+`total` cuenta los avisos del listado completo, no los de la página; una página
+más allá del final devuelve `data: []` con el `total` real.
+
+### `POST /api/v1/communities/:communityId/announcements`
+
+Alta por `PRESIDENT` y `ADMIN` (AN-1), con el rol comprobado en el guard de la
+ruta **y** repetido dentro de la función. `NEIGHBOR` y `PROVIDER` reciben `403`.
+
+```jsonc
+{ "title": "Junta de escala el martes",
+  "body": "…",
+  "type": "MEETING",          // opcional, por defecto GENERAL
+  "priority": "HIGH",         // opcional, por defecto MEDIUM
+  "isPinned": false,          // opcional
+  "publishAt": "…",           // opcional, por defecto ahora
+  "expiresAt": "…" }          // opcional, por defecto null (no caduca)
+```
+
+```
+201 → { "data": { …aviso } }        // sin Location: no hay GET /announcements/:id
+400 → forma inválida o expiresAt ≤ publishAt
+403 → el rol no puede redactar avisos
+```
+
+Los defaults los pone la columna dentro de la función, no el backend: «no lo
+mandaste» y «lo mandaste igual que el default» acaban en el mismo sitio, y solo
+hay un sitio donde están escritos.
+
+`authorId` y `communityId` **no se aceptan**: el autor lo pone la sesión
+(`AN-9`) y la comunidad la decide la URL. Mandarlos es `400` por `.strict()`.
+
+### `PUT /api/v1/announcements/:id`
+
+Reemplazo completo, sin `PATCH`: los **ocho campos** son obligatorios, y
+`expiresAt` admite `null` explícito («ya no caduca»), que es la única forma de
+deshacer una caducidad.
+
+El rol no está en el guard: lo decide la función con la fila delante, con lo que
+un `NEIGHBOR` o un `PROVIDER` reciben `403` aunque la ruta no filtre por rol.
+
+```
+200 → { "data": { …aviso } }
+400 → falta un campo, clave desconocida en el cuerpo, o expiresAt ≤ publishAt
+403 → tu rol no puede editar avisos
+404 → no existe, está borrado, o no es de tu comunidad
+```
+
+La edición **no cambia la autoria**: `authorId` y `authorName` siguen siendo los
+de la publicación original, aunque edite otro `PRESIDENT`. Un `id`,
+`authorId`, `communityId`, `createdAt` o `updatedAt` en el cuerpo es `400`.
+
+### `DELETE /api/v1/announcements/:id`
+
+Solo `ADMIN` (AN-5): el `PRESIDENT` redacta, fija y caduca, pero no archiva. El
+único que lo dice es la función con la fila delante, porque la ruta no lleva
+guard de rol.
+
+Es **borrado lógico** (`deleted_at`): la fila sigue existiendo y desaparece del
+listado para todos los roles.
+
+```
+200 → { "data": { "id": "…", "deleted": true } }
+403 → "Solo un administrador puede borrar avisos."
+404 → no existe, ya estaba borrado, o no es de tu comunidad
+```
+
+El segundo `DELETE` es `404`, no un `200` idempotente: la spec lo fija
+expresamente, y lo mismo le pasa al `PUT` de un aviso ya borrado.
+
+Este módulo **no tiene `409` ni `422`**: no hay índice único que pisar ni
+estados que transitar (AN-11), y `422` no existe en el proyecto.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |

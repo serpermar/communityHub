@@ -447,6 +447,7 @@ El estado de cada pieza:
 | Incidencias | `backend/src/incidents/` | Hecho: los 8 endpoints |
 | Zonas comunes | `backend/src/common-areas/` | Hecho: los 4 endpoints |
 | Reservas | `backend/src/reservations/` | Hecho: los 6 endpoints |
+| Avisos | `backend/src/announcements/` | Hecho: los 4 endpoints |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:

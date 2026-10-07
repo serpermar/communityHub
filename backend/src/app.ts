@@ -28,6 +28,7 @@ import { createInvitationRedeemRouter, createInvitationsRouter, createMembersRou
 import { createIncidentRouter, createIncidentsRouter } from './incidents/routes.js'
 import { createCommonAreaRouter, createCommonAreasRouter } from './common-areas/routes.js'
 import { createReservationRouter, createReservationsRouter } from './reservations/routes.js'
+import { createAnnouncementRouter, createAnnouncementsRouter } from './announcements/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -181,6 +182,12 @@ export function createApp(): Express {
   app.use('/api/v1', createCommonAreaRouter())
   app.use('/api/v1/communities', createReservationsRouter())
   app.use('/api/v1', createReservationRouter())
+
+  // Avisos (spec 07), en dos routers por lo mismo: el listado y el alta
+  // cuelgan de la comunidad, el PUT y el DELETE del aviso. Ningun orden entre
+  // routers: cada uno solo atiende las suyas.
+  app.use('/api/v1/communities', createAnnouncementsRouter())
+  app.use('/api/v1', createAnnouncementRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)
