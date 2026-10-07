@@ -856,7 +856,7 @@ begin
       v_fallos := v_fallos || ' falta ' || v_fn || '();';
     elsif v_def not like '%SECURITY DEFINER%' then
       v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
-    elsif v_def not like '%set search_path =%' then
+    elsif lower(v_def) not like '%set search_path%' then
       v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
     end if;
   end loop;
@@ -980,7 +980,7 @@ begin
       v_fallos := v_fallos || ' falta ' || v_fn || '();';
     elsif v_def not like '%SECURITY DEFINER%' then
       v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
-    elsif v_def not like '%set search_path =%' then
+    elsif lower(v_def) not like '%set search_path%' then
       v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
     end if;
   end loop;
@@ -1086,7 +1086,7 @@ begin
       v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
     end if;
 
-    if v_def not like '%set search_path =%' then
+    if lower(v_def) not like '%set search_path%' then
       v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
     end if;
 

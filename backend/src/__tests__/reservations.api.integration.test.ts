@@ -332,7 +332,18 @@ describe('Alta de reservas (R-1, R-2, R-7)', () => {
 
       expect(res.status, `con ${nombre}: ${JSON.stringify(res.body)}`).toBe(400)
       expect(res.body.error.code, `con ${nombre}`).toBe('VALIDATION_ERROR')
-      expect(res.body.error.message, `con ${nombre}`).toBe(mensaje)
+
+      // "Nombra su problema" puede llegar por dos caminos y ambos valen: las
+      // cuatro reglas que zod no intercepta las traduce errors.ts con un
+      // mensaje propio en error.message, y la de orden (endsAt <= startsAt)
+      // la intercepta zod antes con el MISMO texto (validators.ts superRefine),
+      // que el contrato de API.md lleva en details campo a campo.
+      const nombrado =
+        res.body.error.message === mensaje ||
+        (res.body.error.details ?? []).some(
+          (d: { message?: string }) => d.message === mensaje,
+        )
+      expect(nombrado, `con ${nombre}: ${JSON.stringify(res.body)}`).toBe(true)
     }
   })
 

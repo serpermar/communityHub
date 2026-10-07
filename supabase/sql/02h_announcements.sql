@@ -635,7 +635,7 @@ begin
      where n.nspname = 'public'
        and p.proname = 'app_delete_announcement'
        and pg_get_functiondef(p.oid) like '%announcement_requires_admin%'
-       and pg_get_functiondef(p.oid) not like '%PRESIDENT%';
+       and pg_get_functiondef(p.oid) not like '%PRESIDENT%'
   ) then
     v_fallos := v_fallos || ' el borrado deberia ser solo de ADMIN con announcement_requires_admin (AN-5);';
   end if;
