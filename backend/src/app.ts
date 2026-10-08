@@ -29,6 +29,7 @@ import { createIncidentRouter, createIncidentsRouter } from './incidents/routes.
 import { createCommonAreaRouter, createCommonAreasRouter } from './common-areas/routes.js'
 import { createReservationRouter, createReservationsRouter } from './reservations/routes.js'
 import { createAnnouncementRouter, createAnnouncementsRouter } from './announcements/routes.js'
+import { createDocumentRouter, createDocumentsRouter } from './documents/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -188,6 +189,11 @@ export function createApp(): Express {
   // routers: cada uno solo atiende las suyas.
   app.use('/api/v1/communities', createAnnouncementsRouter())
   app.use('/api/v1', createAnnouncementRouter())
+
+  // Documentos (spec 08), en dos routers por lo mismo: el listado y el alta
+  // cuelgan de la comunidad, el detalle/descarga/borrado del documento.
+  app.use('/api/v1/communities', createDocumentsRouter())
+  app.use('/api/v1', createDocumentRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

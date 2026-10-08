@@ -46,12 +46,13 @@ const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 // nada de 02d. Si algún día 02d dejara de definir app_role_in(), 02e se
 // aplicaría con un predicado que devuelve siempre false.
 //
-// 02f, 02g y 02h van ANTES de 03_storage.sql y en ese orden entre sí: 02f usa
-// app_is_member_of/app_role_in de 02_rls, 02g usa app_common_area_community
-// de 02f (la creación de reservas resuelve la zona por ahí) y 02h usa
-// app_is_member_of/app_role_in de 02_rls para el tablón de avisos. Los tres
-// son idempotentes: se pueden re-aplicar sobre una base ya desplegada, que es
-// lo que hace falta para desplegar este bloque en producción sin rehechos.
+// 02f, 02g, 02h y 02i van ANTES de 03_storage.sql y en ese orden entre sí: 02f
+// usa app_is_member_of/app_role_in de 02_rls, 02g usa app_common_area_community
+// de 02f (la creación de reservas resuelve la zona por ahí), 02h usa
+// app_is_member_of/app_role_in de 02_rls para el tablón de avisos y 02i usa las
+// mismas para la visibilidad de documentos. Los cuatro son idempotentes: se
+// pueden re-aplicar sobre una base ya desplegada, que es lo que hace falta para
+// desplegar este bloque en producción sin rehechos.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
@@ -62,6 +63,7 @@ const FILES = [
   '02f_common_areas.sql',
   '02g_reservations.sql',
   '02h_announcements.sql',
+  '02i_documents.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

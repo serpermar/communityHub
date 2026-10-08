@@ -790,6 +790,188 @@ estados que transitar (AN-11), y `422` no existe en el proyecto.
 
 ---
 
+## Documentos
+
+Cinco rutas en **dos routers**, como avisos: las dos de comunidad cuelgan de
+`/api/v1/communities` y las otras tres de `/api/v1`. Quien ve qué lo decide
+siempre `app_list_documents()` con la fila delante (DN-6), así que un
+documento invisible para el actor es **`404`**, no `403` (C-8: un `403`
+confirmaría que ese id existe).
+
+Es el primer bloque que toca Storage: el binario **nunca** va en la base, solo
+`storage_path`, la clave dentro del bucket privado `community-documents`
+prefijada por `<communityId>/`. Esa ruta no sale nunca en una respuesta —ni en
+el detalle ni en el listado—, así que un cliente no puede montarse una URL por
+su cuenta. Quien descarga recibe una **signed URL** firmada por el backend.
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "title": "Actas de la junta de marzo",     // 1–120, con los espacios recortados
+  "description": "…",                        // hasta 1000, o null
+  "category": "MINUTES",                     // MINUTES | STATUTES | INVOICE | BUDGET | MAINTENANCE | OTHER
+  "mimeType": "application/pdf",             // lista cerrada de 03_storage.sql
+  "sizeBytes": 48312,                        // 1 … 10 MB, calculado del binario
+  "checksum": "9f2b…",                      // SHA-256 hex del contenido (DN-12)
+  "minRole": "NEIGHBOR",                     // NEIGHBOR | PRESIDENT | ADMIN | PROVIDER
+  "isPublic": false,
+  "uploadedBy": "uuid",                     // la sesión, nunca el cuerpo (DN-8)
+  "uploadedByName": "Luis Mendoza Prat",     // null si el autor se dio de baja
+  "createdAt": "2026-10-06T09:00:00.000Z",
+  "updatedAt": "2026-10-06T09:00:00.000Z"
+}
+```
+
+`storagePath` no existe en la respuesta. Tampoco `deletedAt`: el borrado no
+devuelve la fila.
+
+### Qué ve cada rol
+
+Tres puertas y solo tres, en el orden del predicado:
+
+1. **`ADMIN`** ve y descarga todo.
+2. **ACL explícita** con `can_view` en la fila: vale para cualquier rol activo,
+   **incluido `PROVIDER`**. Es la única puerta de `PROVIDER`.
+3. **Visibilidad por rol**: miembro activo, **no `PROVIDER`**, y `isPublic` o
+   umbral alcanzado. El orden real del enum es
+   `NEIGHBOR < PRESIDENT < ADMIN < PROVIDER`; el `<> 'PROVIDER'` explícito es lo
+   que impide que el orden por sí solo incluya al proveedor en cualquier umbral.
+
+| | `minRole NEIGHBOR` | `minRole PRESIDENT` | `minRole ADMIN` | Con ACL `can_view` |
+|---|---|---|---|---|
+| `NEIGHBOR` | ✅ | ❌ | ❌ | ✅ |
+| `PRESIDENT` | ✅ | ✅ | ❌ | ✅ |
+| `ADMIN` | ✅ | ✅ | ✅ | ✅ |
+| `PROVIDER` | ❌ | ❌ | ❌ | ✅ |
+
+`isPublic: true` hace lo mismo que el umbral para los tres roles que no son
+`PROVIDER` (la fórmula es `isPublic OR rol >= minRole`): un documento público
+con `minRole: ADMIN` lo ven `NEIGHBOR` y `PRESIDENT` igualmente. **`PROVIDER`
+no lo ve por publicado que esté**: para eso hace falta la ACL.
+
+Y un borrado es borrado para todo el mundo, gestión incluida (DN-11).
+
+### `GET /api/v1/communities/:communityId/documents`
+
+Miembros activos de esa comunidad, con el orden fijado: `createdAt`
+descendente (DN-7, lo último arriba).
+
+| Filtro | Forma | Efecto |
+|---|---|---|
+| `category` | enum de categorías | solo esa categoría |
+| `q` | hasta 100 caracteres | `ilike` sobre `title` y `description` |
+| `page` | entero ≥ 1 (por defecto 1) | desplazamiento |
+| `limit` | 1–100 (por defecto 20) | tamaño de página |
+
+Parámetro desconocido (`?pinned=true`), `category` fuera de enum, `page=0`,
+`limit=101` o `q` vacío son `400`: los filtros son estos y ninguno más.
+
+```
+200 → { "data": [ …documentos ], "meta": { page, limit, total, totalPages } }
+400 → filtro con forma inválida
+403 → no es miembro (o la membresía no está activa)
+```
+
+`total` cuenta el listado completo, no la página: una página más allá del
+final devuelve `data: []` con el `total` real.
+
+### `POST /api/v1/communities/:communityId/documents`
+
+Alta en **`multipart/form-data`** y solo de `ADMIN` (DN-1): el guard de la ruta
+corre antes de leer el archivo, y la función repite el rol dentro de la
+transacción. `NEIGHBOR`, `PRESIDENT` y `PROVIDER` reciben `403`.
+
+| Campo de formulario | Forma | Efecto |
+|---|---|---|
+| `file` | obligatorio | el binario; otro nombre de campo es `400` |
+| `title` | obligatorio, 1–120 | el título |
+| `description` | opcional, hasta 1000 | la descripción |
+| `category` | enum, opcional | por defecto `OTHER` |
+| `minRole` | `NEIGHBOR`/`PRESIDENT`/`ADMIN`/`PROVIDER`, opcional | por defecto `NEIGHBOR` |
+| `isPublic` | `"true"` o `"false"`, opcional | por defecto `false` |
+| `acl` | JSON `[{ userId, canView?, canDownload? }]`, opcional | la ACL, escrita en la misma transacción |
+
+`PROVIDER` como umbral se acepta, pero no lo alcanza nadie por rol (la
+comparación excluye a `PROVIDER` y ningún otro rol llega tan alto): solo lo
+abren `ADMIN`, un `isPublic: true` o la ACL. En la práctica, umbral
+`PROVIDER` deja el documento reservado a esos tres.
+
+El archivo: hasta **10 MB** y con uno de los mimes de `03_storage.sql`
+(`application/pdf`, `image/jpeg`, `image/png`, `image/webp`,
+`application/msword`,
+`application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
+`application/vnd.ms-excel`,
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,
+`text/plain`, `text/csv`). Fuera de ahí, o pesando 10 MB y un byte más, es
+`400` **antes** de tocar Storage: el orden del alta es validar, subir,
+insertar (con compensación si el insert falla).
+
+```
+201 → { "data": { …documento } }   // cabecera Location: /api/v1/documents/{id}
+400 → forma inválida, sin archivo, mime fuera de lista o archivo >10 MB
+403 → tu rol no puede subir documentos
+409 → la ruta ya está ocupada en el bucket — inalcanzable por la API,
+      que genera la ruta con uuid v4; existe para que una colisión no sea 500
+```
+
+`uploadedBy` no se acepta en el cuerpo (`.strict()`): lo pone la sesión (DN-8).
+Tampoco `storagePath`, `checksum` ni `sizeBytes`: el checksum y el tamaño salen
+del binario (DN-12), no de lo que diga el cliente. La respuesta es una
+**relectura** de la fila (DN-3), con los recortes y los defaults ya aplicados.
+
+### `GET /api/v1/documents/:id`
+
+El mismo predicado que el listado, con `id` y sin comunidad en la URL.
+
+```
+200 → { "data": { …documento } }
+404 → no existe, está borrado, es de otra comunidad o este rol no lo ve
+```
+
+Los cuatro casos son el mismo `404`.
+
+### `GET /api/v1/documents/:id/download`
+
+La descarga son **dos consultas con dos significados distintos** (§5.5):
+
+```
+200 → { "data": { "url": "…", "expiresIn": 300 } }
+404 → el primer paso no da la ruta: no existe, o este rol no lo ve
+403 → el segundo paso no da la ruta: lo ve, pero no puede descargarlo
+```
+
+El `404` sale de la comprobación de visibilidad, así que no confirma la
+existencia. El `403` llega después de superarla: una ACL con
+`canDownload: false` **veta la descarga por rol**, aunque el documento sea
+visible por `minRole` o por ser público.
+
+`expiresIn` es `DOCUMENTS_SIGNED_URL_EXPIRES_IN` (60–3600, por defecto 300
+segundos). La URL la firma el backend con la clave del servicio, que no sale
+nunca en la respuesta.
+
+### `DELETE /api/v1/documents/:id`
+
+Solo `ADMIN`, y lo decide la función con la fila delante: la ruta no lleva
+guard de rol. El `PRESIDENT` recibe `403` con mensaje propio y el objeto del
+bucket no se toca.
+
+Es **borrado lógico** (`deleted_at`) y el objeto del bucket se elimina
+después, cuando el soft delete ya está commiteado (DN-11): si esa eliminación
+falla, el `200` ya se ha ganado y queda un residuo logueado.
+
+```
+200 → { "data": { "id": "…", "deleted": true } }
+403 → "Solo un administrador puede borrar documentos."
+404 → no existe, ya estaba borrado, o no es de tu comunidad
+```
+
+El segundo `DELETE` es `404`, no un `200` idempotente, igual que en avisos.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
@@ -801,7 +983,7 @@ estados que transitar (AN-11), y `422` no existe en el proyecto.
 | 401 | `INVALID_CREDENTIALS` | Login con email o contraseña incorrectos |
 | 403 | `FORBIDDEN` | Autenticado pero sin permiso |
 | 404 | `NOT_FOUND` | El endpoint no existe, o el recurso sí pero está dado de baja |
-| 409 | `CONFLICT` | El slug ya existe, el email en el registro, una transición de estado que no existe, un nombre de zona repetido, o un hueco de reserva ya ocupado |
+| 409 | `CONFLICT` | El slug ya existe, el email en el registro, una transición de estado que no existe, un nombre de zona repetido, un hueco de reserva ya ocupado, o una ruta de documento ya ocupada en el bucket |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 

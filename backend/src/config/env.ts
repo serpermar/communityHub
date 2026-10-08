@@ -70,6 +70,15 @@ const schema = z.object({
   LOGIN_RATE_LIMIT_MAX: int(1, 1_000).default(5),
   LOGIN_RATE_LIMIT_WINDOW_MS: int(1_000, 3_600_000).default(900_000),
 
+  // Supabase Storage (spec 08 §9). Con `local` no hace falta ninguna clave:
+  // es lo que usan los tests y un dev sin bucket.
+  STORAGE_DRIVER: z.enum(['supabase', 'local']).optional(),
+  SUPABASE_URL: z.string().default(''),
+  SUPABASE_ANON_KEY: z.string().default(''),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default(''),
+  DOCUMENTS_BUCKET: z.string().default('community-documents'),
+  DOCUMENTS_SIGNED_URL_EXPIRES_IN: int(60, 3_600).default(300),
+
   // IA: opcional. Sin ellas la app funciona igual.
   GROQ_API_KEY: z.string().default(''),
   GEMINI_API_KEY: z.string().default(''),
@@ -132,8 +141,39 @@ if (raw.NODE_ENV === 'production' && raw.REFRESH_COOKIE_SAMESITE !== 'strict') {
   )
 }
 
+// El driver de Storage: `supabase` en produccion/desarrollo, `local` EN TESTS
+// (spec 08 §9). En test el valor de .env NO se respeta, pase lo que pase: una
+// suite que subiera fixtures al bucket real dejaria basura en el proyecto y
+// dependeria de red para estar en verde. El valor explicito solo cuenta fuera
+// de test, para que un dev que quiera probar contra su bucket no tenga que
+// tocar el entorno.
+const storageDriver = raw.NODE_ENV === 'test' ? 'local' : (raw.STORAGE_DRIVER ?? 'supabase')
+
+// Solo el driver de verdad exige claves reales. `PENDING` se trata como
+// ausente: es el valor con que .env.example marca "todavia no lo tengo", y si
+// se arrancara con el, las URLs firmadas fallarian con un 500 descafeinado.
+if (storageDriver === 'supabase') {
+  const vacias = (['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const).filter((nombre) => {
+    const valor = raw[nombre]
+    return !valor || valor === 'PENDING'
+  })
+
+  if (vacias.length > 0) {
+    throw new Error(
+      [
+        `Con STORAGE_DRIVER=supabase hacen falta claves reales de Supabase Storage: ${vacias.join(', ')}.`,
+        '',
+        'Supabase URL y Service role (SOLO backend). O, si no tienes bucket,',
+        'pon STORAGE_DRIVER="local": la app arranca igual y vuelca los documentos',
+        'a una carpeta temporal.',
+      ].join('\n'),
+    )
+  }
+}
+
 export const env = {
   ...raw,
+  STORAGE_DRIVER: storageDriver,
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   corsOrigins: raw.CORS_ORIGINS.split(',')

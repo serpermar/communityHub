@@ -394,6 +394,58 @@ existe — y en el caso de la suspensión, que antes sí lo veías. La suspensi�
 corta la visibilidad, no solo el permiso, porque `app_is_member_of()` exige
 membresía `ACTIVE`.
 
+### El único bloque que toca Storage (documentos)
+
+El binario no vive en la base: solo `storage_path`, y esa clave **no sale nunca
+en una respuesta** —ni el detalle ni el listado la devuelven, y `db:verify`
+falla si `app_list_documents()` vuelve a mencionar `storage_path`. El bucket
+`community-documents` es privado (`public = false`), con `file_size_limit` de
+10 MB y `allowed_mime_types` cerrados en `03_storage.sql`; quien descarga
+recibe una **signed URL** de `DOCUMENTS_SIGNED_URL_EXPIRES_IN` segundos, y la
+clave de servicio que la firma no sale de la respuesta jamás.
+
+Hay dos drivers (`STORAGE_DRIVER`): `supabase`, con la clave de servicio —el
+arranque exige que `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` no estén
+vacías ni en `PENDING`, para fallar antes que la primera petición— y
+`local`, carpeta en disco. Fuera de test el default es `supabase`;
+**dentro de `NODE_ENV=test` el driver es siempre `local`, pase lo que pase en
+`.env`** (`env.ts`): la suite nunca sube fixtures al bucket real, no deja
+basura en el proyecto y no depende de red para estar en verde.
+
+Las reglas que viven aquí:
+
+- **Subir y borrar es solo `ADMIN`** (DN-1), dos veces: el guard de la ruta
+  antes de leer el archivo, y la función dentro de la transacción. Y
+  `app_runtime` no tiene `INSERT`, `UPDATE` ni `DELETE` sobre `documents` ni
+  `document_acl`: la única escritura posible pasa por una de las cinco
+  funciones.
+- **El orden del alta es validar → subir → insertar**, con compensación: si el
+  `INSERT` falla, el objeto recién subido se borra (best-effort, con log). Una
+  fila sin objeto sería un documento que se ve y no se puede bajar.
+- **El borrado va al revés**: soft delete primero (el dato), objeto después y
+  solo cuando el commit ya ocurrió; si la eliminación falla, queda un residuo
+  logueado y el `200` no se deshace.
+- **La descarga en dos pasos** (§5.5 de la spec): primera consulta nula es
+  `404` —no distingue «no existe» de «no lo ves», porque un `403` confirmaría
+  la existencia—, segunda consulta nula es `403`. Una ACL con
+  `can_download: false` veta la descarga por rol, aunque el documento sea
+  visible por `minRole` o por ser público.
+- **`PROVIDER` no ve nada por rol** (DN-5): `<> 'PROVIDER'` está escrito en las
+  dos funciones de lectura y `db:verify` lo comprueba con
+  `pg_get_functiondef`. Con el orden real del enum
+  (`NEIGHBOR < PRESIDENT < ADMIN < PROVIDER`), un simple
+  `role >= min_role` incluiría al proveedor hasta en `min_role = ADMIN`.
+
+Y una peculiaridad del único `409` del bloque: la colisión en
+`documents_storage_path_uidx` se captura y se relanza con el sentinel
+`document_path_taken`, pero con **SQLSTATE `U0001`** y no con `23505`. Prisma
+traduce cualquier `23505` que reciba a «Unique constraint failed: …» y se come
+el mensaje, de modo que el sentinel jamás llegaría al traductor: la pareja
+(sentinel, errcode) se perdería justo en el único caso que la necesita. Un
+`23505` que sí llegue no se convierte en `409` nunca (sección «Traducir
+errores sin regalar un `409`»): o es una colisión —imposible con uuid v4— o es
+un bug del esquema, y disfrazar uno de lo otro lo escondería.
+
 ---
 
 ## 6. Secretos
@@ -514,7 +566,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 40 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, y de avisos la ventana por rol, el `authorId` inalterable y el soft delete |
+| `npm run test:integration` | Los 45 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, y de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -550,6 +602,17 @@ ve: que `announcements` sigue sin política de `INSERT`, `UPDATE` ni `DELETE` y
 sin permiso de escritura para `app_runtime`, que las cinco funciones siguen
 siendo `SECURITY DEFINER` con `search_path` fijo, ejecutables por `app_runtime`
 y no por `PUBLIC`, y que el índice de orden y el `CHECK` de ventana existen.
+
+Del bloque 08, los criterios de `specs/08-documents.md` (sección 10) tienen su
+test de integración, y en la base de datos se comprueba lo que por HTTP no se
+ve: que `documents` y `document_acl` siguen sin política de escritura y sin
+permiso de escritura para `app_runtime`; que las cinco funciones siguen siendo
+`SECURITY DEFINER` con `search_path` fijo, ejecutables por `app_runtime` y no
+por `PUBLIC`; que las dos lecturas siguen excluyendo a `PROVIDER` con
+`pg_get_functiondef`; que el alta sigue firmando `uploaded_by` con
+`app_current_user_id()` (DN-8); que la ACL sigue entrando con `ON CONFLICT`
+(DN-9); que el borrado sigue siendo un soft delete (DN-11); y que
+`app_list_documents()` no menciona `storage_path`.
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 

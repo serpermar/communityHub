@@ -23,6 +23,8 @@
 // ---------------------------------------------------------------------------
 
 import 'dotenv/config'
+import { createHash } from 'node:crypto'
+import { createClient } from '@supabase/supabase-js'
 import { PrismaClient, Prisma } from '@prisma/client'
 import argon2 from 'argon2'
 // ---------------------------------------------------------------------------
@@ -95,6 +97,11 @@ const ID = {
   avisoJuntaA: '66666666-6666-4111-8111-111111111111',
   avisoCorteA: '66666666-6666-4222-8222-222222222222',
   avisoProgramadoB: '66666666-6666-3333-8333-333333333333',
+
+  // Documentos
+  docActasA: '77777777-7777-4111-8111-111111111111',
+  docReglamentoA: '77777777-7777-4222-8222-222222222222',
+  docFacturaB: '77777777-7777-3333-8333-333333333333',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -133,6 +140,85 @@ async function wipe() {
   await prisma.users.deleteMany({})
 }
 
+// ---------------------------------------------------------------------------
+// Objetos de los documentos sembrados
+// ---------------------------------------------------------------------------
+// PDF minimo de una pagina con texto legible. El seed necesita contenido REAL
+// (no un texto plano con mime de PDF): de este mismo buffer salen el sha256 y
+// el size_bytes de la fila, y el objeto que se sube al bucket es este. Sin
+// fechas ni aleatoriedad, determinista: mismo hash en cualquier maquina.
+function miniPdf(lineas: string[]): Buffer {
+  // Escapa el contenido del stream: los tres caracteres especiales de una
+  // cadena PDF y los acentos, que viajan como octal Latin-1 (WinAnsiEncoding).
+  const escape = (s: string): string =>
+    [...s]
+      .map((ch) => {
+        const c = ch.codePointAt(0)!
+        if (c === 0x28 || c === 0x29 || c === 0x5c) return `\\${ch}`
+        if (c > 127) return `\\${c.toString(8).padStart(3, '0')}`
+        return ch
+      })
+      .join('')
+
+  const stream = ['BT /F1 14 Tf 72 720 Td 18 TL', ...lineas.map((l) => `(${escape(l)}) Tj T*`), 'ET'].join('\n')
+  const cuerpos = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ]
+
+  let pdf = '%PDF-1.4\n'
+  const offsets: number[] = []
+  for (const [i, cuerpo] of cuerpos.entries()) {
+    offsets.push(pdf.length)
+    pdf += `${i + 1} 0 obj\n${cuerpo}\nendobj\n`
+  }
+  // startxref apunta al byte donde EMPIEZA la tabla xref, no al trailer: hay
+  // que guardarlo antes de concatenerla, o cualquier visor se busca la tabla
+  // por su cuenta y a mitad de camino dice que el documento esta corrupto.
+  const xrefPos = pdf.length
+  pdf += `xref\n0 ${cuerpos.length + 1}\n0000000000 65535 f \n`
+  for (const o of offsets) pdf += `${String(o).padStart(10, '0')} 00000 n \n`
+  pdf += `trailer\n<< /Size ${cuerpos.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`
+
+  return Buffer.from(pdf, 'latin1')
+}
+
+// Sube los objetos al bucket REAL. Se usa el mismo supabase-js que el driver
+// del backend (el mismo trato de la clave sb_secret_...), pero aquí, en el
+// seed, sin importar src/: config/env.ts exigiria DATABASE_URL del rol
+// app_runtime mientras el seed corre con la de migracion (mismo motivo por el
+// que no importa src/auth/password.ts). `upsert` porque las rutas son
+// deterministicas: re-siembrar con --reset vuelve a subir a la misma clave sin
+// chocar con lo anterior.
+async function subirObjetosSeed(objetos: { path: string; mime: string; contenido: Buffer }[]): Promise<void> {
+  const url = process.env.SUPABASE_URL
+  const clave = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const bucket = process.env.DOCUMENTS_BUCKET ?? 'community-documents'
+
+  if (process.env.STORAGE_DRIVER === 'local') {
+    console.log('  (STORAGE_DRIVER=local: los objetos no se suben)')
+    return
+  }
+  if (!url || !clave || clave === 'PENDING') {
+    console.log('  (aviso: sin SUPABASE_SERVICE_ROLE_KEY; las filas quedan sin objeto y su descarga fallaria)')
+    return
+  }
+
+  const storage = createClient(url, clave, { auth: { persistSession: false } }).storage
+  for (const { path, mime, contenido } of objetos) {
+    const { error } = await storage.from(bucket).upload(path, contenido, { contentType: mime, upsert: true })
+    if (error) {
+      // Fallo ruidoso: una fila sin objeto es exactamente el bug que este
+      // paso existe para evitar (con el driver supabase, su descarga da 500).
+      throw new Error(`No se pudo subir ${path} al bucket: ${error.message}`)
+    }
+  }
+  console.log(`  objetos subidos al bucket: ${objetos.length}`)
+}
+
 async function main() {
   console.log(`\nSeed · CommunityHub\n`)
   if (dryRun) console.log('  (--dry-run: no se escribe nada)\n')
@@ -159,7 +245,7 @@ async function main() {
   //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
   //                   poder es dar de alta comunidades, no leer las que hay. Al
   //                   crear una desde la API entra en ella como ADMIN.
-  console.log('  1/8  Usuarios')
+  console.log('  1/9  Usuarios')
   await prisma.users.createMany({
     data: [
       {
@@ -218,7 +304,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
-  console.log('  2/8  Comunidades')
+  console.log('  2/9  Comunidades')
   await prisma.communities.createMany({
     data: [
       {
@@ -257,7 +343,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
-  console.log('  3/8  Membresías')
+  console.log('  3/9  Membresías')
   await prisma.communityMembers.createMany({
     data: [
       {
@@ -307,7 +393,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
-  console.log('  4/8  Incidencias')
+  console.log('  4/9  Incidencias')
   await prisma.incidents.createMany({
     data: [
       {
@@ -371,7 +457,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
-  console.log('  5/8  Gastos')
+  console.log('  5/9  Gastos')
   await prisma.expenses.createMany({
     data: [
       {
@@ -415,7 +501,7 @@ async function main() {
   // (08:00-22:00), y no ponerlos evita adivinar como convierte Prisma un Date
   // a una columna `time` en cada zona horaria. Las reservas de abajo caen
   // dentro de ese horario.
-  console.log('  6/8  Zonas comunes')
+  console.log('  6/9  Zonas comunes')
   await prisma.commonAreas.createMany({
     data: [
       {
@@ -475,7 +561,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime. La
   // logica de dominio (solape, limites) no se ejercita aqui; eso es de los
   // tests de integracion, que llaman a las funciones de verdad.
-  console.log('  7/8  Reservas')
+  console.log('  7/9  Reservas')
   await prisma.reservations.createMany({
     data: [
       {
@@ -586,7 +672,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime, y la
   // logica de dominio (la ventana, el rol de autoria) no se ejercita aqui; eso
   // es de los tests, que llaman a las funciones de verdad.
-  console.log('  8/8  Avisos')
+  console.log('  8/9  Avisos')
   await prisma.announcements.createMany({
     data: [
       {
@@ -630,9 +716,126 @@ async function main() {
   })
 
   // -------------------------------------------------------------------------
+  // Documentos
+  // -------------------------------------------------------------------------
+  // Tres filas con el reparto que demuestra DN-5/DN-6/DN-9 en la demo:
+  //
+  //   docActasA        MINUTES, minRole NEIGHBOR, is_public false. Lo ven los
+  //                    tres roles activos de A. Manolo (PROVIDER) NO lo ve por
+  //                    rol —DN-5 excluye a PROVIDER— y solo entra por la ACL de
+  //                    abajo: es el unico camino que tiene a ver algo.
+  //   docReglamentoA   STATUTES, minRole PRESIDENT, is_public false. El umbral:
+  //                    Marta (NEIGHBOR) recibe 404 y Luis (PRESIDENT) 200.
+  //   docFacturaB      INVOICE en B. Con el contexto puesto en A, Marta no lo
+  //                    ve aunque sea miembro de las dos: el aislamiento.
+  //
+  // Y una entrada de ACL: Manolo ve las actas (can_view) pero su descarga es
+  // 403 (can_download false), la pareja DN-9 de 404 y 403 de la spec §5.5.
+  //
+  // El seed SI sube los tres objetos al bucket real, y por eso el checksum y
+  // size_bytes de cada fila salen del MISMO buffer que se sube: fila y objeto
+  // cuentan la misma historia. Si no hay clave de Supabase, o el driver es
+  // local, se avisa y las filas quedan sin objeto (con el driver supabase la
+  // descarga de esas filas devolveria 500: por eso el aviso es ruidoso).
+  //
+  // checksum: sha256 del contenido real, calculado aquí para que el seed
+  // siga siendo determinista (mismo hash en cada máquina).
+
+  // El contenido, primero: createMany lo guarda y la subida de mas abajo lo
+  // envia tal cual.
+  const contenidoActas = miniPdf([
+    'Actas de la junta ordinaria de marzo',
+    'Comunidad de propietarios - CommunityHub (documento de demostracion)',
+    'Aprobacion de las cuentas del primer trimestre y renovacion de limpieza.',
+  ])
+  const contenidoReglamento = miniPdf([
+    'Reglamento de regimen interior',
+    'Comunidad de propietarios - CommunityHub (documento de demostracion)',
+    'Normas de uso de las zonas comunes y horarios de silencio.',
+  ])
+  const contenidoFactura = miniPdf([
+    'Factura del ascensor, octubre',
+    'Comunidad B - CommunityHub (documento de demostracion)',
+    'Revision mensual del ascensor.',
+  ])
+
+  console.log('  9/9  Documentos')
+  await prisma.documents.createMany({
+    data: [
+      {
+        id: ID.docActasA,
+        community_id: ID.comunidadA,
+        title: 'Actas de la junta ordinaria de marzo',
+        description:
+          'Aprobación de las cuentas del primer trimestre, estado de la rampa del portal B y renovación del contrato de limpieza.',
+        category: 'MINUTES',
+        storage_path: `${ID.comunidadA}/${ID.docActasA}`,
+        mime_type: 'application/pdf',
+        size_bytes: BigInt(contenidoActas.length),
+        checksum: createHash('sha256').update(contenidoActas).digest('hex'),
+        min_role: 'NEIGHBOR',
+        is_public: false,
+        uploaded_by: ID.luisPresidente,
+      },
+      {
+        id: ID.docReglamentoA,
+        community_id: ID.comunidadA,
+        title: 'Reglamento de régimen interior',
+        description: 'Normas de uso de las zonas comunes y horarios de silencio, aprobadas en la asamblea de 2024.',
+        category: 'STATUTES',
+        storage_path: `${ID.comunidadA}/${ID.docReglamentoA}`,
+        mime_type: 'application/pdf',
+        size_bytes: BigInt(contenidoReglamento.length),
+        checksum: createHash('sha256').update(contenidoReglamento).digest('hex'),
+        // El umbral: solo PRESIDENT y ADMIN lo ven. Marta recibe 404.
+        min_role: 'PRESIDENT',
+        is_public: false,
+        uploaded_by: ID.anaAdmin,
+      },
+      {
+        id: ID.docFacturaB,
+        community_id: ID.comunidadB,
+        title: 'Factura del ascensor, octubre',
+        description: 'Revisión mensual del ascensor de la comunidad B.',
+        category: 'INVOICE',
+        storage_path: `${ID.comunidadB}/${ID.docFacturaB}`,
+        mime_type: 'application/pdf',
+        size_bytes: BigInt(contenidoFactura.length),
+        checksum: createHash('sha256').update(contenidoFactura).digest('hex'),
+        min_role: 'NEIGHBOR',
+        is_public: false,
+        uploaded_by: ID.carlosVecino,
+      },
+    ],
+  })
+
+  // La entrada ACL de Manolo sobre las actas: ve (DN-9 can_view) pero no baja
+  // (can_download false). Sin esta fila, PROVIDER no ve NINGUN documento de A
+  // por rol, que es exactamente la propiedad que DN-5 fija.
+  await prisma.documentAcl.createMany({
+    data: [
+      {
+        document_id: ID.docActasA,
+        user_id: ID.proveedorManolo,
+        can_view: true,
+        can_download: false,
+      },
+    ],
+  })
+
+  // Y los tres objetos a la bucket, en las mismas rutas que acaba de guardar
+  // la fila. Va despues del createMany a proposito: un objeto sin fila es
+  // basura recuperable, una fila sin objeto es un documento que no se baja.
+  await subirObjetosSeed([
+    { path: `${ID.comunidadA}/${ID.docActasA}`, mime: 'application/pdf', contenido: contenidoActas },
+    { path: `${ID.comunidadA}/${ID.docReglamentoA}`, mime: 'application/pdf', contenido: contenidoReglamento },
+    { path: `${ID.comunidadB}/${ID.docFacturaB}`, mime: 'application/pdf', contenido: contenidoFactura },
+  ])
+
+  // -------------------------------------------------------------------------
   // Resumen
   // -------------------------------------------------------------------------
-  const [u, c, m, i, e, z, r, a] = await Promise.all([
+  const [u, c, m, i, e, z, r, a, d] = await Promise.all([
     prisma.users.count(),
     prisma.communities.count(),
     prisma.communityMembers.count(),
@@ -641,10 +844,11 @@ async function main() {
     prisma.commonAreas.count(),
     prisma.reservations.count(),
     prisma.announcements.count(),
+    prisma.documents.count(),
   ])
 
   console.log(
-    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos\n`,
+    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos · ${d} documentos\n`,
   )
 
   console.log(`\n  Para entrar en cada rol:\n`)

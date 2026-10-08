@@ -1213,7 +1213,243 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 16. INFORME
+-- 16. Documentos (02i_documents.sql)
+-- ----------------------------------------------------------------------------
+--
+-- Lista de aceptación de la spec 08 §10. Igual que las anteriores: las cinco
+-- funciones ya se comprueban en la autocomprobación de 02i, y aquí se repiten
+-- porque este es el archivo que db:verify ejecuta siempre.
+do $$
+declare
+  v_fallos text := '';
+  v_fn     text;
+  v_def    text;
+  v_expr   text;
+  v_n      integer;
+begin
+  -- documents y document_acl: sin politicas de escritura. Las de SELECT se
+  -- quedan y son deliberadamente mas debiles que el predicado de la funcion
+  -- (la de documents usa >= min_role sobre el orden real del enum, que incluye
+  -- a PROVIDER): ninguna ruta las usa, toda lectura pasa por la funcion (DN-6).
+  if exists (
+    select 1 from pg_policies
+     where (tablename = 'documents' or tablename = 'document_acl')
+       and cmd in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' documents/document_acl tiene politica de escritura;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'documents'
+       and policyname = 'documents_select_scoped'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta documents_select_scoped de SELECT;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'document_acl'
+       and policyname = 'acl_select_scoped'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta acl_select_scoped de SELECT;';
+  end if;
+
+  -- app_runtime (y cualquier rol que no sea el dueño o service_role) sin
+  -- escritura sobre las dos tablas: la escritura va por funcion (DN-2).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name in ('documents', 'document_acl')
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+       and grantee not in ('postgres', 'service_role')
+  ) then
+    v_fallos := v_fallos || ' un rol no dueño conserva escritura en documents/document_acl;';
+  end if;
+
+  -- Las cinco funciones: existen, SECURITY DEFINER, search_path fijo, con
+  -- execute para app_runtime y sin execute para PUBLIC.
+  for v_fn in
+    select unnest(array[
+      'app_document_community', 'app_list_documents',
+      'app_create_document', 'app_delete_document',
+      'app_document_storage_path'
+    ])
+  loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_fn;
+
+    if v_def is null then
+      v_fallos := v_fallos || ' falta ' || v_fn || '();';
+      continue;
+    end if;
+
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es SECURITY DEFINER;';
+    end if;
+
+    if lower(v_def) not like '%set search_path%' then
+      v_fallos := v_fallos || ' ' || v_fn || ' sin search_path fijo;';
+    end if;
+
+    if not exists (
+      select 1
+        from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = v_fn
+         and grantee = 'app_runtime'
+    ) then
+      v_fallos := v_fallos || ' ' || v_fn || ' no es ejecutable por app_runtime;';
+    end if;
+
+    if exists (
+      select 1
+        from information_schema.role_routine_grants
+       where routine_schema = 'public'
+         and routine_name = v_fn
+         and grantee = 'PUBLIC'
+    ) then
+      v_fallos := v_fallos || ' ' || v_fn || ' sigue siendo ejecutable por PUBLIC;';
+    end if;
+  end loop;
+
+  -- Los dos CHECK de longitud, con aviso si alguien los valido ya.
+  for v_expr in
+    select unnest(array['documents_title_length', 'documents_description_length'])
+  loop
+    if not exists (
+      select 1
+        from pg_constraint
+       where conname = v_expr
+         and conrelid = 'public.documents'::regclass
+         and contype = 'c'
+    ) then
+      v_fallos := v_fallos || ' falta ' || v_expr || ';';
+    elsif exists (
+      select 1
+        from pg_constraint
+       where conname = v_expr
+         and conrelid = 'public.documents'::regclass
+         and convalidated = false
+    ) then
+      raise notice 'AVISO: % existe pero sigue sin validar (not valid).', v_expr;
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+      from pg_constraint
+     where conrelid = 'public.documents'::regclass
+       and contype = 'c'
+       and conname not in (
+         'documents_size_positive',
+         'documents_title_length',
+         'documents_description_length'
+       )
+  ) then
+    v_fallos := v_fallos || ' documents tiene CHECK de longitud inesperado;';
+  end if;
+
+  -- El soporte del aislamiento: el indice de comunidad y la unica del path.
+  if not exists (
+    select 1
+      from pg_index i join pg_class c on c.oid = i.indexrelid
+     where c.relname in ('documents_community_idx', 'documents_storage_path_uidx')
+     group by c.relname having count(*) = 1
+  ) then
+    v_fallos := v_fallos || ' falta documents_community_idx o documents_storage_path_uidx;';
+  end if;
+
+  -- DN-5 escrita en las dos funciones de lectura: la visibilidad por rol
+  -- excluye a PROVIDER. El enum real es ('NEIGHBOR','PRESIDENT','ADMIN',
+  -- 'PROVIDER'), así que un >= min_role brutal incluiría a PROVIDER incluso con
+  -- min_role='ADMIN'; la funcion lo compensa (spec 08 §4c).
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_list_documents';
+
+  if v_def is null
+     or v_def not like '%<> ''PROVIDER''%'
+     or v_def not like '%app_is_member_of(%'
+     or v_def not like '%can_view%'
+  then
+    v_fallos := v_fallos || ' el listado no excluye a PROVIDER ni distingue can_view (DN-5);';
+  end if;
+
+  -- DN-3/DN-10: el listado y el detalle no exponen la ruta del bucket. La
+  -- firma de app_list_documents no devuelve storage_path (termina en
+  -- total_count); esa es la unica copia que no debe existir. Comprobacion
+  -- fragil porque todo pg_get_functiondef lo es; 02i ademas la reitera.
+  select pg_get_function_arguments(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_list_documents';
+
+  if v_def like '%storage_path%' then
+    v_fallos := v_fallos || ' el listado no deberia exponer storage_path (DN-3/DN-10);';
+  end if;
+
+  -- app_document_storage_path p_for_download=true exige can_download.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_document_storage_path';
+
+  if v_def is null
+     or v_def not like '%<> ''PROVIDER''%'
+     or v_def not like '%can_download%'
+     or v_def not like '%p_for_download%'
+  then
+    v_fallos := v_fallos || ' la ruta del bucket no separa ver de descargar (DN-5/DN-10);';
+  end if;
+
+  -- DN-8: el alta firma uploaded_by desde la sesion; DN-9: documents y
+  -- document_acl en la misma transaccion (on conflict); DN-11: borrado soft.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_create_document';
+
+  if v_def is null
+     or v_def not like '%app_current_user_id()%'
+     or v_def not like '%on conflict%'
+     or v_def not like '%document_path_taken%'
+  then
+    v_fallos := v_fallos || ' el alta no firma desde la sesion, no escribe la ACL en la misma transaccion o no traduce la ruta ocupada (DN-8/DN-9);';
+  end if;
+
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_delete_document';
+
+  if v_def is null
+     or v_def not like '%document_requires_admin%'
+     or v_def not like '%deleted_at = now()%'
+  then
+    v_fallos := v_fallos || ' el borrado no es soft delete solo de ADMIN con document_requires_admin (DN-1/DN-11);';
+  end if;
+
+  -- Y que la tabla tenga exactamente dos CHECK de longitud nuevos.
+  select count(*)::integer into v_n
+    from pg_constraint
+   where conrelid = 'public.documents'::regclass
+     and contype = 'c'
+     and conname in ('documents_title_length', 'documents_description_length');
+
+  if v_n <> 2 then
+    v_fallos := v_fallos || ' documents deberia tener exactamente documents_title_length y documents_description_length;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'Los documentos no pasan la verificacion:%', v_fallos;
+  end if;
+
+  raise notice 'OK · documentos: solo lectura RLS y grants, 5 funciones SECURITY DEFINER, PROVIDER excluido de la visibilidad por rol, storage_path solo tras can_download';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 17. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -1320,6 +1556,25 @@ where routine_schema = 'public'
     'app_announcement_community', 'app_list_announcements',
     'app_create_announcement', 'app_update_announcement',
     'app_delete_announcement'
+  )
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de documentos (debe ser 5)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_document_community', 'app_list_documents',
+    'app_create_document', 'app_delete_document',
+    'app_document_storage_path'
+  )
+union all
+select 'Grants de documentos a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_document_community', 'app_list_documents',
+    'app_create_document', 'app_delete_document',
+    'app_document_storage_path'
   )
   and grantee = 'PUBLIC'
 union all

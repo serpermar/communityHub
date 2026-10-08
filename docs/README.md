@@ -1,14 +1,21 @@
 # SQL para Supabase · CommunityHub
 
-Cinco scripts para aplicar a la base de datos, **en este orden**.
+Doce scripts para aplicar a la base de datos, **en este orden**.
 
 | # | Archivo | Qué hace |
 |---|---|---|
 | 1 | `01_schema.sql` | Extensiones, 19 ENUMs, 24 tablas, índices, FKs, triggers |
 | 2 | `02_rls.sql` | Rol `app_runtime`, revocación de permisos a `anon`, RLS y políticas |
 | 3 | `02b_auth.sql` | Tres funciones `SECURITY DEFINER` para login y refresh token |
-| 4 | `03_storage.sql` | Buckets privados y sus políticas |
-| 5 | `04_verify.sql` | Comprobaciones; debe terminar todo en verde |
+| 4 | `02c_communities.sql` | Comunidades: crear, configurar, baja lógica |
+| 5 | `02d_members.sql` | Miembros: invitaciones, roles, estado, baja |
+| 6 | `02e_incidents.sql` | Incidencias: los ocho endpoints y sus seis roles |
+| 7 | `02f_common_areas.sql` | Zonas comunes |
+| 8 | `02g_reservations.sql` | Reservas: solape, confirmación, cancelaciones |
+| 9 | `02h_announcements.sql` | Avisos: ventana por rol, soft delete |
+| 10 | `02i_documents.sql` | Documentos: visibilidad, ACL, alta y borrado, ruta firmada |
+| 11 | `03_storage.sql` | Buckets privados y sus políticas |
+| 12 | `04_verify.sql` | Comprobaciones; debe terminar todo en verde |
 
 Cada script es **idempotente**: se puede volver a ejecutar sin romper nada.
 
@@ -22,8 +29,8 @@ requiere nada instalado.
 
 ```bash
 cd backend
-npm run db:apply              # aplica 01, 02, 02b y 03
-npm run db:apply -- --verify  # aplica los cuatro y además 04_verify
+npm run db:apply              # aplica los once scripts, en orden
+npm run db:apply -- --verify  # aplica los once y además 04_verify
 ```
 
 Usa `MIGRATION_DATABASE_URL` (el rol `postgres`) porque necesita permisos de
@@ -39,16 +46,22 @@ proyecto, y evita el error de copiar la mitad de un script.
 ## Orden y por qué
 
 ```
-01_schema.sql   →  las tablas y los ENUMs existen
-02_rls.sql      →  las políticas referencian esas tablas
-02b_auth.sql    →  las funciones de auth, que usan las políticas ya creadas
-03_storage.sql  →  los buckets y políticas de Storage
-04_verify.sql   →  todo lo anterior está en su sitio
+01_schema.sql       →  las tablas y los ENUMs existen
+02_rls.sql          →  las políticas referencian esas tablas
+02b_auth.sql        →  las funciones de auth, que usan las políticas ya creadas
+02c … 02i_*.sql     →  una función por módulo, cada una en su script;
+                      todas apoyan en app_is_member_of() y en los permisos
+                      que ya concedió 02_rls
+03_storage.sql      →  los buckets y políticas de Storage
+04_verify.sql       →  todo lo anterior está en su sitio
 ```
 
 `02b_auth.sql` va después de `02_rls.sql` porque concede permisos sobre
 funciones que leen `users` y `sessions`, y necesita que el rol `app_runtime` ya
-esté creado.
+esté creado. Los módulos (`02c` a `02i`) van después de `02b` y antes de
+`03_storage` porque cada uno crea funciones `SECURITY DEFINER` que RLS
+necesita: `02i_documents.sql`, por ejemplo, usa `app_is_member_of()` de
+`02_rls` y define las cinco funciones que después llama el backend.
 
 Si ejecutas `02_rls.sql` antes que `01_schema.sql`, falla con
 `relation "users" does not exist`. No es un error recuperable dentro del mismo
@@ -393,7 +406,7 @@ Esto ya está automatizado. Con datos de demo y el rol correcto:
 
 ```bash
 cd backend
-npm run db:seed        # 34 usuarios en 2 comunidades
+npm run db:seed        # 6 usuarios en 2 comunidades, 3 documentos (sube los objetos al bucket)
 npm run test:integration
 ```
 
@@ -440,7 +453,7 @@ El estado de cada pieza:
 |---|---|---|
 | Esquema, RLS, auth, storage | `supabase/sql/` | Hecho y verificado |
 | `schema.prisma` | `backend/prisma/` | Derivado con `prisma db pull`. 24 modelos, 19 ENUMs |
-| Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` |
+| Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` (sube los 3 documentos al bucket) |
 | Autenticación | `backend/src/auth/` | Hecho: los 7 endpoints, 49 tests de integración |
 | Comunidades | `backend/src/communities/` | Hecho: los 4 endpoints |
 | Miembros e invitaciones | `backend/src/members/` | Hecho: los 7 endpoints |
@@ -448,6 +461,7 @@ El estado de cada pieza:
 | Zonas comunes | `backend/src/common-areas/` | Hecho: los 4 endpoints |
 | Reservas | `backend/src/reservations/` | Hecho: los 6 endpoints |
 | Avisos | `backend/src/announcements/` | Hecho: los 4 endpoints |
+| Documentos | `backend/src/documents/` | Hecho: los 5 endpoints, con Storage (bucket privado y signed URL) |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:
@@ -455,11 +469,12 @@ La secuencia completa desde cero:
 ```bash
 cd backend
 npm install
-copy .env.example .env      # y rellena DATABASE_URL, MIGRATION_DATABASE_URL, JWT_SECRET
+copy .env.example .env      # y rellena DATABASE_URL, MIGRATION_DATABASE_URL, JWT_SECRET,
+                            # y las claves de Supabase (o STORAGE_DRIVER="local" sin bucket)
 npm run db:apply -- --verify # aplica el SQL y verifica
 npx prisma db pull          # deriva schema.prisma de la base de datos
 npx prisma generate         # genera el cliente
-npm run db:seed             # datos de demo en 2 comunidades
+npm run db:seed             # datos de demo en 2 comunidades, con 3 documentos + sus objetos
 npm run dev                 # servidor en http://localhost:3000
 ```
 
@@ -467,8 +482,8 @@ Y para comprobar que todo va bien:
 
 ```bash
 npm run typecheck
-npm run test:unit           # 28 tests, sin base de datos
-npm run test:integration    # 49 tests, contra Supabase real
+npm run test:unit           # 303 tests, sin base de datos
+npm run test:integration    # 325 tests, contra Supabase real
 npm run check:db
 ```
 
