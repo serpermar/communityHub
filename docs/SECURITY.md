@@ -446,6 +446,47 @@ el mensaje, de modo que el sentinel jamás llegaría al traductor: la pareja
 errores sin regalar un `409`»): o es una colisión —imposible con uuid v4— o es
 un bug del esquema, y disfrazar uno de lo otro lo escondería.
 
+### El único bloque que es solo de ADMIN (finanzas)
+
+Finanzas es el primer bloque cuyo **listado también es de `ADMIN`** (FN-1). En
+los anteriores, listar era de cualquier miembro; aquí la tesorería y el listado
+confirman datos, así que un `NEIGHBOR`, `PRESIDENT` o `PROVIDER` recibe `403` en
+las seis rutas de comunidad. En las tres rutas de gasto por `:id` —que no llevan
+comunidad en la URL— la visibilidad la resuelve la función con la fila delante,
+de modo que un no-`ADMIN` recibe **`404`** (C-8: un `403` confirmaría que ese id
+existe), igual que un gasto de otra comunidad, uno borrado o uno inexistente.
+
+El bloque cierra un hueco que venía del esquema: `invoices` tenía
+`invoices_select_scoped` (SELECT para cualquier miembro activo) y
+`invoices_write_admin` (ALL para `ADMIN`). Se sustituyen por
+**`invoices_admin_only`** (SELECT, solo `ADMIN`) y se revoca
+`insert, update, delete` sobre `invoices` a `app_runtime` (y a `anon`/
+`authenticated`): la única puerta de escritura es
+`app_create_invoice()` / `app_pay_invoice()`. `db:verify` comprueba con
+`pg_get_functiondef` que la política sigue siendo la de `ADMIN` y que
+`app_runtime` no conserva la escritura.
+
+Y el patrón de siempre: las once funciones de `02j_finance.sql` son `SECURITY
+DEFINER` con `search_path = public, pg_temp` fijo, ejecutables por `app_runtime`
+y **no** por `PUBLIC`; todos los revokes escriben el sentinel y el `errcode`, y
+la traducción exige **la pareja** de las dos cosas, porque un concepto o un
+proveedor del cliente viaja dentro del mensaje de un error de Postgres.
+
+Los tres conflictos del bloque (`invoice_number_taken`, `invoice_already_paid`,
+`invoice_cancelled`) comparten el SQLSTATE `U0001`, exactamente por el motivo de
+documentos: Prisma se come el mensaje de cualquier `23505` (el número de factura
+lleva un índice único por comunidad). Con `U0001` el sentinel viaja entero, y
+cada uno lleva su **código de contrato propio** (`INVOICE_NUMBER_TAKEN`,
+`INVOICE_ALREADY_PAID`, `INVOICE_CANCELLED`) en vez del genérico `CONFLICT`. Un
+`U0001` desnudo (sin sentinel) no se convierte en `409`: es un bug del esquema, y
+se deja pasar como `500`.
+
+El gasto es **soft delete** (`deleted_at`), como avisos y documentos: la fila
+sigue viva y las funciones la excluyen. El vínculo gasto ↔ factura solo se
+acepta si la factura es **de la misma comunidad** (FN-10); si no, es un `400` con
+el código propio `EXPENSE_INVOICE_MISMATCH`, no un `VALIDATION_ERROR`: el cuerpo
+era válido y lo que falla es la relación.
+
 ---
 
 ## 6. Secretos
@@ -566,7 +607,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 45 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, y de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada |
+| `npm run test:integration` | Los 54 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; y de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -613,6 +654,16 @@ por `PUBLIC`; que las dos lecturas siguen excluyendo a `PROVIDER` con
 `app_current_user_id()` (DN-8); que la ACL sigue entrando con `ON CONFLICT`
 (DN-9); que el borrado sigue siendo un soft delete (DN-11); y que
 `app_list_documents()` no menciona `storage_path`.
+
+Del bloque 09, los criterios de `specs/09-finance.md` (sección 10) tienen su
+test de integración, y en la base de datos se comprueba lo que por HTTP no se
+ve: que `invoices` ya **no** tiene política de escritura ni permiso de escritura
+para `app_runtime` y su política de `SELECT` es la de `ADMIN`
+(`invoices_admin_only`); que las once funciones de `02j` siguen siendo
+`SECURITY DEFINER` con `search_path` fijo, ejecutables por `app_runtime` y no
+por `PUBLIC`; que el listado de facturas sigue derivando `OVERDUE` con
+`app_invoice_effective_status()`; y que los seis `CHECK` de longitud del bloque
+existen.
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 

@@ -1449,7 +1449,209 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 17. INFORME
+-- 17. Finanzas (02j_finance.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 09 exige que `db:verify` haga fallar (criterio §10):
+--   1. falta cualquiera de las once funciones; alguna no es SECURITY DEFINER;
+--   2. `app_runtime` conserva insert/update/delete sobre `invoices`;
+--   3. la política `invoices_write_admin` sigue existiendo;
+--   4. la política `invoices_select_scoped` (con su rama de miembros) no ha sido
+--      sustituida por `invoices_admin_only`;
+--   5. los CHECK de longitud de la sección 1 del 02j han desaparecido.
+do $$
+declare
+  v_fn      text[];
+  v_fallos  text := '';
+  v_def     text;
+  r         record;
+begin
+  select array_agg(p.proname order by p.proname)
+    into v_fn
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname in (
+       'app_expense_community', 'app_invoice_community',
+       'app_invoice_effective_status', 'app_list_expenses',
+       'app_list_invoices', 'app_create_expense', 'app_update_expense',
+       'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+       'app_finance_summary'
+     );
+
+  -- 1. Las once funciones presentes.
+  for r in
+    select unnest(array[
+      'app_expense_community', 'app_invoice_community',
+      'app_invoice_effective_status', 'app_list_expenses',
+      'app_list_invoices', 'app_create_expense', 'app_update_expense',
+      'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+      'app_finance_summary'
+    ]) as fn
+  loop
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname = r.fn
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.fn || '();';
+    end if;
+  end loop;
+
+  -- 1bis. SECURITY DEFINER con search_path fijo y sin execute por PUBLIC
+  -- (el PATRÓN de los bloques 04-08, exigido por el criterio §10).
+  for r in
+    select p.proname, pg_get_functiondef(p.oid) as def
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in (
+         'app_expense_community', 'app_invoice_community',
+         'app_invoice_effective_status', 'app_list_expenses',
+         'app_list_invoices', 'app_create_expense', 'app_update_expense',
+         'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+         'app_finance_summary'
+       )
+  loop
+    v_def := r.def;
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' no es SECURITY DEFINER;';
+    end if;
+    if v_def not like '%search_path%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+      from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name in (
+         'app_expense_community', 'app_invoice_community',
+         'app_invoice_effective_status', 'app_list_expenses',
+         'app_list_invoices', 'app_create_expense', 'app_update_expense',
+         'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+         'app_finance_summary'
+       )
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' alguna funcion de finanzas es ejecutable por PUBLIC;';
+  end if;
+
+  -- 2. app_runtime sin escritura sobre invoices (FN-2).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'invoices'
+       and grantee = 'app_runtime'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' app_runtime conserva escritura sobre invoices;';
+  end if;
+
+  -- 3 y 4. `invoices`: ni write_admin, ni select_scoped; sí invoices_admin_only.
+  if exists (
+    select 1
+      from pg_policies
+     where tablename = 'invoices'
+       and policyname = 'invoices_write_admin'
+  ) then
+    v_fallos := v_fallos || ' sigue existiendo invoices_write_admin;';
+  end if;
+
+  if exists (
+    select 1
+      from pg_policies
+     where tablename = 'invoices'
+       and policyname = 'invoices_select_scoped'
+  ) then
+    v_fallos := v_fallos || ' sigue existiendo invoices_select_scoped;';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_policies
+     where tablename = 'invoices'
+       and policyname = 'invoices_admin_only'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta invoices_admin_only de SELECT;';
+  end if;
+
+  -- 5. Los CHECK de longitud de 02j §1.
+  for r in
+    select unnest(array[
+      'expenses_concept_length', 'expenses_notes_length',
+      'expenses_supplier_length', 'invoices_number_length',
+      'invoices_concept_length', 'invoices_supplier_length'
+    ]) as con
+  loop
+    if not exists (
+      select 1
+        from pg_constraint
+       where conname = r.con
+         and contype = 'c'
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.con || ';';
+    end if;
+  end loop;
+
+  -- Las decisiones escritas en el propio SQL, como en los bloques 04-08.
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_create_expense'
+       and pg_get_functiondef(p.oid) like '%app_current_user_id()%'
+  ) then
+    v_fallos := v_fallos || ' el alta de gastos deberia firmar created_by (FN-1);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_create_invoice'
+       and pg_get_functiondef(p.oid) like '%invoices_community_number_uidx%'
+  ) then
+    v_fallos := v_fallos || ' el alta de facturas deberia capturar el unique (FN-12);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_delete_expense'
+       and pg_get_functiondef(p.oid) like '%deleted_at = now()%'
+  ) then
+    v_fallos := v_fallos || ' el borrado de gastos deberia ser soft delete (FN-8);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_list_invoices'
+       and pg_get_functiondef(p.oid) like '%app_invoice_effective_status%'
+  ) then
+    v_fallos := v_fallos || ' el listado de facturas deberia derivar OVERDUE (FN-5);';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de finanzas no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · finanzas: 11 funciones SECURITY DEFINER con search_path fijo, invoices solo lectura para ADMIN, OVERDUE calculado en lectura, 6 CHECK de longitud presentes';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 18. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -1578,6 +1780,29 @@ where routine_schema = 'public'
   )
   and grantee = 'PUBLIC'
 union all
+select 'Funciones de finanzas (debe ser 11)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_expense_community', 'app_invoice_community',
+    'app_invoice_effective_status', 'app_list_expenses',
+    'app_list_invoices', 'app_create_expense', 'app_update_expense',
+    'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+    'app_finance_summary'
+  )
+union all
+select 'Grants de finanzas a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_expense_community', 'app_invoice_community',
+    'app_invoice_effective_status', 'app_list_expenses',
+    'app_list_invoices', 'app_create_expense', 'app_update_expense',
+    'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
+    'app_finance_summary'
+  )
+  and grantee = 'PUBLIC'
+union all
 select 'Buckets', count(*)::text from storage.buckets
 union all
 select 'Versión Postgres', version();
@@ -1606,6 +1831,7 @@ select 'Versión Postgres', version();
 --      SET LOCAL app.current_community_id = '<uuid de la comunidad A>';
 --      SELECT count(*) FROM incidents;        -- solo los de la A
 --      SELECT count(*) FROM expenses;         -- 0: es ADMIN-only
+--      SELECT count(*) FROM invoices;         -- 0: tambien ADMIN-only
 --      COMMIT;
 --   4. Repetir con un id de la comunidad B y comprobar que los recuentos no
 --      se solapan.

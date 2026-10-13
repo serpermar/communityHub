@@ -972,11 +972,258 @@ El segundo `DELETE` es `404`, no un `200` idempotente, igual que en avisos.
 
 ---
 
+## Finanzas
+
+Nueve rutas en **dos routers**: seis de comunidad cuelgan de
+`/api/v1/communities` y tres de gasto por id de `/api/v1`. Es el **único bloque
+que es solo de `ADMIN`, listar incluido** (FN-1): la tesorería y el listado
+confirman datos, así que un `NEIGHBOR`, `PRESIDENT` o `PROVIDER` recibe `403` en
+las rutas de comunidad. En las de gasto por id resuelve la función con la fila
+delante, así que un no-`ADMIN` recibe **`404`**, no `403` (C-8: un `403`
+confirmaría que ese id existe).
+
+Las **facturas no tienen ruta por id**: no hay `GET`, `PUT` ni `DELETE` de
+factura (FN-8/FN-13). Las tres rutas de factura cuelgan de la comunidad. El alta
+de gasto sí responde `Location` (porque existe `GET /api/v1/expenses/:id`); el de
+factura **no la lleva**, a propósito. Las facturas **no se editan ni se borran**
+por API: solo se crean y se pagan.
+
+### Modelo de gasto
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "concept": "Reparación de la bomba",       // 1–120, con los espacios recortados
+  "category": "MAINTENANCE",                 // MAINTENANCE | CLEANING | SECURITY | UTILITIES | ADMIN | INSURANCE | OTHER
+  "amount": 1250.5,                          // número, no cadena; > 0 y ≤ 9 999 999 999,99
+  "expenseDate": "2026-01-15",               // YYYY-MM-DD
+  "supplier": "Bombeiros Zaragoza SL",       // hasta 200, o null
+  "notes": "Cambio de la válvula.",          // hasta 1000, o null
+  "invoiceId": "uuid",                       // factura de la MISMA comunidad, o null
+  "invoiceNumber": "INV-2026-001",           // el número de esa factura, o null
+  "createdBy": "uuid",                       // la sesión, nunca el cuerpo
+  "createdByName": "Ana Belmonte",           // null si el autor se dio de baja
+  "createdAt": "2026-10-08T09:00:00.000Z",
+  "updatedAt": "2026-10-08T09:00:00.000Z"
+}
+```
+
+`amount` sale como **número** (`1250.5`) y nunca como el string `"1250.50"` del
+`numeric`: es parte del contrato (FN-9).
+
+### Modelo de factura
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "number": "INV-2026-001",                  // 1–50, único por comunidad, con los espacios recortados
+  "concept": "Seguro de la comunidad",       // hasta 120, o null
+  "amount": 890.25,                          // número, no cadena
+  "issueDate": "2026-01-10",                 // YYYY-MM-DD
+  "dueDate": "2026-02-10",                   // YYYY-MM-DD, nunca anterior a issueDate
+  "paidAt": "2026-02-01T09:00:00.000Z",      // instante, o null
+  "status": "PENDING",                       // PENDING | PAID | CANCELLED (guardado)
+  "effectiveStatus": "PAID",                 // PENDING | PAID | OVERDUE | CANCELLED (derivado, FN-5)
+  "supplier": "Mapfre",                      // hasta 200, o null
+  "isGenerated": false,                      // reservado; siempre false por API
+  "createdBy": "uuid",
+  "createdByName": "Ana Belmonte",
+  "createdAt": "2026-10-08T09:00:00.000Z",
+  "updatedAt": "2026-10-08T09:00:00.000Z"
+}
+```
+
+`status` es lo que hay en la tabla y `effectiveStatus` lo que el cliente debe
+pintar. **`OVERDUE` no se guarda nunca** (no hay jobs en el proyecto): se calcula
+al leer como "`PENDING` con `dueDate` pasada". Una factura vencida tiene
+`status: "PENDING"` y `effectiveStatus: "OVERDUE"`; al pagarla pasa a `PAID`.
+
+### `GET /api/v1/communities/:communityId/expenses`
+
+Solo `ADMIN`. Orden por `expenseDate` descendente.
+
+| Filtro | Forma | Efecto |
+|---|---|---|
+| `category` | enum de categorías | solo esa categoría |
+| `from` | `YYYY-MM-DD` | desde esa fecha, inclusive |
+| `to` | `YYYY-MM-DD` | hasta esa fecha, inclusive |
+| `page` | entero ≥ 1 (por defecto 1) | desplazamiento |
+| `limit` | 1–100 (por defecto 20) | tamaño de página |
+
+Parámetro desconocido (`?q=`), `category` fuera de enum, `page=0`, `limit=101` o
+`from` posterior a `to` son `400`.
+
+```
+200 → { "data": [ …gastos ], "meta": { page, limit, total, totalPages } }
+400 → filtro con forma inválida
+403 → no eres ADMIN (o no eres miembro activo)
+```
+
+### `POST /api/v1/communities/:communityId/expenses`
+
+Alta de `ADMIN`. El guard de la ruta corre antes de tocar la base y la función
+repite el rol dentro de la transacción.
+
+| Campo | Forma | Efecto |
+|---|---|---|
+| `concept` | obligatorio, 1–120 | el concepto |
+| `category` | enum, opcional | por defecto `OTHER` |
+| `amount` | número > 0, ≤ 9 999 999 999,99 | el importe |
+| `expenseDate` | `YYYY-MM-DD` | la fecha |
+| `supplier` | hasta 200, opcional | `null`/vacío se guarda como `null` |
+| `notes` | hasta 1000, opcional | `null`/vacío se guarda como `null` |
+| `invoiceId` | UUID de una factura **de la misma comunidad**, opcional | el vínculo (FN-10) |
+
+```
+201 → { "data": { …gasto } }   // cabecera Location: /api/v1/expenses/{id}
+400 → forma inválida, o la factura es de otra comunidad (EXPENSE_INVOICE_MISMATCH)
+403 → tu rol no permite gestionar gastos
+```
+
+`createdBy` no se acepta en el cuerpo (`.strict()`): lo pone la sesión. La
+respuesta es una **relectura** de la fila, con los recortes y los defaults ya
+aplicados.
+
+### `GET /api/v1/expenses/:id`
+
+El mismo predicado que el listado, con `id` y sin comunidad en la URL.
+
+```
+200 → { "data": { …gasto } }
+404 → no existe, está borrado, es de otra comunidad o este rol no es ADMIN
+```
+
+Los cuatro casos son el mismo `404`.
+
+### `PUT /api/v1/expenses/:id`
+
+**Reemplazo completo** (FN-7): mismos campos que el `POST` y todos obligatorios
+salvo los anulables, que aceptan `null` explícito para **limpiar** el valor.
+
+```
+200 → { "data": { …gasto } }
+400 → forma inválida, o la factura es de otra comunidad
+403 → "Solo un administrador puede gestionar gastos."
+404 → no existe, está borrado o es de otra comunidad
+```
+
+### `DELETE /api/v1/expenses/:id`
+
+Solo `ADMIN`, y lo decide la función con la fila delante. Es **borrado lógico**
+(`deleted_at`).
+
+```
+200 → { "data": { "id": "…", "deleted": true } }
+403 → "Solo un administrador puede gestionar gastos."
+404 → no existe, ya estaba borrado, o no es de tu comunidad
+```
+
+El segundo `DELETE` es `404`, no un `200` idempotente.
+
+### `GET /api/v1/communities/:communityId/invoices`
+
+Solo `ADMIN`. Orden por `issueDate`.
+
+| Filtro | Forma | Efecto |
+|---|---|---|
+| `status` | `PENDING`/`PAID`/`OVERDUE`/`CANCELLED` | filtra por el **estado efectivo** (FN-14) |
+| `page` | entero ≥ 1 (por defecto 1) | desplazamiento |
+| `limit` | 1–100 (por defecto 20) | tamaño de página |
+
+`?status=OVERDUE` devuelve las vencidas sin que exista la fila `OVERDUE`:
+compara con el estado derivado.
+
+```
+200 → { "data": [ …facturas ], "meta": { page, limit, total, totalPages } }
+400 → filtro con forma inválida
+403 → no eres ADMIN (o no eres miembro activo)
+```
+
+### `POST /api/v1/communities/:communityId/invoices`
+
+Alta de `ADMIN`. `number` es único **por comunidad**: repetirlo es `409`.
+
+| Campo | Forma | Efecto |
+|---|---|---|
+| `number` | obligatorio, 1–50 | el número, único en la comunidad |
+| `concept` | hasta 120, opcional | la descripción |
+| `amount` | número > 0 | el importe |
+| `issueDate` | `YYYY-MM-DD` | la emisión |
+| `dueDate` | `YYYY-MM-DD`, ≥ `issueDate` | el vencimiento |
+| `supplier` | hasta 200, opcional | el proveedor |
+
+```
+201 → { "data": { …factura } }   // SIN cabecera Location (FN-13)
+400 → forma inválida, o dueDate anterior a issueDate
+403 → tu rol no permite gestionar facturas
+409 → INVOICE_NUMBER_TAKEN: ya existe una factura con ese número en la comunidad
+```
+
+### `POST /api/v1/communities/:communityId/invoices/:invoiceId/pay`
+
+Solo `ADMIN`, **sin cuerpo**. El primer pago pasa la factura a `PAID` con
+`paidAt`; el segundo es un `409`, no un `200` idempotente (FN-6).
+
+```
+200 → { "data": { …factura } }   // status "PAID", effectiveStatus "PAID", paidAt con instante
+400 → :invoiceId no es UUID, o se manda algo en el cuerpo
+403 → tu rol no permite gestionar facturas
+404 → la factura no existe o no es de tu comunidad
+409 → INVOICE_ALREADY_PAID: esa factura ya está pagada
+```
+
+Pagar una factura `PENDING` **vencida** (que se lee como `OVERDUE`) es un pago
+normal: la columna guardaba `PENDING` y pasa a `PAID`.
+
+### `GET /api/v1/communities/:communityId/finance/summary`
+
+Solo `ADMIN`, sin query. Devuelve **una fila** siempre, incluso con la comunidad
+vacía (todo a `0` o `[]`).
+
+```jsonc
+{
+  "data": {
+    "expenseTotal": 350.0,                 // suma de todos los gastos
+    "expenseCount": 3,
+    "expenseByCategory": [                 // por categoría, de mayor a menor
+      { "category": "CLEANING", "total": 150.0, "count": 2 }
+    ],
+    "expenseRecent": [                     // los 5 últimos por fecha
+      { "id": "uuid", "concept": "C", "category": "CLEANING", "amount": 200.0, "expenseDate": "2026-01-12", "supplier": null }
+    ],
+    "invoiceTotal": 400.0,                 // suma de todas las facturas
+    "invoiceCount": 3,
+    "invoiceOpenAmount": 100.0,            // PENDING (pendiente + vencida)
+    "invoicePaidAmount": 300.0,            // PAID
+    "invoicePendingCount": 1,              // PENDING con dueDate aún no pasada
+    "invoiceOverdueCount": 1               // PENDING con dueDate pasada
+  }
+}
+```
+
+```
+200 → { "data": { …resumen } }
+403 → no eres ADMIN (o no eres miembro activo)
+```
+
+### El vínculo gasto ↔ factura
+
+Un gasto puede apuntar a una factura (`invoiceId`) **de su misma comunidad**.
+Apuntar a una de otra comunidad es un `400` con el código propio
+`EXPENSE_INVOICE_MISMATCH`, no un `VALIDATION_ERROR`: el cuerpo era válido, lo
+que falla es la relación. La vista del gasto trae `invoiceNumber` para no
+obligar a una segunda petición.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Cuerpo mal formado, `:communityId` que no es UUID |
+| 400 | `EXPENSE_INVOICE_MISMATCH` | La factura vinculada a un gasto no es de su comunidad (código propio, no `VALIDATION_ERROR`) |
 | 401 | `UNAUTHORIZED` | Falta la cabecera, o la sesión ya no vale |
 | 401 | `TOKEN_REVOKED` | La sesión se revocó |
 | 401 | `TOKEN_EXPIRED` | El access token caducó |
@@ -984,6 +1231,9 @@ El segundo `DELETE` es `404`, no un `200` idempotente, igual que en avisos.
 | 403 | `FORBIDDEN` | Autenticado pero sin permiso |
 | 404 | `NOT_FOUND` | El endpoint no existe, o el recurso sí pero está dado de baja |
 | 409 | `CONFLICT` | El slug ya existe, el email en el registro, una transición de estado que no existe, un nombre de zona repetido, un hueco de reserva ya ocupado, o una ruta de documento ya ocupada en el bucket |
+| 409 | `INVOICE_NUMBER_TAKEN` | Ya existe una factura con ese número en la comunidad |
+| 409 | `INVOICE_ALREADY_PAID` | Se intenta pagar una factura ya pagada |
+| 409 | `INVOICE_CANCELLED` | Se intenta pagar una factura cancelada |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 

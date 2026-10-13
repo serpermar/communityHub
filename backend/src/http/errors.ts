@@ -21,6 +21,10 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
+  | 'INVOICE_ALREADY_PAID'
+  | 'INVOICE_CANCELLED'
+  | 'INVOICE_NUMBER_TAKEN'
+  | 'EXPENSE_INVOICE_MISMATCH'
 
 export type ErrorBody = {
   error: {

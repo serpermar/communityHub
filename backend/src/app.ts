@@ -30,6 +30,7 @@ import { createCommonAreaRouter, createCommonAreasRouter } from './common-areas/
 import { createReservationRouter, createReservationsRouter } from './reservations/routes.js'
 import { createAnnouncementRouter, createAnnouncementsRouter } from './announcements/routes.js'
 import { createDocumentRouter, createDocumentsRouter } from './documents/routes.js'
+import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -194,6 +195,12 @@ export function createApp(): Express {
   // cuelgan de la comunidad, el detalle/descarga/borrado del documento.
   app.use('/api/v1/communities', createDocumentsRouter())
   app.use('/api/v1', createDocumentRouter())
+
+  // Finanzas (spec 09), en dos routers por lo mismo: las seis rutas de
+  // comunidad (gastos listar/crear, facturas listar/crear/pagar, resumen)
+  // cuelgan de la comunidad, las tres de gasto por id de `/api/v1`.
+  app.use('/api/v1/communities', createFinanceRouter())
+  app.use('/api/v1', createExpenseRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

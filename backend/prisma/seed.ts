@@ -102,6 +102,11 @@ const ID = {
   docActasA: '77777777-7777-4111-8111-111111111111',
   docReglamentoA: '77777777-7777-4222-8222-222222222222',
   docFacturaB: '77777777-7777-3333-8333-333333333333',
+
+  // Facturas (bloque 09)
+  facturaSeguroA: '88888888-8888-4111-8111-111111111111',
+  facturaLimpiezaA: '88888888-8888-4222-8222-222222222222',
+  facturaAscensorA: '88888888-8888-4333-8333-333333333333',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -245,7 +250,7 @@ async function main() {
   //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
   //                   poder es dar de alta comunidades, no leer las que hay. Al
   //                   crear una desde la API entra en ella como ADMIN.
-  console.log('  1/9  Usuarios')
+  console.log('  1/10 Usuarios')
   await prisma.users.createMany({
     data: [
       {
@@ -304,7 +309,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
-  console.log('  2/9  Comunidades')
+  console.log('  2/10 Comunidades')
   await prisma.communities.createMany({
     data: [
       {
@@ -343,7 +348,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
-  console.log('  3/9  Membresías')
+  console.log('  3/10 Membresías')
   await prisma.communityMembers.createMany({
     data: [
       {
@@ -393,7 +398,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
-  console.log('  4/9  Incidencias')
+  console.log('  4/10 Incidencias')
   await prisma.incidents.createMany({
     data: [
       {
@@ -453,11 +458,63 @@ async function main() {
   })
 
   // -------------------------------------------------------------------------
+  // Facturas (bloque 09)
+  // -------------------------------------------------------------------------
+  // Tres facturas en la comunidad A. Van ANTES que los gastos a propósito: el
+  // gasto del seguro se crea con su `invoice_id` en el mismo createMany (FN-10),
+  // sin un update posterior. La de enero está PAID; las otras dos nacen PENDING
+  // y, según su vencimiento respecto a hoy, se leen como OVERDUE (la de marzo,
+  // ya vencida) o PENDING de verdad (la de noviembre). El estado OVERDUE no se
+  // persiste (FN-5): lo deriva app_invoice_effective_status() en cada lectura.
+  console.log('  5/10 Facturas')
+  await prisma.invoices.createMany({
+    data: [
+      {
+        id: ID.facturaSeguroA,
+        community_id: ID.comunidadA,
+        number: 'INV-2026-001',
+        concept: 'Seguro de la comunidad, primera cuota',
+        amount: 890.25,
+        issue_date: new Date('2026-01-10'),
+        due_date: new Date('2026-02-10'),
+        paid_at: new Date('2026-02-01'),
+        status: 'PAID',
+        supplier: 'Mapfre',
+        created_by: ID.anaAdmin,
+      },
+      {
+        id: ID.facturaLimpiezaA,
+        community_id: ID.comunidadA,
+        number: 'INV-2026-002',
+        concept: 'Limpieza de febrero',
+        amount: 480.0,
+        issue_date: new Date('2026-02-05'),
+        due_date: new Date('2026-03-05'),
+        status: 'PENDING',
+        supplier: 'Limpiosol',
+        created_by: ID.anaAdmin,
+      },
+      {
+        id: ID.facturaAscensorA,
+        community_id: ID.comunidadA,
+        number: 'INV-2026-003',
+        concept: 'Reparación del ascensor',
+        amount: 2600.0,
+        issue_date: new Date('2026-10-15'),
+        due_date: new Date('2026-11-15'),
+        status: 'PENDING',
+        supplier: 'Ascensores Aragón SL',
+        created_by: ID.anaAdmin,
+      },
+    ],
+  })
+
+  // -------------------------------------------------------------------------
   // Gastos
   // -------------------------------------------------------------------------
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
-  console.log('  5/9  Gastos')
+  console.log('  6/10 Gastos')
   await prisma.expenses.createMany({
     data: [
       {
@@ -485,6 +542,10 @@ async function main() {
         amount: 890.25,
         expense_date: new Date('2026-02-01'),
         supplier: 'Mapfre',
+        // FN-10 con datos: el gasto apunta a la factura INV-2026-001, de la
+        // misma comunidad. Es lo que demuestra que el vinculo gasto↔factura no
+        // es teoria.
+        invoice_id: ID.facturaSeguroA,
         created_by: ID.anaAdmin,
       },
     ],
@@ -501,7 +562,7 @@ async function main() {
   // (08:00-22:00), y no ponerlos evita adivinar como convierte Prisma un Date
   // a una columna `time` en cada zona horaria. Las reservas de abajo caen
   // dentro de ese horario.
-  console.log('  6/9  Zonas comunes')
+  console.log('  7/10 Zonas comunes')
   await prisma.commonAreas.createMany({
     data: [
       {
@@ -561,7 +622,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime. La
   // logica de dominio (solape, limites) no se ejercita aqui; eso es de los
   // tests de integracion, que llaman a las funciones de verdad.
-  console.log('  7/9  Reservas')
+  console.log('  8/10 Reservas')
   await prisma.reservations.createMany({
     data: [
       {
@@ -672,7 +733,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime, y la
   // logica de dominio (la ventana, el rol de autoria) no se ejercita aqui; eso
   // es de los tests, que llaman a las funciones de verdad.
-  console.log('  8/9  Avisos')
+  console.log('  9/10 Avisos')
   await prisma.announcements.createMany({
     data: [
       {
@@ -759,7 +820,7 @@ async function main() {
     'Revision mensual del ascensor.',
   ])
 
-  console.log('  9/9  Documentos')
+  console.log(' 10/10 Documentos')
   await prisma.documents.createMany({
     data: [
       {
@@ -835,11 +896,12 @@ async function main() {
   // -------------------------------------------------------------------------
   // Resumen
   // -------------------------------------------------------------------------
-  const [u, c, m, i, e, z, r, a, d] = await Promise.all([
+  const [u, c, m, i, f, e, z, r, a, d] = await Promise.all([
     prisma.users.count(),
     prisma.communities.count(),
     prisma.communityMembers.count(),
     prisma.incidents.count(),
+    prisma.invoices.count(),
     prisma.expenses.count(),
     prisma.commonAreas.count(),
     prisma.reservations.count(),
@@ -848,7 +910,7 @@ async function main() {
   ])
 
   console.log(
-    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos · ${d} documentos\n`,
+    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${f} facturas · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos · ${d} documentos\n`,
   )
 
   console.log(`\n  Para entrar en cada rol:\n`)
