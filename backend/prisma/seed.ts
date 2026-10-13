@@ -107,6 +107,20 @@ const ID = {
   facturaSeguroA: '88888888-8888-4111-8111-111111111111',
   facturaLimpiezaA: '88888888-8888-4222-8222-222222222222',
   facturaAscensorA: '88888888-8888-4333-8333-333333333333',
+
+  // Votaciones (bloque 10). Las opciones llevan UUID fijo porque las respuestas
+  // de abajo apuntan a ellas: si vinieran del default de la columna no habría
+  // forma de referenciarlas desde el seed.
+  voteParkingA: '99999999-9999-4111-8111-111111111111',
+  votePiscinaA: '99999999-9999-4222-8222-222222222222',
+  voteRuidoA: '99999999-9999-4333-8333-333333333333',
+  optParkingSi: 'a9999999-9999-4111-8111-111111111101',
+  optParkingNo: 'a9999999-9999-4111-8111-111111111102',
+  optParkingAbstencion: 'a9999999-9999-4111-8111-111111111103',
+  optPiscinaSi: 'a9999999-9999-4222-8222-222222222201',
+  optPiscinaNo: 'a9999999-9999-4222-8222-222222222202',
+  optRuidoSi: 'a9999999-9999-4333-8333-333333333301',
+  optRuidoNo: 'a9999999-9999-4333-8333-333333333302',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -250,7 +264,7 @@ async function main() {
   //   staffElena       ADMIN_SA de plataforma. No es miembro de A ni de B: su
   //                   poder es dar de alta comunidades, no leer las que hay. Al
   //                   crear una desde la API entra en ella como ADMIN.
-  console.log('  1/10 Usuarios')
+  console.log('  1/11 Usuarios')
   await prisma.users.createMany({
     data: [
       {
@@ -309,7 +323,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Coordenadas reales de Zaragoza y Barcelona: el widget de meteorología
   // (Open-Meteo) necesita una ubicación que exista de verdad.
-  console.log('  2/10 Comunidades')
+  console.log('  2/11 Comunidades')
   await prisma.communities.createMany({
     data: [
       {
@@ -348,7 +362,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Membresías: aquí vive el RBAC
   // -------------------------------------------------------------------------
-  console.log('  3/10 Membresías')
+  console.log('  3/11 Membresías')
   await prisma.communityMembers.createMany({
     data: [
       {
@@ -398,7 +412,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // De la comunidad A: 3. De la B: 2. Repartidas para que cada rol vea un
   // subconjunto distinto y verificable.
-  console.log('  4/10 Incidencias')
+  console.log('  4/11 Incidencias')
   await prisma.incidents.createMany({
     data: [
       {
@@ -466,7 +480,7 @@ async function main() {
   // y, según su vencimiento respecto a hoy, se leen como OVERDUE (la de marzo,
   // ya vencida) o PENDING de verdad (la de noviembre). El estado OVERDUE no se
   // persiste (FN-5): lo deriva app_invoice_effective_status() en cada lectura.
-  console.log('  5/10 Facturas')
+  console.log('  5/11 Facturas')
   await prisma.invoices.createMany({
     data: [
       {
@@ -514,7 +528,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // Solo en la comunidad A, porque son lo que ADMIN ve y PRESIDENT no. Es el
   // dato más sensible del seed y el que mejor demuestra que el RBAC funciona.
-  console.log('  6/10 Gastos')
+  console.log('  6/11 Gastos')
   await prisma.expenses.createMany({
     data: [
       {
@@ -562,7 +576,7 @@ async function main() {
   // (08:00-22:00), y no ponerlos evita adivinar como convierte Prisma un Date
   // a una columna `time` en cada zona horaria. Las reservas de abajo caen
   // dentro de ese horario.
-  console.log('  7/10 Zonas comunes')
+  console.log('  7/11 Zonas comunes')
   await prisma.commonAreas.createMany({
     data: [
       {
@@ -622,7 +636,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime. La
   // logica de dominio (solape, limites) no se ejercita aqui; eso es de los
   // tests de integracion, que llaman a las funciones de verdad.
-  console.log('  8/10 Reservas')
+  console.log('  8/11 Reservas')
   await prisma.reservations.createMany({
     data: [
       {
@@ -733,7 +747,7 @@ async function main() {
   // el seed poblaria filas que RLS no le deja crear si fuera app_runtime, y la
   // logica de dominio (la ventana, el rol de autoria) no se ejercita aqui; eso
   // es de los tests, que llaman a las funciones de verdad.
-  console.log('  9/10 Avisos')
+  console.log('  9/11 Avisos')
   await prisma.announcements.createMany({
     data: [
       {
@@ -820,7 +834,7 @@ async function main() {
     'Revision mensual del ascensor.',
   ])
 
-  console.log(' 10/10 Documentos')
+  console.log(' 10/11 Documentos')
   await prisma.documents.createMany({
     data: [
       {
@@ -894,9 +908,110 @@ async function main() {
   ])
 
   // -------------------------------------------------------------------------
+  // Votaciones
+  // -------------------------------------------------------------------------
+  // Tres votaciones en la comunidad A (miembros: ana ADMIN, luis PRESIDENT,
+  // marta NEIGHBOR, manolo PROVIDER). Las respuestas se insertan directamente
+  // con el rol postgres, igual que las incidencias y las reservas: el seed
+  // puebla filas que RLS no le deja crear si fuera app_runtime, y la lógica de
+  // dominio (un voto por usuario, solo si está abierta) no se ejercita aquí;
+  // eso es de los tests de integración.
+  //
+  // La abstención es una opción del SISTEMA que añade app_set_vote_options()
+  // (V-10); como aquí no se pasa por la función, en la votación que la permite
+  // hay que sembrarla a mano con is_abstention = true, o la demo mostraría una
+  // papeleta sin la opción que el contrato garantiza.
+  //
+  //   voteParkingA   OPEN · SINGLE · LIVE · abstención → votación viva con
+  //                  recuento público; es la que ejercitan los tests de /vote,
+  //                  /results y el upsert (3 votos, 2 Sí / 1 No).
+  //   votePiscinaA   DRAFT · QUORUM 60 · AFTER_CLOSE → el borrador invisible
+  //                  para el vecino (404) y 409 VOTE_NOT_PUBLISHED en results.
+  //   voteRuidoA     CLOSED · SINGLE · AFTER_CLOSE → el caso ya cerrado, con
+  //                  closed_at y ends_at en el pasado (2 votos: 1 Sí / 1 No).
+  //
+  // Las fechas son fijas (no relativas a now()): con el tiempo la de parking
+  // acabará venciendo y dejará de leerse como OPEN, igual que las reservas y los
+  // avisos de este mismo seed. Los tests crean sus votaciones con fechas
+  // relativas justamente por eso.
+  console.log(' 11/11 Votaciones')
+  await prisma.votes.createMany({
+    data: [
+      {
+        id: ID.voteParkingA,
+        community_id: ID.comunidadA,
+        title: '¿Instalar cámaras en el parking?',
+        question: '¿Estás de acuerdo con instalar cámaras de vigilancia en el parking comunitario?',
+        description: 'La instalación correría a cargo del fondo de reserva. Presupuesto estimado: 1.200 €.',
+        type: 'SINGLE',
+        status: 'OPEN',
+        starts_at: new Date('2026-10-01T08:00:00.000Z'),
+        ends_at: new Date('2026-11-01T20:00:00.000Z'),
+        allow_abstention: true,
+        result_visibility: 'LIVE',
+        created_by: ID.luisPresidente,
+      },
+      {
+        id: ID.votePiscinaA,
+        community_id: ID.comunidadA,
+        title: '¿Abrir la piscina en junio?',
+        question: '¿Prefieres que la piscina abra el 1 de junio o el 15 de junio esta temporada?',
+        description: 'Adelantar la apertura tiene un coste extra de mantenimiento de 340 €.',
+        type: 'QUORUM',
+        status: 'DRAFT',
+        starts_at: new Date('2026-11-01T08:00:00.000Z'),
+        ends_at: new Date('2026-12-01T20:00:00.000Z'),
+        allow_abstention: false,
+        quorum_percent: 60,
+        result_visibility: 'AFTER_CLOSE',
+        created_by: ID.anaAdmin,
+      },
+      {
+        id: ID.voteRuidoA,
+        community_id: ID.comunidadA,
+        title: '¿Permitir obras los sábados?',
+        question: '¿Autorizas obras con ruido los sábados de 10:00 a 14:00?',
+        type: 'SINGLE',
+        status: 'CLOSED',
+        starts_at: new Date('2026-09-01T08:00:00.000Z'),
+        ends_at: new Date('2026-09-30T20:00:00.000Z'),
+        allow_abstention: false,
+        result_visibility: 'AFTER_CLOSE',
+        closed_at: new Date('2026-09-30T20:00:00.000Z'),
+        created_by: ID.luisPresidente,
+      },
+    ],
+  })
+
+  // Las opciones, con UUID fijo. Las de parking llevan la abstención al final
+  // (is_abstention true); las otras dos votaciones no la admiten.
+  await prisma.voteOptions.createMany({
+    data: [
+      { id: ID.optParkingSi, vote_id: ID.voteParkingA, label: 'Sí', position: 1 },
+      { id: ID.optParkingNo, vote_id: ID.voteParkingA, label: 'No', position: 2 },
+      { id: ID.optParkingAbstencion, vote_id: ID.voteParkingA, label: 'Abstención', position: 3, is_abstention: true },
+      { id: ID.optPiscinaSi, vote_id: ID.votePiscinaA, label: 'Sí', position: 1 },
+      { id: ID.optPiscinaNo, vote_id: ID.votePiscinaA, label: 'No', position: 2 },
+      { id: ID.optRuidoSi, vote_id: ID.voteRuidoA, label: 'Sí', position: 1 },
+      { id: ID.optRuidoNo, vote_id: ID.voteRuidoA, label: 'No', position: 2 },
+    ],
+  })
+
+  // Y los votos emitidos. `weight` va a 1 (el default): la papeleta no pondera.
+  await prisma.voteResponses.createMany({
+    data: [
+      { vote_id: ID.voteParkingA, option_id: ID.optParkingSi, user_id: ID.anaAdmin },
+      { vote_id: ID.voteParkingA, option_id: ID.optParkingSi, user_id: ID.luisPresidente },
+      { vote_id: ID.voteParkingA, option_id: ID.optParkingNo, user_id: ID.martaVecina },
+      { vote_id: ID.voteRuidoA, option_id: ID.optRuidoNo, user_id: ID.anaAdmin },
+      { vote_id: ID.voteRuidoA, option_id: ID.optRuidoSi, user_id: ID.martaVecina },
+    ],
+  })
+
+  // -------------------------------------------------------------------------
   // Resumen
   // -------------------------------------------------------------------------
-  const [u, c, m, i, f, e, z, r, a, d] = await Promise.all([
+  const [u, c, m, i, f, e, z, r, a, d, v] = await Promise.all([
     prisma.users.count(),
     prisma.communities.count(),
     prisma.communityMembers.count(),
@@ -907,10 +1022,11 @@ async function main() {
     prisma.reservations.count(),
     prisma.announcements.count(),
     prisma.documents.count(),
+    prisma.votes.count(),
   ])
 
   console.log(
-    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${f} facturas · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos · ${d} documentos\n`,
+    `\n  ${u} usuarios · ${c} comunidades · ${m} membresías · ${i} incidencias · ${f} facturas · ${e} gastos · ${z} zonas · ${r} reservas · ${a} avisos · ${d} documentos · ${v} votaciones\n`,
   )
 
   console.log(`\n  Para entrar en cada rol:\n`)

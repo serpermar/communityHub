@@ -50,7 +50,7 @@ proyecto, y evita el error de copiar la mitad de un script.
 01_schema.sql       →  las tablas y los ENUMs existen
 02_rls.sql          →  las políticas referencian esas tablas
 02b_auth.sql        →  las funciones de auth, que usan las políticas ya creadas
-02c … 02j_*.sql     →  una función por módulo, cada una en su script;
+02c … 02k_*.sql     →  una función por módulo, cada una en su script;
                       todas apoyan en app_is_member_of() y en los permisos
                       que ya concedió 02_rls
 03_storage.sql      →  los buckets y políticas de Storage
@@ -59,7 +59,7 @@ proyecto, y evita el error de copiar la mitad de un script.
 
 `02b_auth.sql` va después de `02_rls.sql` porque concede permisos sobre
 funciones que leen `users` y `sessions`, y necesita que el rol `app_runtime` ya
-esté creado. Los módulos (`02c` a `02j`) van después de `02b` y antes de
+esté creado. Los módulos (`02c` a `02k`) van después de `02b` y antes de
 `03_storage` porque cada uno crea funciones `SECURITY DEFINER` que RLS
 necesita: `02i_documents.sql`, por ejemplo, usa `app_is_member_of()` de
 `02_rls` y define las cinco funciones que después llama el backend.
@@ -454,7 +454,7 @@ El estado de cada pieza:
 |---|---|---|
 | Esquema, RLS, auth, storage | `supabase/sql/` | Hecho y verificado |
 | `schema.prisma` | `backend/prisma/` | Derivado con `prisma db pull`. 24 modelos, 19 ENUMs |
-| Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` (sube los 3 documentos al bucket; 3 facturas y 3 gastos) |
+| Datos de demostración | `backend/prisma/seed.ts` | Hecho: `npm run db:seed` (sube los 3 documentos al bucket; 3 facturas, 3 gastos y 3 votaciones) |
 | Autenticación | `backend/src/auth/` | Hecho: los 7 endpoints, 49 tests de integración |
 | Comunidades | `backend/src/communities/` | Hecho: los 4 endpoints |
 | Miembros e invitaciones | `backend/src/members/` | Hecho: los 7 endpoints |
@@ -464,6 +464,7 @@ El estado de cada pieza:
 | Avisos | `backend/src/announcements/` | Hecho: los 4 endpoints |
 | Documentos | `backend/src/documents/` | Hecho: los 5 endpoints, con Storage (bucket privado y signed URL) |
 | Finanzas | `backend/src/finance/` | Hecho: los 9 endpoints, solo ADMIN (gastos, facturas, pago y resumen) |
+| Votaciones | `backend/src/voting/` | Hecho: los 9 endpoints (borrador, ciclo de vida, voto y recuento secreto) |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:
@@ -476,7 +477,7 @@ copy .env.example .env      # y rellena DATABASE_URL, MIGRATION_DATABASE_URL, JW
 npm run db:apply -- --verify # aplica el SQL y verifica
 npx prisma db pull          # deriva schema.prisma de la base de datos
 npx prisma generate         # genera el cliente
-npm run db:seed             # datos de demo en 2 comunidades, con 3 documentos + sus objetos
+npm run db:seed             # datos de demo en 2 comunidades, con 3 documentos + sus objetos, finanzas y votaciones
 npm run dev                 # servidor en http://localhost:3000
 ```
 
@@ -484,8 +485,8 @@ Y para comprobar que todo va bien:
 
 ```bash
 npm run typecheck
-npm run test:unit           # 364 tests, sin base de datos
-npm run test:integration    # 354 tests, contra Supabase real
+npm run test:unit           # 423 tests, sin base de datos
+npm run test:integration    # 381 tests, contra Supabase real
 npm run check:db
 ```
 

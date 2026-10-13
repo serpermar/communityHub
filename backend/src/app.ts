@@ -31,6 +31,7 @@ import { createReservationRouter, createReservationsRouter } from './reservation
 import { createAnnouncementRouter, createAnnouncementsRouter } from './announcements/routes.js'
 import { createDocumentRouter, createDocumentsRouter } from './documents/routes.js'
 import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
+import { createVoteRouter, createVotesRouter } from './voting/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -201,6 +202,11 @@ export function createApp(): Express {
   // cuelgan de la comunidad, las tres de gasto por id de `/api/v1`.
   app.use('/api/v1/communities', createFinanceRouter())
   app.use('/api/v1', createExpenseRouter())
+
+  // Votaciones (spec 10), en dos routers por lo mismo: el listado y el alta
+  // cuelgan de la comunidad, las siete rutas por id del voto, de `/api/v1`.
+  app.use('/api/v1/communities', createVotesRouter())
+  app.use('/api/v1', createVoteRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

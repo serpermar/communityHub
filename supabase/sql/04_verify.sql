@@ -1651,7 +1651,218 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 18. INFORME
+-- 18. Votaciones (02k_voting.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 10 exige que `db:verify` haga fallar (criterio §10):
+--   1. falta cualquiera de las once funciones; alguna no es SECURITY DEFINER;
+--   2. `app_runtime` conserva insert/update/delete sobre votes/vote_options o
+--      insert/update sobre vote_responses;
+--   3. las políticas votes_write_leadership, options_write_leadership,
+--      responses_insert_own_open_vote o responses_update_own_open_vote siguen
+--      existiendo;
+--   4. votes_select_member (sin consciencia de DRAFT) o
+--      responses_select_own_or_admin (con su rama ADMIN) no han sido sustituidas;
+--   5. los CHECK de longitud de la sección 1 del 02k han desaparecido.
+do $$
+declare
+  v_fallos  text := '';
+  v_def     text;
+  r         record;
+begin
+  -- 1. Las once funciones presentes.
+  for r in
+    select unnest(array[
+      'app_vote_community', 'app_is_leadership_of',
+      'app_vote_effective_status', 'app_set_vote_options',
+      'app_list_votes', 'app_create_vote', 'app_update_vote',
+      'app_publish_vote', 'app_close_vote', 'app_cast_vote',
+      'app_vote_results'
+    ]) as fn
+  loop
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname = r.fn
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.fn || '();';
+    end if;
+  end loop;
+
+  -- 1bis. SECURITY DEFINER con search_path fijo (el PATRÓN de los bloques
+  -- 04-09, exigido por el criterio §10).
+  for r in
+    select p.proname, pg_get_functiondef(p.oid) as def
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in (
+         'app_vote_community', 'app_is_leadership_of',
+         'app_vote_effective_status', 'app_set_vote_options',
+         'app_list_votes', 'app_create_vote', 'app_update_vote',
+         'app_publish_vote', 'app_close_vote', 'app_cast_vote',
+         'app_vote_results'
+       )
+  loop
+    v_def := r.def;
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' no es SECURITY DEFINER;';
+    end if;
+    if v_def not like '%search_path%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+      from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name in (
+         'app_vote_community', 'app_is_leadership_of',
+         'app_vote_effective_status', 'app_set_vote_options',
+         'app_list_votes', 'app_create_vote', 'app_update_vote',
+         'app_publish_vote', 'app_close_vote', 'app_cast_vote',
+         'app_vote_results'
+       )
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' alguna funcion de votaciones es ejecutable por PUBLIC;';
+  end if;
+
+  -- 2. app_runtime sin escritura (V-2/V-3).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name in ('votes', 'vote_options')
+       and grantee = 'app_runtime'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' app_runtime conserva escritura sobre votes/vote_options;';
+  end if;
+
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'vote_responses'
+       and grantee = 'app_runtime'
+       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+  ) then
+    v_fallos := v_fallos || ' app_runtime conserva escritura sobre vote_responses;';
+  end if;
+
+  -- 3. Ninguna política de escritura en las tres tablas.
+  if exists (
+    select 1 from pg_policies
+     where tablename in ('votes', 'vote_options', 'vote_responses')
+       and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+  ) then
+    v_fallos := v_fallos || ' hay una politica de escritura de votaciones;';
+  end if;
+
+  if exists (
+    select 1 from pg_policies
+     where policyname in (
+       'votes_write_leadership', 'options_write_leadership',
+       'responses_insert_own_open_vote', 'responses_update_own_open_vote'
+     )
+  ) then
+    v_fallos := v_fallos || ' siguen existiendo las politicas de escritura de votaciones;';
+  end if;
+
+  -- 4. La lectura consciente del estado sustituye a votes_select_member (V-1/V-5).
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'votes' and policyname = 'votes_select_member'
+  ) then
+    v_fallos := v_fallos || ' sigue existiendo votes_select_member;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'votes' and policyname = 'votes_select_visible'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta votes_select_visible de SELECT;';
+  end if;
+
+  -- Y la política de respuestas es "solo el propio voto" (V-2).
+  if exists (
+    select 1 from pg_policies
+     where tablename = 'vote_responses'
+       and policyname = 'responses_select_own_or_admin'
+  ) then
+    v_fallos := v_fallos || ' sigue existiendo responses_select_own_or_admin;';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+     where tablename = 'vote_responses' and policyname = 'responses_select_own'
+       and cmd = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' falta responses_select_own de SELECT;';
+  end if;
+
+  -- 5. Los cuatro CHECK de longitud de 02k §1.
+  for r in
+    select unnest(array[
+      'votes_title_length', 'votes_question_length',
+      'votes_description_length', 'vote_options_label_length'
+    ]) as con
+  loop
+    if not exists (
+      select 1 from pg_constraint
+       where conname = r.con and contype = 'c'
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.con || ';';
+    end if;
+  end loop;
+
+  -- Las decisiones escritas en el propio SQL, como en los bloques 04-09.
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_cast_vote'
+       and pg_get_functiondef(p.oid) like '%on conflict (vote_id, user_id)%'
+  ) then
+    v_fallos := v_fallos || ' app_cast_vote deberia ser un upsert (V-11);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_vote_results'
+       and pg_get_functiondef(p.oid) like '%vote_results_forbidden%'
+  ) then
+    v_fallos := v_fallos || ' app_vote_results deberia aplicar la visibilidad (V-12);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_list_votes'
+       and pg_get_functiondef(p.oid) like '%app_vote_effective_status%'
+  ) then
+    v_fallos := v_fallos || ' el listado de votaciones deberia derivar el estado efectivo (V-6);';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de votaciones no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · votaciones: voto secreto (solo el propio voto), 11 funciones SECURITY DEFINER con search_path fijo, ninguna politica de escritura, estado efectivo calculado en lectura, 4 CHECK de longitud presentes';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 19. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -1800,6 +2011,29 @@ where routine_schema = 'public'
     'app_list_invoices', 'app_create_expense', 'app_update_expense',
     'app_delete_expense', 'app_create_invoice', 'app_pay_invoice',
     'app_finance_summary'
+  )
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de votaciones (debe ser 11)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_vote_community', 'app_is_leadership_of',
+    'app_vote_effective_status', 'app_set_vote_options',
+    'app_list_votes', 'app_create_vote', 'app_update_vote',
+    'app_publish_vote', 'app_close_vote', 'app_cast_vote',
+    'app_vote_results'
+  )
+union all
+select 'Grants de votaciones a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_vote_community', 'app_is_leadership_of',
+    'app_vote_effective_status', 'app_set_vote_options',
+    'app_list_votes', 'app_create_vote', 'app_update_vote',
+    'app_publish_vote', 'app_close_vote', 'app_cast_vote',
+    'app_vote_results'
   )
   and grantee = 'PUBLIC'
 union all

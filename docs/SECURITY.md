@@ -487,6 +487,48 @@ acepta si la factura es **de la misma comunidad** (FN-10); si no, es un `400` co
 el código propio `EXPENSE_INVOICE_MISMATCH`, no un `VALIDATION_ERROR`: el cuerpo
 era válido y lo que falla es la relación.
 
+### La papeleta secreta (votaciones)
+
+Votaciones es el bloque del **voto secreto** (V-2): no hay ninguna lectura de
+`vote_responses` que enumere votantes, y **ni `ADMIN` ni `PRESIDENT`** pueden
+saber quién votó qué. El único recuento es `app_vote_results()`, que devuelve
+sumas agregadas y una fila (`coalesce`/subselects); las respuestas individuales
+solo existen dentro de las funciones `SECURITY DEFINER`. Por eso `app_runtime`
+no tiene `INSERT`, `UPDATE` ni `DELETE` sobre `votes`, `vote_options` ni
+`vote_responses`: la única puerta de escritura son `app_create_vote()`,
+`app_update_vote()`, `app_publish_vote()`, `app_close_vote()` y `app_cast_vote()`.
+
+El bloque cierra dos huecos que venían del esquema:
+
+- **`votes_select_member`** (SELECT para cualquier miembro) se sustituye por
+  **`votes_select_visible`**: fuera de `DRAFT` para `NEIGHBOR`/`PRESIDENT`/`ADMIN`,
+  un `DRAFT` solo para `PRESIDENT`/`ADMIN`, y **`PROVIDER` fuera siempre**
+  (V-1/V-5). Un borrador es invisible para el vecino (`404`, igual que si no
+  existiera). El veto al proveedor se repite en `options_select_visible_vote`,
+  que antes se lo dejaba ver.
+- **`responses_select_own_or_admin`** (que daba a `ADMIN` la rama de leer las
+  respuestas de otros) se sustituye por **`responses_select_own`**: cada uno ve
+  solo la suya, y la administración **no** tiene una rama extra. Es el corazón de
+  V-2: la rama de `ADMIN` era exactamente el agujero que convertía la papeleta en
+  pública.
+
+Las cuatro políticas de escritura (`votes_write_leadership`,
+`options_write_leadership`, `responses_insert_own_open_vote`,
+`responses_update_own_open_vote`) se eliminan; `db:verify` falla si cualquiera
+reaparece, si `app_runtime` conserva la escritura, o si las políticas sustituidas
+no son las nuevas.
+
+Los cinco conflictos del bloque (`vote_not_draft`, `vote_not_open`,
+`vote_closed`, `vote_already_closed`, `vote_not_published`) comparten el SQLSTATE
+`U0001` por el mismo motivo que documentos y finanzas, y cada uno con su **código
+de contrato propio** (`VOTE_NOT_DRAFT`, `VOTE_NOT_OPEN`, `VOTE_CLOSED`,
+`VOTE_ALREADY_CLOSED`, `VOTE_NOT_PUBLISHED`). Un `U0001` sin sentinel no se
+convierte en `409`: es un bug del esquema y se deja pasar como `500`. El voto va
+por **UPSERT** sobre `vote_responses_unique_vote_uidx (vote_id, user_id)`: un
+voto por usuario, y cambiar de voto actualiza la misma fila en vez de crear una
+segunda. La opción de abstención la genera el sistema (V-10), de modo que el
+recuento no depende de un texto que el cliente pueda escribir de mil formas.
+
 ---
 
 ## 6. Secretos
@@ -607,7 +649,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 54 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; y de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad |
+| `npm run test:integration` | Los 63 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9, votaciones 9): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad; y de votaciones la papeleta secreta (ningún id de votante en el recuento), el `403` de listar y el `404` de detalle del `PROVIDER`, la invisibilidad del borrador, el ciclo `DRAFT→OPEN→CLOSED`, el UPSERT del voto, la visibilidad de resultados por rol y el CSV del recuento (una fila por opción, nunca por voto) |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -664,6 +706,20 @@ para `app_runtime` y su política de `SELECT` es la de `ADMIN`
 por `PUBLIC`; que el listado de facturas sigue derivando `OVERDUE` con
 `app_invoice_effective_status()`; y que los seis `CHECK` de longitud del bloque
 existen.
+
+Del bloque 10, los criterios de `specs/10-voting.md` (sección 10) tienen su test
+de integración, y en la base de datos se comprueba lo que por HTTP no se ve: que
+las once funciones de `02k` siguen siendo `SECURITY DEFINER` con `search_path`
+fijo, ejecutables por `app_runtime` y no por `PUBLIC`; que `votes`,
+`vote_options` y `vote_responses` no tienen ninguna política de escritura ni
+permiso de escritura para `app_runtime`; que `votes_select_member` y
+`responses_select_own_or_admin` han sido **sustituidas** por `votes_select_visible`
+y `responses_select_own`; que `app_cast_vote()` sigue haciendo el UPSERT sobre
+`(vote_id, user_id)`; que `app_vote_results()` sigue exigiendo la visibilidad de
+`result_visibility` (`vote_results_forbidden`); que `app_list_votes()` sigue
+derivando el estado efectivo; y que los cuatro `CHECK` de longitud del bloque
+existen. El `INFORME` de `04_verify.sql` incluye, además, el recuento de funciones
+de votaciones (debe ser 11) y el de `EXECUTE` a `PUBLIC` sobre ellas (debe ser 0).
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 

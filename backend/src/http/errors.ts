@@ -25,6 +25,13 @@ export type ErrorCode =
   | 'INVOICE_CANCELLED'
   | 'INVOICE_NUMBER_TAKEN'
   | 'EXPENSE_INVOICE_MISMATCH'
+  | 'VOTE_NOT_DRAFT'
+  | 'VOTE_NOT_OPEN'
+  | 'VOTE_CLOSED'
+  | 'VOTE_ALREADY_CLOSED'
+  | 'VOTE_NOT_PUBLISHED'
+  | 'VOTE_OPTION_INVALID'
+  | 'VOTE_OPTION_DUPLICATE'
 
 export type ErrorBody = {
   error: {

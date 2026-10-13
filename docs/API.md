@@ -1218,12 +1218,250 @@ obligar a una segunda petición.
 
 ---
 
+## Votaciones
+
+Nueve rutas en **dos routers**: dos de comunidad cuelgan de
+`/api/v1/communities` y siete por id de `/api/v1`. Es el bloque de la **papeleta
+secreta** (V-2): **no existe** ninguna lectura de votos individuales, ni para
+`ADMIN` ni para `PRESIDENT`; el único recuento es el agregado de
+`GET /api/v1/votes/:id/results`, que suma y nunca enumera votantes. Tampoco hay
+`DELETE /votes/:id` (V-14).
+
+Un `PROVIDER` **no ve ni vota** votaciones (V-1): listar le da `403` y el detalle
+`404`. La autorización va en dos capas: el guard de la ruta
+(`requireCommunity` / `requireVote`) da el `403`/`404` grueso y cada función lo
+repite dentro de la transacción.
+
+### Qué ve cada rol
+
+| Rol | Listar | Detalle | Crear/editar/publicar/cerrar | Votar | Resultados |
+|---|---|---|---|---|---|
+| `NEIGHBOR` | `200` (sin borradores) | `200`; `404` si es `DRAFT` | `403` | `200` (si `OPEN`) | según `resultVisibility` |
+| `PRESIDENT` | `200` | `200` | `200` | `200` | siempre |
+| `ADMIN` | `200` | `200` | `200` | `200` | siempre |
+| `PROVIDER` | `403` | `404` | `404` | `404` | `404` |
+| No-miembro | `403` | `404` | `404` | `404` | `404` |
+
+Un `DRAFT` solo lo ven `PRESIDENT` y `ADMIN`; para los demás es **invisible**
+(`404`, igual que si no existiera).
+
+### Modelo
+
+```jsonc
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "title": "¿Instalar cámaras en el parking?",  // 1–120
+  "question": "¿Estás de acuerdo...?",          // 1–200
+  "description": "Presupuesto estimado...",     // hasta 1000, o null
+  "type": "SINGLE",                             // SINGLE | QUORUM
+  "status": "OPEN",                             // DRAFT | OPEN | CLOSED (guardado)
+  "effectiveStatus": "OPEN",                    // DRAFT | OPEN | CLOSED (derivado, V-6)
+  "startsAt": "2026-10-01T08:00:00.000Z",
+  "endsAt": "2026-11-01T20:00:00.000Z",         // siempre posterior a startsAt
+  "allowAbstention": true,
+  "quorumPercent": null,                        // 1–100 solo si type=QUORUM, si no null
+  "resultVisibility": "LIVE",                   // AFTER_CLOSE | LIVE | ADMIN_ONLY
+  "options": [
+    { "id": "uuid", "label": "Sí", "position": 1, "isAbstention": false },
+    { "id": "uuid", "label": "No", "position": 2, "isAbstention": false },
+    { "id": "uuid", "label": "Abstención", "position": 3, "isAbstention": true }
+  ],
+  "myOptionId": "uuid",                         // la opción que votó este usuario, o null
+  "createdBy": "uuid",                          // la sesión, nunca el cuerpo
+  "createdByName": "Luis Mendoza",              // null si el autor se dio de baja
+  "closedAt": null,                             // instante, o null
+  "createdAt": "2026-10-01T08:00:00.000Z",
+  "updatedAt": "2026-10-01T08:00:00.000Z"
+}
+```
+
+`status` es la columna y `effectiveStatus` lo que el cliente debe pintar: una
+votación `OPEN` cuyo `endsAt` ya pasó se **lee** como `CLOSED` sin tocar la fila
+(V-6; no hay jobs). El filtro `?status=` compara con el estado **efectivo**.
+
+La **abstención** no la manda el cliente (V-10): con `allowAbstention: true` el
+backend añade `{ label: "Abstención", isAbstention: true }` al final de
+`options`. Mandarla a mano es `400`.
+
+### `GET /api/v1/communities/:communityId/votes`
+
+Lista las votaciones visibles de la comunidad.
+
+| Filtro | Forma | Efecto |
+|---|---|---|
+| `status` | `DRAFT`/`OPEN`/`CLOSED` | filtra por el estado **efectivo** |
+| `page` | entero ≥ 1 (por defecto 1) | desplazamiento |
+| `limit` | 1–100 (por defecto 20) | tamaño de página |
+
+```
+200 → { "data": [ …votaciones ], "meta": { page, limit, total, totalPages } }
+400 → filtro con forma inválida
+403 → eres PROVIDER, o no eres miembro activo
+```
+
+### `POST /api/v1/communities/:communityId/votes`
+
+Alta de `PRESIDENT`/`ADMIN`. Nace siempre `DRAFT` (V-6); el `status` no se acepta
+en el cuerpo.
+
+| Campo | Forma | Efecto |
+|---|---|---|
+| `title` | obligatorio, 1–120 | el título |
+| `question` | obligatorio, 1–200 | la pregunta |
+| `description` | hasta 1000, opcional | `null`/vacío se guarda como `null` |
+| `type` | `SINGLE`/`QUORUM`, opcional | por defecto `SINGLE` |
+| `startsAt` | instante ISO 8601 | el inicio |
+| `endsAt` | instante ISO 8601, posterior a `startsAt` | el cierre |
+| `allowAbstention` | booleano, opcional | por defecto `true`; genera la abstención |
+| `quorumPercent` | 1–100, obligatorio si `type=QUORUM` | el quórum (V-9) |
+| `resultVisibility` | `AFTER_CLOSE`/`LIVE`/`ADMIN_ONLY`, opcional | por defecto `AFTER_CLOSE` |
+| `options` | 2–20 cadenas de 1–120 (las reales) | las opciones |
+
+```
+201 → { "data": { …votación } }   // cabecera Location: /api/v1/votes/{id}
+400 → forma inválida, opciones repetidas (VOTE_OPTION_DUPLICATE) o 'Abstención' a mano
+403 → tu rol no permite gestionar votaciones
+```
+
+### `GET /api/v1/votes/:id`
+
+```
+200 → { "data": { …votación } }
+400 → :id no es UUID
+404 → no existe, está borrada, es de otra comunidad, es un DRAFT que no gestionas, o eres PROVIDER
+```
+
+### `PATCH /api/v1/votes/:id`
+
+**Parcial** y **solo sobre un `DRAFT`** (V-7). Acepta los mismos campos que el
+`POST` (incluidas `options`, que **reemplazan** la lista entera); las claves
+ausentes no se tocan y `description` vacía limpia el valor.
+
+```
+200 → { "data": { …votación } }
+400 → forma inválida, o el cuerpo va vacío
+403 → ves la votación pero no la gestionas
+404 → no existe o no es visible (incluido un DRAFT ajeno)
+409 → VOTE_NOT_DRAFT: la votación ya no es un borrador
+```
+
+### `POST /api/v1/votes/:id/publish`
+
+`DRAFT → OPEN`, sin cuerpo.
+
+```
+200 → { "data": { …votación } }   // status "OPEN"
+400 → se manda algo en el cuerpo
+403 → tu rol no permite gestionar votaciones
+404 → no existe o no es visible
+409 → VOTE_NOT_DRAFT: la votación no es un borrador
+```
+
+### `POST /api/v1/votes/:id/close`
+
+`OPEN → CLOSED`, sin cuerpo; cierre anticipado incluido (pone `closedAt`).
+
+```
+200 → { "data": { …votación } }   // status "CLOSED", closedAt con instante
+400 → se manda algo en el cuerpo
+403 → tu rol no permite gestionar votaciones
+404 → no existe o no es visible
+409 → VOTE_ALREADY_CLOSED (ya cerrada, incluso por `endsAt`) o VOTE_NOT_OPEN (era DRAFT)
+```
+
+### `POST /api/v1/votes/:id/responses`
+
+Emite el voto. **Un voto por usuario**: repetir **cambia** el voto (V-11), no da
+`409` ni crea un segundo. El `userId` sale de la sesión, nunca del cuerpo.
+
+| Campo | Forma | Efecto |
+|---|---|---|
+| `optionId` | UUID de una opción **de esta votación** | la opción elegida |
+
+```
+200 → { "data": { "voteId", "optionId", "weight", "createdAt", "updatedAt" } }
+400 → forma inválida, o la opción no es de esta votación (VOTE_OPTION_INVALID)
+404 → no existe o no es visible (un PROVIDER aquí ve 404)
+409 → VOTE_NOT_OPEN (no está abierta / aún no empieza) o VOTE_CLOSED (ya cerró)
+```
+
+### `GET /api/v1/votes/:id/results`
+
+El **recuento agregado**; nunca una fila por voto (V-2). Devuelve **una fila**
+siempre, incluso sin votos. La visibilidad la decide `resultVisibility` (V-12):
+`ADMIN`/`PRESIDENT` siempre; el resto, `LIVE` siempre, `AFTER_CLOSE` solo con el
+estado efectivo `CLOSED`, `ADMIN_ONLY` nunca.
+
+```jsonc
+{
+  "data": {
+    "id": "uuid",
+    "status": "OPEN",
+    "effectiveStatus": "OPEN",
+    "endsAt": "2026-11-01T20:00:00.000Z",
+    "allowAbstention": true,
+    "eligibleCount": 3,              // miembros activos que votan (sin PROVIDER)
+    "turnout": 3,                    // votos emitidos
+    "participationPercent": 100.0,
+    "quorumRequired": false,         // type = QUORUM
+    "quorumPercent": null,
+    "quorumMet": null,               // true/false si QUORUM, null si no
+    "abstentionCount": 0,
+    "options": [
+      { "id": "uuid", "label": "Sí", "position": 1, "isAbstention": false, "votes": 2, "percent": 66.67 }
+    ]
+  }
+}
+```
+
+```
+200 → { "data": { …recuento } }
+403 → los resultados no son visibles todavía para tu rol
+404 → no existe, está borrada, es de otra comunidad o eres PROVIDER
+409 → VOTE_NOT_PUBLISHED: la votación es un DRAFT
+```
+
+### `GET /api/v1/votes/:id/results/export`
+
+El mismo recuento en **CSV** (V-13), la única respuesta que **no** es el sobre
+JSON. Una fila por opción, nunca una por voto.
+
+```
+200 → text/csv; charset=utf-8
+      Content-Disposition: attachment; filename="votacion-########-resultados.csv"
+
+opción,votos,porcentaje
+Sí,2,66.67
+No,1,33.33
+Abstención,0,0
+```
+
+Las condiciones de error son las mismas que las de `GET /votes/:id/results`.
+
+### Ciclo de vida
+
+```
+        POST /votes                 POST publish            POST close
+DRAFT ───────────────► DRAFT ─────────────────► OPEN ─────────────────► CLOSED
+  │                                              │  ends_at vencido (solo leído)
+  └── PATCH (solo aquí)                          └── effectiveStatus "CLOSED"
+```
+
+`publish` y `close` son **manuales** (no hay jobs): una `OPEN` vencida por
+`endsAt` no se cierra sola, se **lee** como `CLOSED`, y `close` sobre ella da
+`VOTE_ALREADY_CLOSED`.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Cuerpo mal formado, `:communityId` que no es UUID |
 | 400 | `EXPENSE_INVOICE_MISMATCH` | La factura vinculada a un gasto no es de su comunidad (código propio, no `VALIDATION_ERROR`) |
+| 400 | `VOTE_OPTION_INVALID` | La opción votada no pertenece a esa votación |
+| 400 | `VOTE_OPTION_DUPLICATE` | Hay opciones repetidas, o se manda 'Abstención' a mano |
 | 401 | `UNAUTHORIZED` | Falta la cabecera, o la sesión ya no vale |
 | 401 | `TOKEN_REVOKED` | La sesión se revocó |
 | 401 | `TOKEN_EXPIRED` | El access token caducó |
@@ -1234,6 +1472,11 @@ obligar a una segunda petición.
 | 409 | `INVOICE_NUMBER_TAKEN` | Ya existe una factura con ese número en la comunidad |
 | 409 | `INVOICE_ALREADY_PAID` | Se intenta pagar una factura ya pagada |
 | 409 | `INVOICE_CANCELLED` | Se intenta pagar una factura cancelada |
+| 409 | `VOTE_NOT_DRAFT` | Se edita o publica una votación que no es borrador |
+| 409 | `VOTE_NOT_OPEN` | Se vota o cierra una votación que no está abierta |
+| 409 | `VOTE_CLOSED` | Se vota una votación cuyo estado efectivo ya es `CLOSED` |
+| 409 | `VOTE_ALREADY_CLOSED` | Se cierra una votación que ya está cerrada |
+| 409 | `VOTE_NOT_PUBLISHED` | Se piden resultados de un borrador |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 
