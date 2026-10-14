@@ -465,6 +465,7 @@ El estado de cada pieza:
 | Documentos | `backend/src/documents/` | Hecho: los 5 endpoints, con Storage (bucket privado y signed URL) |
 | Finanzas | `backend/src/finance/` | Hecho: los 9 endpoints, solo ADMIN (gastos, facturas, pago y resumen) |
 | Votaciones | `backend/src/voting/` | Hecho: los 9 endpoints (borrador, ciclo de vida, voto y recuento secreto) |
+| IA | `backend/src/ai/` | Hecho: los 9 endpoints (chat SSE con tools, sesiones, clasificación, borradores, confirmación, catálogo y preview) |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:

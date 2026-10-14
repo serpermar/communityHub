@@ -79,9 +79,35 @@ const schema = z.object({
   DOCUMENTS_BUCKET: z.string().default('community-documents'),
   DOCUMENTS_SIGNED_URL_EXPIRES_IN: int(60, 3_600).default(300),
 
-  // IA: opcional. Sin ellas la app funciona igual.
+  // ---------------------------------------------------------------------------
+  // IA (spec 11 §9). Todas opcionales y con default: sin clave la app arranca y
+  // funciona en modo degradado (AI-3). Nada de esto se exige al arrancar, a
+  // diferencia de Storage: una clave de LLM que caduca no puede tumbar el resto
+  // del producto.
+  // ---------------------------------------------------------------------------
   GROQ_API_KEY: z.string().default(''),
   GEMINI_API_KEY: z.string().default(''),
+
+  // Interruptor maestro (D-6). `false` fuerza el modo degradado aunque haya
+  // claves: apagar la IA un dia sin cuota no debe exigir borrar variables ni
+  // desplegar.
+  AI_ENABLED: booleanish.default(true),
+
+  // Modelo de razonamiento (chat) y model rapido (clasificacion/extraccion).
+  LLM_PRIMARY_MODEL: z.string().default('openai/gpt-oss-120b'),
+  LLM_FAST_MODEL: z.string().default('openai/gpt-oss-20b'),
+
+  // Tope del bucle de tools, timeout total del chat y techos de presupuesto por
+  // usuario/dia (AI-5).
+  AI_MAX_TOOL_ITERATIONS: int(1, 20).default(5),
+  AI_REQUEST_TIMEOUT_MS: int(1_000, 120_000).default(20_000),
+  AI_DAILY_MAX_REQUESTS: int(1, 1_000_000).default(200),
+  AI_DAILY_MAX_TOKENS: int(1, 100_000_000).default(50_000),
+
+  // Por debajo de este umbral, `needsHumanReview` se fuerza a true (AI-12), y el
+  // TTL de la cache de clasificaciones (AI-6).
+  AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
+  AI_CACHE_TTL_HOURS: int(1, 8_760).default(168),
 })
 
 const parsed = schema.safeParse(process.env)

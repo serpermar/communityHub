@@ -32,6 +32,7 @@ import { createAnnouncementRouter, createAnnouncementsRouter } from './announcem
 import { createDocumentRouter, createDocumentsRouter } from './documents/routes.js'
 import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
 import { createVoteRouter, createVotesRouter } from './voting/routes.js'
+import { createAiRouter } from './ai/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -207,6 +208,10 @@ export function createApp(): Express {
   // cuelgan de la comunidad, las siete rutas por id del voto, de `/api/v1`.
   app.use('/api/v1/communities', createVotesRouter())
   app.use('/api/v1', createVoteRouter())
+
+  // IA (spec 11): un solo router, sin comunidad en la URL (D-1). El communityId
+  // viaja en el cuerpo o en la sesion.
+  app.use('/api/v1/ai', createAiRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

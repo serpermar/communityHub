@@ -870,12 +870,16 @@ create policy ai_usage_own on ai_usage
 --
 -- La app NO usa el rol app_runtime contra esta tabla. Escribe y lee a través de
 -- funciones SECURITY DEFINER dedicadas, que son la única superficie expuesta.
+--
+-- `app_ai_cache_get` es VOLATILE, no stable: ademas de leer, incrementa
+-- `hit_count`. Una función stable que hace UPDATE la rechaza Postgres con
+-- 0A000 ("UPDATE is not allowed in a non-volatile function").
 revoke all on ai_cache from public;
 
 create or replace function app_ai_cache_get(key text)
 returns jsonb
 language sql
-stable
+volatile
 security definer
 set search_path = public, pg_temp
 as $$

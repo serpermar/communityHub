@@ -649,7 +649,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 63 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9, votaciones 9): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad; y de votaciones la papeleta secreta (ningún id de votante en el recuento), el `403` de listar y el `404` de detalle del `PROVIDER`, la invisibilidad del borrador, el ciclo `DRAFT→OPEN→CLOSED`, el UPSERT del voto, la visibilidad de resultados por rol y el CSV del recuento (una fila por opción, nunca por voto) |
+| `npm run test:integration` | Los 72 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9, votaciones 9, IA 9): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad; y de votaciones la papeleta secreta (ningún id de votante en el recuento), el `403` de listar y el `404` de detalle del `PROVIDER`, la invisibilidad del borrador, el ciclo `DRAFT→OPEN→CLOSED`, el UPSERT del voto, la visibilidad de resultados por rol y el CSV del recuento (una fila por opción, nunca por voto); y de IA el `503` sin proveedor y el `429` con la cuota agotada **antes** de abrir el stream, el chat por SSE con su bucle de tools, la persistencia de la sesión y sus mensajes, el `404` de la sesión ajena (leer y borrar), la clasificación que **nunca** crea la incidencia, la caída a la heurística sin proveedor, el `201`+`Location` del borrador y el `409` al confirmarlo dos veces, la creación con `createdVia=AI_SUGGESTION` y `reporterId` humano, el parche parcial del humano, y el `403`/`404` del catálogo y del `preview` filtrados por rol |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -720,6 +720,20 @@ y `responses_select_own`; que `app_cast_vote()` sigue haciendo el UPSERT sobre
 derivando el estado efectivo; y que los cuatro `CHECK` de longitud del bloque
 existen. El `INFORME` de `04_verify.sql` incluye, además, el recuento de funciones
 de votaciones (debe ser 11) y el de `EXECUTE` a `PUBLIC` sobre ellas (debe ser 0).
+
+Del bloque 11, los criterios de `specs/11-ai.md` (sección 10) tienen su test de
+integración, y en la base de datos se comprueba lo que por HTTP no se ve: que
+`app_runtime` no tiene `DELETE` sobre `ai_chat_sessions`, ningún privilegio sobre
+`ai_cache` ni `SELECT` sobre `incident_drafts` (las tres escrituras pasan por
+función `SECURITY DEFINER`); que las cuatro funciones de `02l` siguen siendo
+`SECURITY DEFINER` con `search_path` fijo, ejecutables por `app_runtime` y no por
+`PUBLIC`; que `app_confirm_incident_draft` sigue marcando `AI_SUGGESTION` (AI-2);
+que `app_ai_usage_consume` sigue siendo un UPSERT por `(user_id, usage_date)`
+(AI-5); que `app_ai_cache_get` es **`volatile`** (hace `UPDATE` de `hit_count`:
+declararla `stable` la rompería con `0A000`); y que las cuatro políticas RLS de la
+IA (`ai_sessions_own`, `ai_messages_own`, `drafts_own`, `ai_usage_own`) existen.
+El `INFORME` añade las funciones de IA (deben ser 4) y sus `EXECUTE` a `PUBLIC`
+(deben ser 0).
 
 Sobre el test central del proyecto, el que si falla avisa de una fuga:
 

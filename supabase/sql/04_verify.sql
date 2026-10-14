@@ -1862,7 +1862,183 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 19. INFORME
+-- 19. IA (02l_ai.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 11 exige que `db:verify` haga fallar (criterio §10):
+--   1. falta cualquiera de las cuatro funciones; alguna no es SECURITY DEFINER
+--      o no tiene search_path fijo;
+--   2. alguna de las cuatro es ejecutable por PUBLIC;
+--   3. `app_runtime` conserva DELETE sobre ai_chat_sessions; tiene algún
+--      privilegio sobre ai_cache; o tiene SELECT sobre incident_drafts;
+--   4. `app_confirm_incident_draft()` no marca `AI_SUGGESTION`, o
+--      `app_ai_usage_consume()` no es un UPSERT sobre (user_id, usage_date);
+--   5. faltan app_ai_cache_get / app_ai_cache_put; o `app_ai_cache_get` no es
+--      volatile (debe serlo: hace UPDATE de hit_count, y una stable que escribe
+--      la rechaza Postgres con 0A000);
+--   6. faltan las políticas RLS de las tablas de IA.
+do $$
+declare
+  v_fallos text := '';
+  v_def    text;
+  r        record;
+begin
+  -- 1. Las cuatro funciones presentes.
+  for r in
+    select unnest(array[
+      'app_ai_usage_today', 'app_ai_usage_consume',
+      'app_confirm_incident_draft', 'app_delete_chat_session'
+    ]) as fn
+  loop
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname = r.fn
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.fn || '();';
+    end if;
+  end loop;
+
+  -- 1bis. SECURITY DEFINER con search_path fijo y no ejecutables por PUBLIC.
+  for r in
+    select p.proname, pg_get_functiondef(p.oid) as def
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in (
+         'app_ai_usage_today', 'app_ai_usage_consume',
+         'app_confirm_incident_draft', 'app_delete_chat_session'
+       )
+  loop
+    v_def := r.def;
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' no es SECURITY DEFINER;';
+    end if;
+    if v_def not like '%search_path%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+      from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name in (
+         'app_ai_usage_today', 'app_ai_usage_consume',
+         'app_confirm_incident_draft', 'app_delete_chat_session'
+       )
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' alguna funcion de IA es ejecutable por PUBLIC;';
+  end if;
+
+  -- 2. app_runtime sin DELETE sobre ai_chat_sessions (AI-7).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'ai_chat_sessions'
+       and grantee = 'app_runtime'
+       and privilege_type = 'DELETE'
+  ) then
+    v_fallos := v_fallos || ' app_runtime conserva DELETE sobre ai_chat_sessions;';
+  end if;
+
+  -- app_runtime sin ningún privilegio sobre ai_cache (solo por función).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'ai_cache'
+       and grantee = 'app_runtime'
+  ) then
+    v_fallos := v_fallos || ' app_runtime conserva permisos sobre ai_cache;';
+  end if;
+
+  -- app_runtime sin SELECT sobre incident_drafts (la confirmación va por función).
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'incident_drafts'
+       and grantee = 'app_runtime'
+       and privilege_type = 'SELECT'
+  ) then
+    v_fallos := v_fallos || ' app_runtime tiene SELECT sobre incident_drafts;';
+  end if;
+
+  -- 3. Las decisiones escritas en el propio SQL.
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_confirm_incident_draft'
+       and pg_get_functiondef(p.oid) like '%AI_SUGGESTION%'
+  ) then
+    v_fallos := v_fallos || ' app_confirm_incident_draft deberia marcar AI_SUGGESTION (AI-2);';
+  end if;
+
+  if not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_ai_usage_consume'
+       and pg_get_functiondef(p.oid) like '%on conflict (user_id, usage_date)%'
+  ) then
+    v_fallos := v_fallos || ' app_ai_usage_consume deberia ser un upsert por usuario/día (AI-5);';
+  end if;
+
+  -- 4. Las dos funciones de caché de 02_rls.sql §5.23 siguen ahí.
+  for r in
+    select unnest(array['app_ai_cache_get', 'app_ai_cache_put']) as fn
+  loop
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname = r.fn
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.fn || '();';
+    end if;
+  end loop;
+
+  -- 4bis. `app_ai_cache_get` DEBE ser volatile: incrementa `hit_count` con un
+  -- UPDATE, y una funcion `stable` que escribe la rechaza Postgres con 0A000.
+  if exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_ai_cache_get'
+       and p.provolatile <> 'v'
+  ) then
+    v_fallos := v_fallos || ' app_ai_cache_get deberia ser volatile (hace UPDATE de hit_count);';
+  end if;
+
+  -- 5. Las políticas RLS de las tablas de IA.
+  for r in
+    select unnest(array['ai_sessions_own', 'ai_messages_own', 'drafts_own', 'ai_usage_own']) as pol
+  loop
+    if not exists (
+      select 1 from pg_policies where policyname = r.pol
+    ) then
+      v_fallos := v_fallos || ' falta la politica ' || r.pol || ';';
+    end if;
+  end loop;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de IA no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · IA: 4 funciones SECURITY DEFINER con search_path fijo y no ejecutables por PUBLIC, confirmación marcada AI_SUGGESTION, presupuesto atómico por usuario/día, caché solo por función (get volatile por el UPDATE de hit_count), incident_drafts sin SELECT para app_runtime';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 20. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -2034,6 +2210,23 @@ where routine_schema = 'public'
     'app_list_votes', 'app_create_vote', 'app_update_vote',
     'app_publish_vote', 'app_close_vote', 'app_cast_vote',
     'app_vote_results'
+  )
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de IA (debe ser 4)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_ai_usage_today', 'app_ai_usage_consume',
+    'app_confirm_incident_draft', 'app_delete_chat_session'
+  )
+union all
+select 'Grants de IA a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_ai_usage_today', 'app_ai_usage_consume',
+    'app_confirm_incident_draft', 'app_delete_chat_session'
   )
   and grantee = 'PUBLIC'
 union all

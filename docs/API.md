@@ -1454,6 +1454,166 @@ DRAFT ───────────────► DRAFT ──────�
 
 ---
 
+## IA
+
+Asistente de la comunidad (chat con *tool calling*) y asistente de incidencias.
+El prefijo es `/api/v1/ai` y **no** lleva `:communityId` en la URL (D-1): la
+comunidad viaja en el cuerpo. El modelo **nunca** toca SQL: solo puede pedir
+*herramientas* que el backend valida y autoriza (AI-1), así que la frase
+"pregúntale a la IA" no abre un agujero nuevo en RLS.
+
+### `POST /api/v1/ai/chat`
+
+Un turno de conversación. Responde en **SSE**, la única ruta que no usa el sobre
+JSON. El texto final se reemite troceado como `token`; si el modelo pide tools,
+salen `tool_call` y `citation` antes. La sesión se crea si no se manda
+`sessionId`, y el mensaje del usuario y la respuesta se persisten.
+
+| Campo | Forma | Efecto |
+|---|---|---|
+| `message` | 1..4000 | el mensaje del vecino |
+| `sessionId` | UUID (opcional) | continúa una sesión **tuya** |
+| `communityId` | UUID (opcional) | contexto de comunidad; `403` si no eres miembro |
+
+```
+event: meta      data: { "type":"meta", "sessionId":"uuid", "model":"…" }
+event: tool_call data: { "type":"tool_call", "name":"get_incidents", "args":{…} }
+event: citation  data: { "type":"citation", "tool":"get_incidents", "ids":["uuid"] }
+event: token     data: { "type":"token", "delta":"…" }
+event: done      data: { "type":"done", "tokensIn":123, "tokensOut":45 }
+event: error     data: { "type":"error", "code":"AI_PROVIDER_ERROR", "message":"…" }
+```
+
+Los errores **antes** del primer evento (sin proveedor, sin cuota, comunidad
+ajena) salen como JSON normal; una vez abierto el stream solo se puede emitir
+`event: error`.
+
+```
+200 → text/event-stream
+400 → forma inválida
+403 → la comunidad del cuerpo no es tuya
+429 → AI_QUOTA_EXCEEDED (cuota diaria agotada)
+503 → AI_NOT_CONFIGURED (sin proveedor configurado)
+```
+
+### `GET /api/v1/ai/chat/sessions`
+
+Tus conversaciones, más recientes primero (AI-7).
+
+```
+200 → { "data": [ { "id", "title", "communityId", "model", "createdAt", "updatedAt" } ],
+        "meta": { page, limit, total } }
+```
+
+### `GET /api/v1/ai/chat/sessions/:id/messages`
+
+Los mensajes de una conversación **tuya**. La de otro da `404`, no `403`: no se
+revela que exista.
+
+```
+200 → { "data": [ { "id", "role", "content", "toolCalls", "citations",
+                    "tokensIn", "tokensOut", "createdAt" } ], "meta": {…} }
+404 → CHAT_SESSION_NOT_FOUND
+```
+
+### `DELETE /api/v1/ai/chat/sessions/:id`
+
+Borra una conversación tuya (derecho al borrado); los mensajes caen en cascada.
+
+```
+204 → sin cuerpo
+404 → CHAT_SESSION_NOT_FOUND
+```
+
+### `POST /api/v1/ai/incidents/classify`
+
+Clasifica una descripción libre en una propuesta `{ categoría, prioridad, título }`.
+**Nunca crea** la incidencia (AI-2). Sin proveedor cae a la heurística local.
+
+| Campo | Forma |
+|---|---|
+| `communityId` | UUID de una comunidad tuya |
+| `description` | 3..2000 |
+
+```
+200 → { "data": { "category":"PLUMBING", "priority":"HIGH",
+                  "title":"…", "description":"…",
+                  "confidence":0.9, "needsHumanReview":false } }
+400 → forma inválida
+403 → la comunidad no es tuya
+```
+
+`needsHumanReview` se fuerza a `true` si la prioridad es `CRITICAL` o la
+confianza queda por debajo del umbral, aunque el modelo diga lo contrario (AI-12).
+
+### `POST /api/v1/ai/incidents/drafts`
+
+Guarda la propuesta como **borrador** pendiente (caduca a los 7 días). La
+`proposal` es opcional: si viene ya calculada no se reclasifica (D-2).
+
+| Campo | Forma |
+|---|---|
+| `communityId` | UUID de una comunidad tuya |
+| `description` | 3..2000 |
+| `proposal` | objeto `{ category, priority, title, description, confidence, needsHumanReview }` (opcional) |
+
+```
+201 → Location: /api/v1/ai/incidents/drafts/<id>
+      { "data": { "id", "proposal", "status":"PENDING", "confidence",
+                  "needsHumanReview", "createdAt", "expiresAt" } }
+400 → forma inválida
+403 → no eres miembro de esa comunidad
+```
+
+### `POST /api/v1/ai/incidents/drafts/:id/confirm`
+
+Confirma el borrador: crea la incidencia **a nombre del actor humano** y marcada
+como `AI_SUGGESTION`. El cuerpo es un parche **parcial** sobre la propuesta
+guardada; los límites son los de `incidents`, no los del `Proposal`.
+
+| Campo | Forma |
+|---|---|
+| `title` | 5..200 (opcional) |
+| `description` | 10..4000 (opcional) |
+| `category` | enum `incident_category` (opcional) |
+| `priority` | enum `incident_priority` (opcional) |
+| `location` | ≤200 (opcional) |
+
+```
+201 → { "data": { …incidencia del bloque 04, "createdVia":"AI_SUGGESTION" } }
+400 → forma inválida
+404 → INCIDENT_DRAFT_NOT_FOUND (no existe o es de otro)
+409 → INCIDENT_DRAFT_ALREADY_CONFIRMED | INCIDENT_DRAFT_NOT_PENDING (caducado/descartado)
+```
+
+### `GET /api/v1/ai/tools`
+
+El catálogo de herramientas que **tu rol** puede usar, uniendo tus comunidades.
+
+```
+200 → { "data": [ { "name", "description", "roles":[…], "requiresCommunity" } ] }
+```
+
+### `POST /api/v1/ai/tools/:toolName/preview`
+
+Ejecuta una tool directamente, sin LLM, para depurar. Autoriza igual que el chat
+(AI-9): la tool existe y tu rol puede usarla, y solo ve los datos de esa
+comunidad (AI-10).
+
+| Campo | Forma |
+|---|---|
+| `communityId` | UUID de una comunidad tuya |
+| `args` | objeto con los argumentos de la tool (por defecto `{}`) |
+
+```
+200 → { "data": { "tool":"get_community", "result":{…} } }
+400 → args inválidos para esa tool
+403 → AI_TOOL_FORBIDDEN (la tool existe, tu rol no puede)
+404 → AI_TOOL_UNKNOWN (la tool no existe)
+```
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
@@ -1467,7 +1627,11 @@ DRAFT ───────────────► DRAFT ──────�
 | 401 | `TOKEN_EXPIRED` | El access token caducó |
 | 401 | `INVALID_CREDENTIALS` | Login con email o contraseña incorrectos |
 | 403 | `FORBIDDEN` | Autenticado pero sin permiso |
+| 403 | `AI_TOOL_FORBIDDEN` | La tool de IA existe pero tu rol no puede usarla |
 | 404 | `NOT_FOUND` | El endpoint no existe, o el recurso sí pero está dado de baja |
+| 404 | `AI_TOOL_UNKNOWN` | El nombre de tool del `preview` no existe |
+| 404 | `CHAT_SESSION_NOT_FOUND` | La conversación no existe o es de otro |
+| 404 | `INCIDENT_DRAFT_NOT_FOUND` | El borrador no existe o es de otro |
 | 409 | `CONFLICT` | El slug ya existe, el email en el registro, una transición de estado que no existe, un nombre de zona repetido, un hueco de reserva ya ocupado, o una ruta de documento ya ocupada en el bucket |
 | 409 | `INVOICE_NUMBER_TAKEN` | Ya existe una factura con ese número en la comunidad |
 | 409 | `INVOICE_ALREADY_PAID` | Se intenta pagar una factura ya pagada |
@@ -1477,7 +1641,12 @@ DRAFT ───────────────► DRAFT ──────�
 | 409 | `VOTE_CLOSED` | Se vota una votación cuyo estado efectivo ya es `CLOSED` |
 | 409 | `VOTE_ALREADY_CLOSED` | Se cierra una votación que ya está cerrada |
 | 409 | `VOTE_NOT_PUBLISHED` | Se piden resultados de un borrador |
+| 409 | `INCIDENT_DRAFT_ALREADY_CONFIRMED` | Se confirma un borrador ya confirmado |
+| 409 | `INCIDENT_DRAFT_NOT_PENDING` | Se confirma un borrador caducado o descartado |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
+| 429 | `AI_QUOTA_EXCEEDED` | Cuota diaria del asistente agotada |
+| 502 | `AI_PROVIDER_ERROR` | El proveedor de IA falló y no hay respaldo |
+| 503 | `AI_NOT_CONFIGURED` | El asistente no tiene proveedor configurado |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 
 Un mismo `code` puede venir de sitios distintos, y por eso el mensaje importa aunque

@@ -46,7 +46,7 @@ const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 // nada de 02d. Si algún día 02d dejara de definir app_role_in(), 02e se
 // aplicaría con un predicado que devuelve siempre false.
 //
-// 02f, 02g, 02h, 02i, 02j y 02k van ANTES de 03_storage.sql y en ese orden
+// 02f, 02g, 02h, 02i, 02j, 02k y 02l van ANTES de 03_storage.sql y en ese orden
 // entre sí: 02f usa app_is_member_of/app_role_in de 02_rls, 02g usa
 // app_common_area_community de 02f (la creación de reservas resuelve la zona
 // por ahí), 02h usa app_is_member_of/app_role_in de 02_rls para el tablón de
@@ -56,6 +56,12 @@ const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 // lecturas/escrituras por funciones SECURITY DEFINER. Los seis son idempotentes:
 // se pueden re-aplicar sobre una base ya desplegada, que es lo que hace falta
 // para desplegar este bloque en producción sin rehechos.
+//
+// 02l (IA) va al final de los módulos: no crea tablas (ai_chat_sessions,
+// ai_chat_messages, incident_drafts, ai_usage y ai_cache ya están en 01_schema)
+// ni toca políticas; solo añade cuatro funciones SECURITY DEFINER para el
+// presupuesto diario, la confirmación de un borrador de IA, el borrado de una
+// sesión y reutiliza app_ai_cache_get/put de 02_rls. Es idempotente.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
@@ -69,6 +75,7 @@ const FILES = [
   '02i_documents.sql',
   '02j_finance.sql',
   '02k_voting.sql',
+  '02l_ai.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'
