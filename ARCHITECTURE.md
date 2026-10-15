@@ -456,7 +456,7 @@ GET    /api/v1/votes/:id/results
 GET    /api/v1/votes/:id/results/export
 
 # ── DASHBOARD / NOTIFICATIONS / INTEGRATIONS ─────────
-GET    /api/v1/communities/:communityId/dashboard
+GET    /api/v1/communities/:communityId/dashboard        (implementado: solo lectura, finance solo ADMIN; specs/13-dashboard.md)
 GET    /api/v1/notifications
 GET    /api/v1/notifications/unread-count
 PATCH  /api/v1/notifications/:id/read

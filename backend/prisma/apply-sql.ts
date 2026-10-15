@@ -67,6 +67,15 @@ const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 // en 01_schema §4.23 y su RLS se activa en 02_rls) y solo añade las tres
 // funciones SECURITY DEFINER de la caché externa. Va después de 02l y antes de
 // 03_storage, como el resto de módulos.
+//
+// 02n (dashboard) es igual que 02l y 02m: no crea tablas (agrega las que ya
+// existen) y solo añade una función SECURITY DEFINER, `app_community_dashboard`,
+// STABLE, que cuenta la comunidad entera saltando la RLS por filas. La RLS está
+// ENABLE y FORCE, pero el dueño de la función es el rol de migración (`postgres`,
+// con BYPASSRLS), y un rol con BYPASSRLS salta la RLS aunque esté forzada; por
+// eso la función agrega filas que el llamante no podría leer por sí mismo y
+// aplica su propio guard de pertenencia. Va al final de los módulos y antes de
+// 03_storage.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
@@ -82,6 +91,7 @@ const FILES = [
   '02k_voting.sql',
   '02l_ai.sql',
   '02m_external.sql',
+  '02n_dashboard.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

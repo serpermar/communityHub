@@ -467,6 +467,7 @@ El estado de cada pieza:
 | Votaciones | `backend/src/voting/` | Hecho: los 9 endpoints (borrador, ciclo de vida, voto y recuento secreto) |
 | IA | `backend/src/ai/` | Hecho: los 9 endpoints (chat SSE con tools, sesiones, clasificación, borradores, confirmación, catálogo y preview) |
 | APIs externas | `backend/src/integrations/` | Hecho: los 3 endpoints (meteorología Open-Meteo, mapa Photon y geocodificado), con caché y degradación a `null` |
+| Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:

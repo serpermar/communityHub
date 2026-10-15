@@ -34,6 +34,7 @@ import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
 import { createVoteRouter, createVotesRouter } from './voting/routes.js'
 import { createAiRouter } from './ai/routes.js'
 import { createExternalRouter } from './integrations/routes.js'
+import { createDashboardRouter } from './dashboard/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -218,6 +219,10 @@ export function createApp(): Express {
   // rutas cuelgan de la comunidad porque las tres necesitan sus coordenadas o
   // su direccion; no hay una cuarta a nivel de plataforma.
   app.use('/api/v1/communities', createExternalRouter())
+
+  // Dashboard (spec 13): una sola ruta, la home de una comunidad. Cuelga de la
+  // comunidad porque todos sus agregados son de esa comunidad.
+  app.use('/api/v1/communities', createDashboardRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

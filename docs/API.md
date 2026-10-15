@@ -1708,6 +1708,82 @@ escribe, y solo si resuelve; deja auditoría `community.geocode` (EXT-14).
 
 ---
 
+## Dashboard
+
+Una sola llamada para pintar la portada: los contadores, las listas cortas y las
+series del mes de una comunidad. Es **solo lectura** y **no escribe nada**
+(DSH-12): ni `audit_logs` ni `notifications`.
+
+La regla que lo gobierna todo es que **contar no es leer** (DSH-2). Los recuentos
+y las series son la **foto agregada de la comunidad entera**, no la vista por rol
+de quien pregunta: la autorización vive en `app_community_dashboard()`, que corre
+`SECURITY DEFINER` y por eso agrega filas que la RLS por rol nunca le entregaría a
+un `NEIGHBOR`. Las **listas cortas**, en cambio, sí respetan lo que puede ver cada
+rol, porque nacen de las mismas consultas que el resto del API.
+
+### `GET /api/v1/communities/:communityId/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+La portada de la comunidad. Cualquier miembro activo (proveedor incluido). El
+bloque `finance` es `null` para todo rol que no sea `ADMIN` (DSH-3): viaja como
+`null` y no como ceros, para no delatar ni la existencia de los importes.
+
+`from` y `to` son opcionales (`YYYY-MM-DD` estricto). Por defecto, la ventana son
+los **últimos 12 meses**; el rango máximo es de **24 meses** (DSH-5). Afectan a las
+series (`incidents.byStatus`, `incidents.byCategory`, `reservations.byMonth`,
+`finance.expensesByMonth`), **no** a los contadores ni a las listas, que son del
+"ahora".
+
+```
+200 → { "data": {
+          "community": { "id":"…", "name":"…", "city":"…",
+                         "neighborCount":12, "memberCount":14 },
+          "incidents": { "open":3, "inProgress":1, "pending":2, "critical":1,
+                         "byStatus":  [ { "status":"OPEN", "count":3 } ],
+                         "byCategory":[ { "category":"PLUMBING", "count":2 } ] },
+          "reservations": { "upcomingCount":2,
+                            "upcoming":[ { "id":"…", "commonAreaId":"…",
+                                           "commonAreaName":"Piscina",
+                                           "startsAt":"2026-10-20T10:00:00.000Z",
+                                           "endsAt":"2026-10-20T11:00:00.000Z",
+                                           "status":"CONFIRMED", "userId":"…",
+                                           "userName":"Ana" } ],
+                            "byMonth":[ { "month":"2026-10", "count":2 } ] },
+          "announcements": { "latest":[ { "id":"…", "title":"…", "type":"INFO",
+                                          "priority":"NORMAL", "isPinned":false,
+                                          "publishAt":"2026-10-14T09:00:00.000Z" } ] },
+          "votes": { "openCount":1,
+                     "open":[ { "id":"…", "title":"…",
+                                "endsAt":"2026-10-25T00:00:00.000Z" } ] },
+          "finance": { "expenseTotal":350.5, "expenseCount":2,
+                       "invoiceOpenAmount":800, "invoicePendingCount":1,
+                       "invoiceOverdueCount":1,
+                       "expensesByMonth":[ { "month":"2026-10", "total":100 } ] },
+          "generatedAt":"2026-10-15T13:57:16.303Z",
+          "period": { "from":"2025-11-01T00:00:00.000Z", "to":"2026-10-15T00:00:00.000Z" } } }
+401 → UNAUTHORIZED
+403 → FORBIDDEN (comunidad ajena o inexistente, C-8)
+400 → VALIDATION_ERROR (fecha mal formada, `from > to`, o rango de más de 24 meses)
+```
+
+Detalles que el frontend da por hechos:
+
+- **Incidencias.** `open` son las `OPEN`; `inProgress`, las `IN_PROGRESS`;
+  `pending`, las `OPEN` **sin asignar**; `critical`, las `CRITICAL` que no están ni
+  `RESOLVED` ni `CANCELLED`. Todas excluyen las borradas (DSH-7).
+- **Reservas.** `upcoming` son las `CONFIRMED` o `PENDING` con `starts_at >= ahora`,
+  las 5 más próximas y **sin `notes`** (es información del solicitante, no del
+  vecindario). `byMonth` cuenta por mes de calendario (DSH-9).
+- **Avisos.** Los 5 vigentes más recientes; los fijados (`isPinned`) primero. Un
+  aviso caducado o borrado no aparece (DSH-10).
+- **Votaciones.** Las `OPEN` no vencidas (`ends_at >= ahora`), hasta 5, y **sin
+  recuento**: el resultado se pide en su propio endpoint (DSH-11).
+- **Vecinos.** `neighborCount` cuenta los miembros `ACTIVE` con rol distinto de
+  `PROVIDER` (un proveedor no es un vecino); `memberCount`, todos los `ACTIVE`
+  (DSH-8).
+- **Importes** como número y **fechas** como ISO 8601 en UTC con `Z`.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |

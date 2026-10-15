@@ -2167,7 +2167,67 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 21. INFORME
+-- 21. DASHBOARD (02n_dashboard.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 13 exige que `db:verify` haga fallar (criterio 12):
+--   1. falta `app_community_dashboard`;
+--   2. no es SECURITY DEFINER o no tiene search_path fijo (sin lo primero, la
+--      funcion correria como app_runtime y la RLS le escondería las incidencias
+--      ajenas: el dashboard de un NEIGHBOR contaria solo las suyas, DSH-2);
+--   3. es ejecutable por PUBLIC;
+--   4. no es STABLE (es una lectura; STABLE es lo que hace que un futuro
+--      INSERT/UPDATE dentro de ella reviente con 0A000 en el motor).
+do $$
+declare
+  v_fallos text := '';
+  r        record;
+begin
+  select p.proname, p.prosecdef, p.proconfig, p.provolatile
+    into r
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'app_community_dashboard'
+   limit 1;
+
+  if r is null then
+    v_fallos := v_fallos || ' falta app_community_dashboard();';
+  else
+    if not r.prosecdef then
+      v_fallos := v_fallos || ' app_community_dashboard no es SECURITY DEFINER;';
+    end if;
+
+    if r.proconfig is null
+       or not exists (
+         select 1 from unnest(r.proconfig) as c where c like 'search\_path=%'
+       )
+    then
+      v_fallos := v_fallos || ' app_community_dashboard necesita search_path fijo;';
+    end if;
+
+    if r.provolatile <> 's' then
+      v_fallos := v_fallos || ' app_community_dashboard deberia ser STABLE (solo lee);';
+    end if;
+  end if;
+
+  if exists (
+    select 1
+      from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name = 'app_community_dashboard'
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' app_community_dashboard es ejecutable por PUBLIC;';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de dashboard no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · Dashboard: app_community_dashboard SECURITY DEFINER, STABLE, con search_path fijo y no ejecutable por PUBLIC';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 22. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -2357,6 +2417,17 @@ where routine_schema = 'public'
     'app_ai_usage_today', 'app_ai_usage_consume',
     'app_confirm_incident_draft', 'app_delete_chat_session'
   )
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de dashboard (debe ser 1)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in ('app_community_dashboard')
+union all
+select 'Grants de dashboard a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in ('app_community_dashboard')
   and grantee = 'PUBLIC'
 union all
 select 'Buckets', count(*)::text from storage.buckets
