@@ -33,6 +33,7 @@ import { createDocumentRouter, createDocumentsRouter } from './documents/routes.
 import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
 import { createVoteRouter, createVotesRouter } from './voting/routes.js'
 import { createAiRouter } from './ai/routes.js'
+import { createExternalRouter } from './integrations/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -212,6 +213,11 @@ export function createApp(): Express {
   // IA (spec 11): un solo router, sin comunidad en la URL (D-1). El communityId
   // viaja en el cuerpo o en la sesion.
   app.use('/api/v1/ai', createAiRouter())
+
+  // APIs externas (spec 12): meteorologia y mapa de cada comunidad. Las tres
+  // rutas cuelgan de la comunidad porque las tres necesitan sus coordenadas o
+  // su direccion; no hay una cuarta a nivel de plataforma.
+  app.use('/api/v1/communities', createExternalRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

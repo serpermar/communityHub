@@ -461,8 +461,9 @@ GET    /api/v1/notifications
 GET    /api/v1/notifications/unread-count
 PATCH  /api/v1/notifications/:id/read
 POST   /api/v1/notifications/read-all
-GET    /api/v1/communities/:communityId/weather
-GET    /api/v1/communities/:communityId/map
+GET    /api/v1/communities/:communityId/weather          (Open-Meteo, cache 15 min)
+GET    /api/v1/communities/:communityId/map              (Photon, cache 60 min)
+POST   /api/v1/communities/:communityId/geocode          (solo ADMIN; escribe lat/lng)
 
 # ── AI ────────────────────────────────────────────────
 POST   /api/v1/ai/chat                              (SSE stream)
@@ -530,6 +531,17 @@ React → GET /communities/:id/weather → WeatherAdapter → Open-Meteo
                                               ├─ normaliza a WeatherDTO
                                               └─ degradación a null si falla
 ```
+
+> **Implementado (bloque 12, `specs/12-external-apis.md`).** Los endpoints
+> `GET /api/v1/communities/:communityId/weather` y `.../map` y el
+> `POST .../geocode` están en `backend/src/integrations/`, detrás de las
+> interfaces `WeatherProvider`/`GeocodingProvider` con router por entorno y fake
+> inyectable en tests (nunca se sale a la red en la suite). La caché vive en la
+> tabla `external_cache` (funciones `SECURITY DEFINER` `app_external_cache_*`), y
+> `weather`/`map` degradan solos: si el proveedor cae, devuelven `200` con datos
+> parciales o nulos y `meta.reason`, **nunca un `5xx`**. El geocodificado solo
+> escribe `latitude`/`longitude` (no la dirección) y audita `community.geocode`.
+
 
 ### APIs de datos Cockcroft (verificadas)
 

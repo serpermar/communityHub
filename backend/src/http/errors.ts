@@ -41,6 +41,9 @@ export type ErrorCode =
   | 'INCIDENT_DRAFT_ALREADY_CONFIRMED'
   | 'INCIDENT_DRAFT_NOT_PENDING'
   | 'CHAT_SESSION_NOT_FOUND'
+  | 'EXTERNAL_NOT_CONFIGURED'
+  | 'EXTERNAL_PROVIDER_ERROR'
+  | 'GEOCODING_FAILED'
 
 export type ErrorBody = {
   error: {
@@ -90,3 +93,18 @@ export const rateLimited = (message = 'Demasiados intentos. Espera unos minutos 
   new AppError(429, 'RATE_LIMITED', message)
 
 export const internal = (message = 'Error interno.') => new AppError(500, 'INTERNAL_ERROR', message)
+
+// --- APIs externas (spec 12 §10) ---------------------------------------------
+//
+// Solo los TRES que afectan a `geocode`, que es la unica accion explicita del
+// bloque y por eso la unica que falla ruidosamente. `weather` y `map` degradan
+// con `data` nulo/parcial y `meta.reason` en vez de fallar (EXT-2), asi que no
+// necesitan codigo propio.
+export const externalNotConfigured = (message = 'Las APIs externas están desactivadas.') =>
+  new AppError(503, 'EXTERNAL_NOT_CONFIGURED', message)
+
+export const externalProviderError = (message = 'El servicio de localización no responde.') =>
+  new AppError(502, 'EXTERNAL_PROVIDER_ERROR', message)
+
+export const geocodingFailed = (message = 'No se ha podido localizar esa dirección.') =>
+  new AppError(422, 'GEOCODING_FAILED', message)

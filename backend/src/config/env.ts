@@ -108,6 +108,29 @@ const schema = z.object({
   // TTL de la cache de clasificaciones (AI-6).
   AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
   AI_CACHE_TTL_HOURS: int(1, 8_760).default(168),
+
+  // ---------------------------------------------------------------------------
+  // APIs externas (spec 12 §9). Igual que las de IA: opcionales, con default, y
+  // la aplicacion arranca y funciona sin configurar nada. Open-Meteo y Photon
+  // son anonimos, asi que aqui NO hay ninguna clave; lo que si hay es un
+  // interruptor (EXT-13), timeout y TTLs.
+  // ---------------------------------------------------------------------------
+  EXTERNAL_APIS_ENABLED: booleanish.default(true),
+  EXTERNAL_HTTP_TIMEOUT_MS: int(1_000, 60_000).default(8_000),
+  // Identificacion ante Photon/OSM (EXT-7): su politica pide un User-Agent que
+  // permita identificar quien hace la peticion.
+  EXTERNAL_USER_AGENT: z.string().min(1).default('CommunityHub (community-hub example)'),
+
+  WEATHER_PROVIDER: z.enum(['open-meteo']).default('open-meteo'),
+  OPEN_METEO_BASE_URL: z.string().min(1).default('https://api.open-meteo.com'),
+  WEATHER_CACHE_TTL_MINUTES: int(1, 1_440).default(15),
+
+  MAP_PROVIDER: z.enum(['photon']).default('photon'),
+  PHOTON_BASE_URL: z.string().min(1).default('https://photon.komoot.io'),
+  MAP_CACHE_TTL_MINUTES: int(1, 10_080).default(60),
+  GEOCODE_CACHE_TTL_HOURS: int(1, 8_760).default(168),
+  MAP_SEARCH_RADIUS_M: int(50, 50_000).default(1_500),
+  MAP_MAX_RESULTS: int(1, 100).default(25),
 })
 
 const parsed = schema.safeParse(process.env)

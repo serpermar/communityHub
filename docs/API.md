@@ -1614,6 +1614,100 @@ comunidad (AI-10).
 
 ---
 
+## APIs externas
+
+Meteorología (Open-Meteo) y mapa (Photon) para la ficha de una comunidad, más el
+geocodificado de su dirección. El **frontend nunca habla con el proveedor**
+(EXT-1): el backend es un proxy con caché y normalización, así que no hay ninguna
+clave en el cliente (ambos proveedores son anónimos). Las tres rutas cuelgan de
+`/api/v1/communities/:communityId`.
+
+**Toda integración degrada sola** (EXT-2): si el proveedor cae, `weather` y `map`
+devuelven `200` con datos parciales o nulos y un `meta.reason`, **nunca un `5xx`**.
+Solo `geocode`, que es una acción explícita de un `ADMIN`, falla ruidosamente. Los
+resultados se cachean en `external_cache` con TTL por tipo, de modo que el widget
+no depende de la disponibilidad del proveedor en cada carga.
+
+### `GET /api/v1/communities/:communityId/weather`
+
+El tiempo en la ubicación de la comunidad. Cualquier miembro activo (proveedor
+incluido): son datos del barrio, no configuración.
+
+```
+200 → { "data": {
+          "location": { "city":"Zaragoza", "latitude":41.6488,
+                        "longitude":-0.8891, "timezone":"Europe/Madrid" },
+          "current": { "temperatureC":21, "apparentTemperatureC":21,
+                       "weatherCode":0, "condition":"CLEAR", "isDay":true },
+          "today": { "minC":14, "maxC":24, "precipitationProbability":0,
+                     "sunrise":"2026-10-14T08:12:00+02:00",
+                     "sunset":"2026-10-14T19:04:00+02:00" },
+          "updatedAt":"2026-10-14T10:00:00.000Z", "source":"open-meteo" },
+        "meta": { "cached":false, "stale":false, "degraded":false } }
+401 → UNAUTHORIZED
+403 → FORBIDDEN (comunidad ajena o inexistente, C-8)
+```
+
+`data` puede ser `null` con un `meta.reason`: `NO_LOCATION` (la comunidad aún no
+tiene coordenadas), `PROVIDER_ERROR` (el proveedor cayó y no había caché) o
+`DISABLED` (integraciones apagadas). `meta.cached=true` si salió de caché fresca y
+`meta.stale=true` si se sirvió una caché caducada porque el proveedor falló
+(stale-while-error, EXT-4).
+
+### `GET /api/v1/communities/:communityId/map`
+
+El mapa de la comunidad. `location` sale **siempre** de la base de datos (es dato
+propio, no del proveedor); solo los POIs dependen de Photon.
+
+```
+200 → { "data": {
+          "location": { "addressLine1":"Calle de Prueba 1", "city":"Zaragoza",
+                        "province":null, "postalCode":null, "country":"ES",
+                        "latitude":41.6488, "longitude":-0.8891,
+                        "timezone":"Europe/Madrid" },
+          "providers": [ { "name":"Ferretería", "category":"Ferretería",
+                           "osmKey":"shop", "osmValue":"hardware",
+                           "latitude":41.649, "longitude":-0.889,
+                           "distanceM":30, "address":null } ],
+          "pois": [ { "name":"Parque", "category":"Parque",
+                      "osmKey":"leisure", "osmValue":"park",
+                      "latitude":41.6495, "longitude":-0.89,
+                      "distanceM":120, "address":null } ],
+          "updatedAt":"2026-10-14T10:00:00.000Z", "source":"photon" },
+        "meta": { "cached":false, "stale":false, "degraded":false } }
+401 → UNAUTHORIZED
+403 → FORBIDDEN (comunidad ajena o inexistente, C-8)
+```
+
+`providers` son los oficios y tiendas de reparación (ferretería, fontanería,
+farmacia, taller…); `pois`, el resto de puntos de interés. Se filtran por
+`MAP_SEARCH_RADIUS_M` (haversine) y se ordenan por cercanía, con un tope de
+`MAP_MAX_RESULTS` (EXT-11). Si el proveedor cae, `location` sigue presente y las
+listas van vacías con `meta.degraded=true` (y `meta.reason`).
+
+### `POST /api/v1/communities/:communityId/geocode`
+
+Rellena `latitude`/`longitude` a partir de la dirección **ya guardada** de la
+comunidad. Solo `ADMIN`. No acepta cuerpo ni reescribe la dirección (EXT-10): la
+máquina aporta la posición, no corrige a la persona. Es el único endpoint que
+escribe, y solo si resuelve; deja auditoría `community.geocode` (EXT-14).
+
+```
+200 → { "data": { "latitude":40.4168, "longitude":-3.7038,
+                  "formattedAddress":"Calle Mayor 1, 28013 Madrid, España",
+                  "source":"photon" } }
+401 → UNAUTHORIZED
+403 → FORBIDDEN (no eres ADMIN, o la comunidad no es tuya)
+422 → GEOCODING_FAILED (la dirección no resuelve, o no hay dirección)
+502 → EXTERNAL_PROVIDER_ERROR (el proveedor cae o agota el timeout)
+503 → EXTERNAL_NOT_CONFIGURED (integraciones apagadas)
+```
+
+> Open-Meteo (CC-BY) y OpenStreetMap/Photon exigen atribución: la pinta el
+> frontend, fuera del alcance de la API.
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |
@@ -1643,10 +1737,13 @@ comunidad (AI-10).
 | 409 | `VOTE_NOT_PUBLISHED` | Se piden resultados de un borrador |
 | 409 | `INCIDENT_DRAFT_ALREADY_CONFIRMED` | Se confirma un borrador ya confirmado |
 | 409 | `INCIDENT_DRAFT_NOT_PENDING` | Se confirma un borrador caducado o descartado |
+| 422 | `GEOCODING_FAILED` | La dirección de la comunidad no resuelve a coordenadas |
 | 429 | `RATE_LIMITED` | Rate limit. `Retry-After` en la cabecera |
 | 429 | `AI_QUOTA_EXCEEDED` | Cuota diaria del asistente agotada |
 | 502 | `AI_PROVIDER_ERROR` | El proveedor de IA falló y no hay respaldo |
+| 502 | `EXTERNAL_PROVIDER_ERROR` | El proveedor externo (Photon) falló en `geocode` |
 | 503 | `AI_NOT_CONFIGURED` | El asistente no tiene proveedor configurado |
+| 503 | `EXTERNAL_NOT_CONFIGURED` | `geocode` con las integraciones externas apagadas |
 | 500 | `INTERNAL_ERROR` | Error no previsto |
 
 Un mismo `code` puede venir de sitios distintos, y por eso el mensaje importa aunque

@@ -208,7 +208,7 @@ begin
     'announcements', 'documents', 'document_acl', 'expenses', 'invoices',
     'votes', 'vote_options', 'vote_responses', 'notifications', 'sessions',
     'audit_logs', 'ai_chat_sessions', 'ai_chat_messages',
-    'incident_drafts', 'ai_usage', 'ai_cache'
+    'incident_drafts', 'ai_usage', 'ai_cache', 'external_cache'
   ] loop
     execute format('alter table %I enable row level security', t);
     execute format('alter table %I force  row level security', t);
@@ -1012,11 +1012,13 @@ grant usage on all sequences in schema public to app_runtime;
 -- demas politicas.
 --
 -- ----------------------------------------------------------------------------
--- 7. La app_runtime NO tiene permisos sobre ai_cache
+-- 7. La app_runtime NO tiene permisos sobre ai_cache ni external_cache
 -- ----------------------------------------------------------------------------
 -- ai_cache se gestiona solo por las dos funciones SECURITY DEFINER de la
--- sección 5.23. El GRANT explícito de abajo es la única vía de acceso.
+-- sección 5.23, y external_cache por las de 02m_external.sql. Los GRANT
+-- explícitos de abajo son la única vía de acceso a ninguna de las dos.
 revoke all on ai_cache from app_runtime;
+revoke all on external_cache from app_runtime;
 
 -- ----------------------------------------------------------------------------
 -- 8. Verificación de políticas
@@ -1035,7 +1037,7 @@ begin
     'announcements', 'documents', 'document_acl', 'expenses', 'invoices',
     'votes', 'vote_options', 'vote_responses', 'notifications', 'sessions',
     'audit_logs', 'ai_chat_sessions', 'ai_chat_messages',
-    'incident_drafts', 'ai_usage', 'ai_cache'
+    'incident_drafts', 'ai_usage', 'ai_cache', 'external_cache'
   ] loop
     select count(*) into n
     from pg_policies

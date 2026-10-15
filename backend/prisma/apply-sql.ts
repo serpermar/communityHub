@@ -62,6 +62,11 @@ const SQL_DIR = resolve(process.cwd(), '..', 'supabase', 'sql')
 // ni toca políticas; solo añade cuatro funciones SECURITY DEFINER para el
 // presupuesto diario, la confirmación de un borrador de IA, el borrado de una
 // sesión y reutiliza app_ai_cache_get/put de 02_rls. Es idempotente.
+//
+// 02m (APIs externas) es igual que 02l: no crea tablas (external_cache ya está
+// en 01_schema §4.23 y su RLS se activa en 02_rls) y solo añade las tres
+// funciones SECURITY DEFINER de la caché externa. Va después de 02l y antes de
+// 03_storage, como el resto de módulos.
 const FILES = [
   '01_schema.sql',
   '02_rls.sql',
@@ -76,6 +81,7 @@ const FILES = [
   '02j_finance.sql',
   '02k_voting.sql',
   '02l_ai.sql',
+  '02m_external.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

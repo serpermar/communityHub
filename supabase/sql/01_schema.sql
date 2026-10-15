@@ -787,6 +787,33 @@ create table if not exists ai_cache (
 create index if not exists ai_cache_expiry_idx on ai_cache (expires_at);
 
 -- ----------------------------------------------------------------------------
+-- 4.23 external_cache
+-- ----------------------------------------------------------------------------
+-- Caché de las APIs externas (spec 12, EXT-3): Open-Meteo y Photon responden
+-- gratis pero con límites por día y por IP, y lo que devuelven cambia poco a
+-- poco. Guardar aquí la respuesta YA normalizada permite dos cosas que con una
+-- caché en memoria no se consiguen: sobrevivir a un reinicio y servir el último
+-- dato bueno cuando el proveedor se cae (stale-while-error, EXT-4).
+--
+-- `payload` es el DTO que entiende el frontend, no el JSON crudo del proveedor:
+-- si el proveedor cambia su contrato, lo servido sigue teniendo el formato que
+-- el cliente espera.
+--
+-- No contiene datos de negocio: ni comunidad ni usuario, solo una clave hash del
+-- recurso (§5.2 de la spec). Por eso RLS está activa sin política: el acceso
+-- real es por las dos funciones SECURITY DEFINER de 02m_external.sql.
+create table if not exists external_cache (
+  cache_key   text primary key,
+  provider    text        not null,
+  payload     jsonb       not null,
+  expires_at  timestamptz not null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create index if not exists external_cache_expiry_idx on external_cache (expires_at);
+
+-- ----------------------------------------------------------------------------
 -- 5. Triggers de updated_at
 -- ----------------------------------------------------------------------------
 -- Todas las tablas con updated_at. Se centraliza aquí en lugar de repetir la
@@ -799,7 +826,8 @@ begin
     'users', 'communities', 'community_members', 'incidents',
     'incident_comments', 'common_areas', 'reservations', 'announcements',
     'documents', 'document_acl', 'expenses', 'invoices',
-    'vote_options', 'vote_responses', 'ai_chat_sessions', 'incident_drafts'
+    'vote_options', 'vote_responses', 'ai_chat_sessions', 'incident_drafts',
+    'external_cache'
   ] loop
     execute format('drop trigger if exists %I on %I', t || '_set_updated_at', t);
     execute format(
@@ -813,7 +841,7 @@ end $$;
 -- ----------------------------------------------------------------------------
 -- 6. Resumen
 -- ----------------------------------------------------------------------------
--- Verificación rápida de que todo se creó. Debe devolver 20.
+-- Verificación rápida de que todo se creó. Debe devolver 21.
 do $$
 declare
   n integer;

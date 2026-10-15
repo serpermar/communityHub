@@ -603,6 +603,19 @@ model Votes {
   @@map("votes")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExternalCache {
+  cache_key  String   @id
+  provider   String
+  payload    Json
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([expires_at], map: "external_cache_expiry_idx")
+  @@map("external_cache")
+}
+
 enum announcement_priority {
   LOW
   MEDIUM

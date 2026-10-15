@@ -24,7 +24,7 @@ declare
     'votes', 'vote_options', 'vote_responses', 'notifications', 'sessions',
     'audit_logs', 'ai_chat_sessions', 'ai_chat_messages',
     'incident_drafts', 'ai_usage', 'ai_cache',
-    'community_invitations'
+    'community_invitations', 'external_cache'
   ];
   missing text;
 begin
@@ -2038,7 +2038,136 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 20. INFORME
+-- 20. APIs EXTERNAS (02m_external.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 12 exige que `db:verify` haga fallar (criterio §14):
+--   1. falta cualquiera de las tres funciones; alguna no es SECURITY DEFINER
+--      o no tiene search_path fijo;
+--   2. alguna de las tres es ejecutable por PUBLIC;
+--   3. `app_runtime` conserva algún privilegio de tabla sobre `external_cache`
+--      (EXT-3: el acceso es SOLO por función, igual que en ai_cache);
+--   4. `app_external_cache_put()` o `app_external_cache_purge()` no son
+--      VOLATILE, o `app_external_cache_get()` no es STABLE (la lección del
+--      bloque 11: una función no volátil que escribe es un 0A000 en la primera
+--      caché que se use);
+--   5. `external_cache` no tiene RLS activada y forzada.
+do $$
+declare
+  v_fallos text := '';
+  v_def    text;
+  r        record;
+begin
+  -- 1. Las tres funciones presentes.
+  for r in
+    select unnest(array[
+      'app_external_cache_get', 'app_external_cache_put', 'app_external_cache_purge'
+    ]) as fn
+  loop
+    if not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname = r.fn
+    ) then
+      v_fallos := v_fallos || ' falta ' || r.fn || '();';
+    end if;
+  end loop;
+
+  -- 1bis. SECURITY DEFINER con search_path fijo y no ejecutables por PUBLIC.
+  for r in
+    select p.proname, pg_get_functiondef(p.oid) as def
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in (
+         'app_external_cache_get', 'app_external_cache_put', 'app_external_cache_purge'
+       )
+  loop
+    v_def := r.def;
+    if v_def not like '%SECURITY DEFINER%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' no es SECURITY DEFINER;';
+    end if;
+    if v_def not like '%search_path%' then
+      v_fallos := v_fallos || ' ' || r.proname || ' sin search_path fijo;';
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+      from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name in (
+         'app_external_cache_get', 'app_external_cache_put', 'app_external_cache_purge'
+       )
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' alguna funcion de la caché externa sigue siendo ejecutable por PUBLIC;';
+  end if;
+
+  -- 2. app_runtime SIN privilegios de tabla sobre external_cache.
+  if exists (
+    select 1
+      from information_schema.role_table_grants
+     where table_schema = 'public'
+       and table_name = 'external_cache'
+       and grantee = 'app_runtime'
+  ) then
+    v_fallos := v_fallos || ' app_runtime tiene privilegios de tabla sobre external_cache;';
+  end if;
+
+  -- 3. Volatilidad.
+  if exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in ('app_external_cache_put', 'app_external_cache_purge')
+       and p.provolatile <> 'v'
+  ) then
+    v_fallos := v_fallos || ' app_external_cache_put/purge deberian ser VOLATILE (hacen INSERT/DELETE);';
+  end if;
+
+  if exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'app_external_cache_get'
+       and p.provolatile <> 's'
+  ) then
+    v_fallos := v_fallos || ' app_external_cache_get deberia ser STABLE (solo lee);';
+  end if;
+
+  -- 4. RLS activada y forzada en external_cache.
+  if exists (
+    select 1
+      from pg_class c
+      join pg_namespace ns on ns.oid = c.relnamespace
+     where ns.nspname = 'public'
+       and c.relname = 'external_cache'
+       and (not c.relrowsecurity or not c.relforcerowsecurity)
+  ) then
+    v_fallos := v_fallos || ' external_cache no tiene RLS activada y forzada;';
+  end if;
+
+  -- 5. La tabla y su índice de purga siguen ahí.
+  if not exists (
+    select 1 from pg_indexes
+     where schemaname = 'public' and indexname = 'external_cache_expiry_idx'
+  ) then
+    v_fallos := v_fallos || ' falta external_cache_expiry_idx (la purga por expires_at se queda sin índice);';
+  end if;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de APIs externas no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · APIs externas: 3 funciones SECURITY DEFINER con search_path fijo y no ejecutables por PUBLIC, get STABLE y put/purge VOLATILE, external_cache con RLS activada y forzada y sin privilegios para app_runtime';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 21. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
