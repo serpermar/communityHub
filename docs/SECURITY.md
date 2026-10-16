@@ -159,6 +159,24 @@ inexistente igualmente calcula un hash argon2 de señuelo. Sin eso, el tiempo de
 respuesta enumera las cuentas del barrio, que es información que el proyecto
 trata de no filtrar.
 
+### El frontend (bloque 15): tokens en memoria y contenido como texto
+
+La SPA (React 18 + Vite, en `frontend/`; [`specs/15-frontend.md`](../specs/15-frontend.md))
+**no autoriza nada**: el backend sigue siendo el único gatekeeper (FE-1). Lo que
+la UI oculta o deshabilita por rol es cosmético, y toda mutación viaja al API y
+acepta su `403`, `404` o `409`.
+
+Dos reglas que no se negocian en el cliente:
+
+- **El access token vive solo en memoria** (`AuthContext`) y **nunca se persiste**
+  —ni `localStorage` ni `sessionStorage`—. El **refresh token** sigue en la cookie
+  `httpOnly`/`secure`/`sameSite=strict` que fija el backend y que el JavaScript
+  del cliente no puede leer.
+- **El contenido del usuario** (avisos, comentarios, nombres) se renderiza **como
+  texto**: se prohíbe `dangerouslySetInnerHTML` (FE-14; §8 de la spec). El
+  frontend **no maneja credenciales** de Storage ni de proveedores externos
+  (FE-2, FE-13).
+
 ---
 
 ## 5. Permisos revoked a `anon` y `authenticated`

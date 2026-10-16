@@ -164,6 +164,11 @@ communityHub/
 └── .github/workflows/           # CI: lint, typecheck, test, build, migrate-check
 ```
 
+> **Implementado (bloque 15, [`specs/15-frontend.md`](specs/15-frontend.md)).** El
+> paquete `frontend/` es la SPA (React 18 + Vite + TypeScript + Tailwind + React
+> Router) que consume la API de `/api/v1`; el backend sigue siendo el único
+> gatekeeper (FE-1).
+
 ---
 
 ## 3. Modelo entidad-relación inicial
@@ -888,6 +893,7 @@ Defensa en profundidad, aplicada desde el primer commit (no como fase final).
 | **14** | MCP server + skills + agents | sin spec todavía |
 | **15** | Agents de desarrollo (testing, security, documentation) | workflow SDD operativo |
 | **16** | Hardening, CI/CD completo, docs, demo | README/ARCHITECTURE/SECURITY/CONTRIBUTING/API/AI-DEVELOPMENT |
+| **17** | Frontend SPA (bloque 15; React 18 + Vite + TS + Tailwind + React Router) | [`specs/15-frontend.md`](specs/15-frontend.md); `npm run typecheck` + componente/integración (Vitest + RTL + MSW) y los 8 flujos E2E en verde |
 
 Cada fase empieza con spec aprobada y termina con tests, security review y documentación. Ninguna fase avanza saltándose la anterior.
 
@@ -903,8 +909,9 @@ Dos consecuencias de que manden los ficheros, y ninguna es un problema:
   las reservas sin zonas no significan nada. Es el mismo caso que la fase 3 con spec 02–03,
   así que un bloque que cubre dos specs ya tiene precedente y no hay que renombrar once
   ficheros ni dejar huecos en la numeración.
-- Las fases 14 y 15 no tienen spec todavía, porque `specs/` llega hasta la 11. No es un
-  olvido: es que aún no se han escrito.
+- Las fases 14 y 15 no tienen spec todavía, porque `specs/` llega hasta la 15 (la
+  última, `15-frontend.md`, es de la SPA, no del servidor MCP ni de los agentes).
+  No es un olvido: es que aún no se han escrito.
 
 ---
 

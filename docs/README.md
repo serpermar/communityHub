@@ -469,6 +469,7 @@ El estado de cada pieza:
 | APIs externas | `backend/src/integrations/` | Hecho: los 3 endpoints (meteorología Open-Meteo, mapa Photon y geocodificado), con caché y degradación a `null` |
 | Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
 | Notificaciones | `backend/src/notifications/` | Hecho: los 4 endpoints (campana personal, paginación, contador, marcado y `read-all`); la generación nace en SQL |
+| Frontend | `frontend/` | Hecho: la SPA (React 18 + Vite + TS + Tailwind + React Router) con login, incidencias, reservas, avisos, documentos, finanzas, votaciones, IA, dashboard y notificaciones |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:
@@ -483,6 +484,14 @@ npx prisma db pull          # deriva schema.prisma de la base de datos
 npx prisma generate         # genera el cliente
 npm run db:seed             # datos de demo en 2 comunidades, con 3 documentos + sus objetos, finanzas y votaciones
 npm run dev                 # servidor en http://localhost:3000
+```
+
+Y la SPA, en otro terminal, contra ese backend:
+
+```bash
+cd frontend
+npm install
+npm run dev                 # SPA en http://localhost:5173; proxya /api → http://localhost:3000
 ```
 
 Y para comprobar que todo va bien:
