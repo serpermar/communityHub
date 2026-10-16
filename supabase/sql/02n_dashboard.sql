@@ -21,13 +21,14 @@
 --
 -- Y por que `SECURITY DEFINER` y `STABLE`:
 --
---   * `security definer`: la funcion corre como su propietario (el rol de
---     migracion, dueño de las tablas). Con RLS activada pero NO forzada
---     (02_rls no usa `force row level security` en ninguna tabla), el
---     propietario no esta sujeto a las politicas, asi que la funcion ve la
---     comunidad entera. El unico filtro que queda es el guard de pertenencia
---     que hay aqui abajo: miembro ACTIVO o 42501. Es el mismo mecanismo de
---     app_list_expenses (02j §4) y de las funciones de 02e-02l.
+--   * `security definer`: la funcion corre como su propietario, el rol de
+--     migracion (`postgres`). Las tablas tienen RLS con ENABLE y FORCE
+--     (02_rls §5 aplica las dos), pero `force` solo somete al DUEÑO a las
+--     politicas; un rol con el atributo BYPASSRLS las salta siempre. `postgres`
+--     lo tiene (comprobado: rolsuper=false, rolbypassrls=true), asi que la
+--     funcion ve la comunidad entera. El unico filtro que queda es el guard de
+--     pertenencia que hay aqui abajo: miembro ACTIVO o 42501. Es el mismo
+--     mecanismo de app_list_expenses (02j §4) y de las funciones de 02e-02l.
 --   * `stable`: solo lee. Postgres rechaza escribir dentro de una funcion
 --     `stable` con 0A000, asi que ademas de ser cierto, es lo que garantiza
 --     que un futuro cambio que intente escribir aqui falle en el motor y no en

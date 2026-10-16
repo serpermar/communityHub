@@ -371,6 +371,7 @@ declare
   v_hash    text;
   v_inv     community_invitations%rowtype;
   v_email   text;
+  v_full    text;
   v_status  member_status;
   v_member  uuid;
   v_rows    integer;
@@ -402,7 +403,7 @@ begin
       using errcode = '22023';
   end if;
 
-  select lower(u.email) into v_email
+  select lower(u.email), u.full_name into v_email, v_full
     from users u
    where u.id = app_current_user_id()
      and u.deleted_at is null;
@@ -464,6 +465,16 @@ begin
          joined_at   = excluded.joined_at,
          updated_at  = now()
   returning m.id into v_member;
+
+  -- Bloque 14 (NTF-2/NTF-4): MEMBER_JOINED a la direccion, sin el que se une.
+  perform app_notify_leadership(
+    v_inv.community_id,
+    'MEMBER_JOINED',
+    'Nuevo miembro',
+    v_full,
+    jsonb_build_object('userId', app_current_user_id()),
+    app_current_user_id()
+  );
 
   return query select v_member, v_inv.community_id;
 end;

@@ -468,6 +468,7 @@ El estado de cada pieza:
 | IA | `backend/src/ai/` | Hecho: los 9 endpoints (chat SSE con tools, sesiones, clasificación, borradores, confirmación, catálogo y preview) |
 | APIs externas | `backend/src/integrations/` | Hecho: los 3 endpoints (meteorología Open-Meteo, mapa Photon y geocodificado), con caché y degradación a `null` |
 | Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
+| Notificaciones | `backend/src/notifications/` | Hecho: los 4 endpoints (campana personal, paginación, contador, marcado y `read-all`); la generación nace en SQL |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:

@@ -2227,7 +2227,100 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 22. INFORME
+-- 22. NOTIFICACIONES (02o_notifications.sql)
+-- ----------------------------------------------------------------------------
+-- Lo que la spec 14 exige que `db:verify` haga fallar:
+--   1. falta alguna de las tres funciones emisoras;
+--   2. no son SECURITY DEFINER o no tienen search_path fijo (sin lo primero
+--      correrian como app_runtime y la politica `notifications_own`, que solo
+--      deja ver/insertar las propias, impediria notificar a OTRO);
+--   3. son ejecutables por PUBLIC;
+--   4. no son VOLATILE (escriben; STABLE/IMMUTABLE seria el 0A000 de los
+--      bloques 11 y 12);
+--   5. REGRESION: alguna de las funciones de escritura que debe emitir una
+--      notificacion dejo de llamar a app_notify_* (p. ej. un refactor que borre
+--      la linea). Se comprueba sobre el cuerpo real (prosrc), no sobre la firma.
+do $$
+declare
+  v_fallos text := '';
+  v_nombre text;
+  r        record;
+begin
+  foreach v_nombre in array array[
+    'app_notify', 'app_notify_leadership', 'app_notify_community'
+  ]
+  loop
+    select p.prosecdef, p.proconfig, p.provolatile
+      into r
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_nombre
+     limit 1;
+
+    if r is null then
+      v_fallos := v_fallos || ' falta ' || v_nombre || '();';
+      continue;
+    end if;
+
+    if not r.prosecdef then
+      v_fallos := v_fallos || ' ' || v_nombre || ' no es SECURITY DEFINER;';
+    end if;
+
+    if r.proconfig is null
+       or not exists (
+         select 1 from unnest(r.proconfig) as c where c like 'search\_path=%'
+       )
+    then
+      v_fallos := v_fallos || ' ' || v_nombre || ' necesita search_path fijo;';
+    end if;
+
+    if r.provolatile <> 'v' then
+      v_fallos := v_fallos || ' ' || v_nombre || ' debe ser VOLATILE (escribe);';
+    end if;
+  end loop;
+
+  if exists (
+    select 1 from information_schema.role_routine_grants
+     where routine_schema = 'public'
+       and routine_name in (
+         'app_notify', 'app_notify_leadership', 'app_notify_community'
+       )
+       and grantee = 'PUBLIC'
+  ) then
+    v_fallos := v_fallos || ' alguna funcion de notificaciones es ejecutable por PUBLIC;';
+  end if;
+
+  -- Regresion: cada emisora debe seguir llamando a app_notify (NTF-1).
+  foreach v_nombre in array array[
+    'app_redeem_invitation',
+    'app_create_incident', 'app_assign_incident', 'app_transition_incident',
+    'app_create_reservation', 'app_cancel_reservation',
+    'app_create_announcement',
+    'app_publish_vote', 'app_close_vote'
+  ]
+  loop
+    select p.prosrc into r
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = v_nombre
+     limit 1;
+
+    if r is null then
+      v_fallos := v_fallos || ' falta ' || v_nombre || '();';
+    elsif r.prosrc not like '%app_notify%' then
+      v_fallos := v_fallos || ' ' || v_nombre || '() ya no llama a app_notify_*();';
+    end if;
+  end loop;
+
+  if v_fallos <> '' then
+    raise exception 'El bloque de notificaciones no es seguro:%', v_fallos;
+  end if;
+
+  raise notice 'OK · Notificaciones: app_notify, app_notify_leadership y app_notify_community SECURITY DEFINER, VOLATILE, con search_path fijo, no PUBLIC; las 9 emisoras siguen notificando.';
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 23. INFORME
 -- ----------------------------------------------------------------------------
 -- Resumen legible del estado del esquema.
 select 'Tablas'          as comprobacion, count(*)::text as valor
@@ -2428,6 +2521,21 @@ select 'Grants de dashboard a PUBLIC (debe ser 0)', count(*)::text
 from information_schema.role_routine_grants
 where routine_schema = 'public'
   and routine_name in ('app_community_dashboard')
+  and grantee = 'PUBLIC'
+union all
+select 'Funciones de notificaciones (debe ser 3)', count(*)::text
+from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+where ns.nspname = 'public'
+  and p.proname in (
+    'app_notify', 'app_notify_leadership', 'app_notify_community'
+  )
+union all
+select 'Grants de notificaciones a PUBLIC (debe ser 0)', count(*)::text
+from information_schema.role_routine_grants
+where routine_schema = 'public'
+  and routine_name in (
+    'app_notify', 'app_notify_leadership', 'app_notify_community'
+  )
   and grantee = 'PUBLIC'
 union all
 select 'Buckets', count(*)::text from storage.buckets

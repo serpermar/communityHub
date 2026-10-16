@@ -457,10 +457,10 @@ GET    /api/v1/votes/:id/results/export
 
 # ── DASHBOARD / NOTIFICATIONS / INTEGRATIONS ─────────
 GET    /api/v1/communities/:communityId/dashboard        (implementado: solo lectura, finance solo ADMIN; specs/13-dashboard.md)
-GET    /api/v1/notifications
-GET    /api/v1/notifications/unread-count
-PATCH  /api/v1/notifications/:id/read
-POST   /api/v1/notifications/read-all
+GET    /api/v1/notifications                         (implementado: campana personal, paginada; specs/14-notifications.md)
+GET    /api/v1/notifications/unread-count            (implementado: contador para el badge)
+PATCH  /api/v1/notifications/:id/read                (implementado: idempotente, 404 si es ajena)
+POST   /api/v1/notifications/read-all                (implementado: marca todas las no leídas)
 GET    /api/v1/communities/:communityId/weather          (Open-Meteo, cache 15 min)
 GET    /api/v1/communities/:communityId/map              (Photon, cache 60 min)
 POST   /api/v1/communities/:communityId/geocode          (solo ADMIN; escribe lat/lng)

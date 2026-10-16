@@ -92,6 +92,7 @@ const FILES = [
   '02l_ai.sql',
   '02m_external.sql',
   '02n_dashboard.sql',
+  '02o_notifications.sql',
   '03_storage.sql',
 ]
 const VERIFY = '04_verify.sql'

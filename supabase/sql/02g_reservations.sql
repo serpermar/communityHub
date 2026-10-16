@@ -114,6 +114,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_community     uuid;
+  v_area_name     text;
   v_active        boolean;
   v_capacity      integer;
   v_slot          integer;
@@ -150,9 +151,9 @@ begin
   end if;
 
   select a.is_active, a.capacity, a.slot_minutes, a.open_time, a.close_time,
-         a.max_daily_reservations, a.requires_approval, c.timezone
+         a.max_daily_reservations, a.requires_approval, c.timezone, a.name
     into v_active, v_capacity, v_slot, v_open, v_close,
-         v_max_daily, v_requires, v_tz
+         v_max_daily, v_requires, v_tz, v_area_name
     from common_areas a
     join communities c on c.id = a.community_id
    where a.id = p_common_area;
@@ -295,6 +296,17 @@ begin
         raise;
     end;
   end if;
+
+  -- Bloque 14 (NTF-2/NTF-4): RESERVATION_CREATED a la direccion, sin el actor.
+  perform app_notify_leadership(
+    v_community,
+    'RESERVATION_CREATED',
+    'Nueva reserva',
+    v_area_name || ' · '
+      || to_char((p_starts_at at time zone v_tz), 'DD/MM/YYYY HH24:MI'),
+    jsonb_build_object('reservationId', v_id, 'commonAreaId', p_common_area),
+    app_current_user_id()
+  );
 
   return v_id;
 end;
@@ -450,6 +462,25 @@ begin
   -- hueco en area_slots y, como el índice único no tiene condición, nadie
   -- podría reservarlo nunca más.
   delete from area_slots where reservation_id = p_reservation;
+
+  -- Bloque 14 (NTF-2/NTF-4): RESERVATION_CANCELLED al reservante y a la direccion,
+  -- sin el actor.
+  if v_owner is distinct from app_current_user_id() then
+    perform app_notify(
+      v_owner, v_community, 'RESERVATION_CANCELLED',
+      'Reserva cancelada', null,
+      jsonb_build_object('reservationId', p_reservation)
+    );
+  end if;
+
+  perform app_notify_leadership(
+    v_community,
+    'RESERVATION_CANCELLED',
+    'Reserva cancelada',
+    null,
+    jsonb_build_object('reservationId', p_reservation),
+    app_current_user_id()
+  );
 end;
 $$;
 

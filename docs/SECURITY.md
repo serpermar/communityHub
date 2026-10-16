@@ -649,7 +649,7 @@ Nada de lo anterior se da por bueno sin una comprobación que falle si se rompe.
 |---|---|
 | `npm run check:db` | Rol `app_runtime` sin `BYPASSRLS`, puerto correcto, RLS deniega sin contexto, el contexto se lee en las políticas |
 | `npm run test:unit` | Hash y verify de argon2id, JWT (incluido `alg: none`), validación de entradas, traducción de errores de PL/pgSQL. Sin base de datos |
-| `npm run test:integration` | Los 76 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9, votaciones 9, IA 9, APIs externas 15, dashboard 1): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad; y de votaciones la papeleta secreta (ningún id de votante en el recuento), el `403` de listar y el `404` de detalle del `PROVIDER`, la invisibilidad del borrador, el ciclo `DRAFT→OPEN→CLOSED`, el UPSERT del voto, la visibilidad de resultados por rol y el CSV del recuento (una fila por opción, nunca por voto); y de IA el `503` sin proveedor y el `429` con la cuota agotada **antes** de abrir el stream, el chat por SSE con su bucle de tools, la persistencia de la sesión y sus mensajes, el `404` de la sesión ajena (leer y borrar), la clasificación que **nunca** crea la incidencia, la caída a la heurística sin proveedor, el `201`+`Location` del borrador y el `409` al confirmarlo dos veces, la creación con `createdVia=AI_SUGGESTION` y `reporterId` humano, el parche parcial del humano, y el `403`/`404` del catálogo y del `preview` filtrados por rol; y de APIs externas la degradación que **nunca** es un `5xx` (proveedor caído sin caché y comunidad sin coordenadas), la caché que evita una segunda llamada al proveedor dentro del TTL, el `403` de aislamiento en los tres endpoints, y `geocode` restringido a `ADMIN` con escritura real de coordenadas y su fila de auditoría `community.geocode`; y del dashboard los recuentos de incidencias de toda la comunidad vistos por un `NEIGHBOR` (contar no es leer), el `finance` nulo para todo rol no-`ADMIN` y presente para `ADMIN`, la ventana `from`/`to` de las series, el aislamiento entre comunidades, y el `400` de las fechas mal formadas |
+| `npm run test:integration` | Los 80 endpoints contra Postgres real (auth 7, comunidades 4, miembros 7, incidencias 8, zonas comunes 4, reservas 6, avisos 4, documentos 5, finanzas 9, votaciones 9, IA 9, APIs externas 15, dashboard 1, notificaciones 4): aislamiento entre comunidades, rotación, reutilización, envelope, rate limit, las ocho rutas de incidencias con sus seis roles, de reservas el solape concurrente, la redacción de `notes` y la confirmación con hueco robado, de avisos la ventana por rol, el `authorId` inalterable y el soft delete, de documentos la visibilidad por rol y por ACL (el borde de `PROVIDER`), la descarga `404`/`403` en dos pasos, el alta con su objeto real en el bucket, el soft delete con el objeto eliminado, y el `409` de ruta ocupada; de finanzas el `403` de todo rol no-`ADMIN` (listar incluido), el `404` del gasto por id, la derivación de `OVERDUE`, el `409` de doble pago y de número repetido, y el `400` `EXPENSE_INVOICE_MISMATCH` de la factura de otra comunidad; y de votaciones la papeleta secreta (ningún id de votante en el recuento), el `403` de listar y el `404` de detalle del `PROVIDER`, la invisibilidad del borrador, el ciclo `DRAFT→OPEN→CLOSED`, el UPSERT del voto, la visibilidad de resultados por rol y el CSV del recuento (una fila por opción, nunca por voto); y de IA el `503` sin proveedor y el `429` con la cuota agotada **antes** de abrir el stream, el chat por SSE con su bucle de tools, la persistencia de la sesión y sus mensajes, el `404` de la sesión ajena (leer y borrar), la clasificación que **nunca** crea la incidencia, la caída a la heurística sin proveedor, el `201`+`Location` del borrador y el `409` al confirmarlo dos veces, la creación con `createdVia=AI_SUGGESTION` y `reporterId` humano, el parche parcial del humano, y el `403`/`404` del catálogo y del `preview` filtrados por rol; y de APIs externas la degradación que **nunca** es un `5xx` (proveedor caído sin caché y comunidad sin coordenadas), la caché que evita una segunda llamada al proveedor dentro del TTL, el `403` de aislamiento en los tres endpoints, y `geocode` restringido a `ADMIN` con escritura real de coordenadas y su fila de auditoría `community.geocode`; y del dashboard los recuentos de incidencias de toda la comunidad vistos por un `NEIGHBOR` (contar no es leer), el `finance` nulo para todo rol no-`ADMIN` y presente para `ADMIN`, la ventana `from`/`to` de las series, el aislamiento entre comunidades, y el `400` de las fechas mal formadas; y de notificaciones la generación de los 8 eventos por API con su audiencia (dirección, difusión y destinatarios concretos, sin auto-notificación del actor), la paginación y el filtro `unread`, el contador del *badge*, el marcado idempotente, el `404` de la notificación ajena (nunca `403`), el `read-all`, el aislamiento entre usuarios y los `400` de validación |
 | `npm run smoke` | El flujo entero por HTTP real, con cabeceras y cookies, contra el servidor levantado |
 | `db:verify` | Que el esquema y los permisos están donde deben, sin depender del código |
 
@@ -762,6 +762,32 @@ ni `audit_logs` ni `notifications` (DSH-12), que se comprueba con un test
 dedicado. Los únicos datos que oculta son los de finanzas para todo rol no
 `ADMIN`, que viajan como `finance: null` y no como ceros, para no filtrar ni la
 existencia de los importes (DSH-3).
+
+Del bloque 14, los criterios de `specs/14-notifications.md` (sección 14) tienen su
+test de integración, y en la base de datos se comprueba lo que por HTTP no se ve:
+que `app_notify`, `app_notify_leadership` y `app_notify_community`
+(`02o_notifications.sql`) siguen siendo `SECURITY DEFINER` con `search_path` fijo,
+**`volatile`** (hacen `INSERT`: declararlas `stable` las rompería con `0A000`) y
+**no** ejecutables por `PUBLIC`; y una **comprobación de regresión** de que las
+nueve emisoras de `02d`/`02e`/`02g`/`02h`/`02k` siguen llamando a `app_notify`
+en su cuerpo. Ese es el punto del diseño: la notificación nace **dentro de la
+misma transacción** que el hecho que la provoca (una incidencia, una reserva, un
+aviso, una votación, un alta), así que no hay una segunda escritura que pueda
+quedar a medias ni un `INSERT` de cliente que se pueda falsificar. La generación
+corre como el propietario `SECURITY DEFINER` precisamente para poder insertar
+filas de **otro** usuario, que es lo que la RLS de `notifications` no dejaría
+hacer al usuario de contexto. El `INFORME` añade las tres funciones de
+notificaciones (deben ser 3) y sus `EXECUTE` a `PUBLIC` (deben ser 0).
+
+Las notificaciones son **estrictamente personales**: la política
+`notifications_own` (`02_rls` §5.17) es `user_id = app_current_user_id()`, así que
+el listado —que **no** se filtra por comunidad, NTF-3— sigue viendo solo las filas
+del usuario, y marcar una notificación ajena afecta cero filas y responde **404,
+nunca `403`** (un `403` confirmaría que ese `id` existe). El actor **nunca** se
+auto-notifica (NTF-7), que es lo que evita que publicar un aviso genere un eco para
+quien lo publica. El módulo no añade superficie de escritura HTTP: las cuatro rutas
+son de lectura y de marcado, no hay un `POST` de creación —crear una notificación
+a mano no es una operación del cliente—.
 
 No hay ninguna clave de proveedor que proteger en este bloque: Open-Meteo y Photon
 son anónimos, así que la superficie nueva es de salida (una `fetch` con

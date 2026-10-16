@@ -35,6 +35,7 @@ import { createVoteRouter, createVotesRouter } from './voting/routes.js'
 import { createAiRouter } from './ai/routes.js'
 import { createExternalRouter } from './integrations/routes.js'
 import { createDashboardRouter } from './dashboard/routes.js'
+import { createNotificationsRouter } from './notifications/routes.js'
 import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
@@ -223,6 +224,11 @@ export function createApp(): Express {
   // Dashboard (spec 13): una sola ruta, la home de una comunidad. Cuelga de la
   // comunidad porque todos sus agregados son de esa comunidad.
   app.use('/api/v1/communities', createDashboardRouter())
+
+  // Notificaciones (spec 14): la campana del usuario. NO cuelga de la comunidad
+  // porque la lista es global por usuario (NTF-3); las cuatro rutas exigen solo
+  // sesion y la RLS `notifications_own` acota cada fila a su dueno.
+  app.use('/api/v1/notifications', createNotificationsRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

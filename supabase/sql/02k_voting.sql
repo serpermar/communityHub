@@ -582,6 +582,7 @@ as $$
 declare
   v_community uuid;
   v_status    vote_status;
+  v_title     text;
 begin
   v_community := app_vote_community(p_vote);
 
@@ -594,7 +595,7 @@ begin
       using errcode = '42501';
   end if;
 
-  select status into v_status from votes where id = p_vote;
+  select status, title into v_status, v_title from votes where id = p_vote;
 
   if v_status <> 'DRAFT' then
     raise exception 'vote_not_draft: solo se publica un borrador' using errcode = 'U0001';
@@ -607,6 +608,13 @@ begin
   if not found then
     raise exception 'vote_not_draft: solo se publica un borrador' using errcode = 'U0001';
   end if;
+
+  -- Bloque 14 (NTF-2/NTF-4): VOTE_OPEN a la comunidad activa (sin proveedores ni
+  -- el actor).
+  perform app_notify_community(
+    v_community, 'VOTE_OPEN', 'Nueva votación', v_title,
+    jsonb_build_object('voteId', p_vote), app_current_user_id()
+  );
 
   return query select v.* from votes v where v.id = p_vote;
 end;
@@ -627,6 +635,7 @@ as $$
 declare
   v_community uuid;
   v_status    vote_status;
+  v_title     text;
 begin
   v_community := app_vote_community(p_vote);
 
@@ -639,7 +648,7 @@ begin
       using errcode = '42501';
   end if;
 
-  select status into v_status from votes where id = p_vote;
+  select status, title into v_status, v_title from votes where id = p_vote;
 
   if v_status = 'CLOSED' then
     raise exception 'vote_already_closed: la votación ya está cerrada' using errcode = 'U0001';
@@ -656,6 +665,13 @@ begin
   if not found then
     raise exception 'vote_already_closed: la votación ya está cerrada' using errcode = 'U0001';
   end if;
+
+  -- Bloque 14 (NTF-2/NTF-4): VOTE_CLOSED a la comunidad activa (sin proveedores ni
+  -- el actor).
+  perform app_notify_community(
+    v_community, 'VOTE_CLOSED', 'Votación cerrada', v_title,
+    jsonb_build_object('voteId', p_vote), app_current_user_id()
+  );
 
   return query select v.* from votes v where v.id = p_vote;
 end;

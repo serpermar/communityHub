@@ -279,6 +279,17 @@ begin
   )
   returning id into v_id;
 
+  -- Bloque 14 (NTF-2/NTF-4): ANNOUNCEMENT_NEW a toda la comunidad activa menos
+  -- proveedores, sin el autor.
+  perform app_notify_community(
+    p_community_id,
+    'ANNOUNCEMENT_NEW',
+    'Nuevo aviso',
+    btrim(p_title),
+    jsonb_build_object('announcementId', v_id),
+    app_current_user_id()
+  );
+
   return v_id;
 end;
 $$;

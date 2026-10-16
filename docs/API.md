@@ -1784,6 +1784,101 @@ Detalles que el frontend da por hechos:
 
 ---
 
+## Notificaciones
+
+La campana del usuario: **estrictamente personales**, y **de solo lectura desde
+el API**. El cliente no crea notificaciones; las genera el propio motor, dentro
+de las escrituras que ya están autorizadas, con `app_notify()` (`02o_notifications.sql`,
+NTF-1). Por eso no hay `POST /notifications`: un endpoint para inventarse avisos
+sería un agujero, no una función.
+
+### Modelo
+
+```json
+{
+  "id": "…",
+  "type": "INCIDENT_UPDATED",
+  "title": "Tu incidencia cambió de estado",
+  "body": "Fuga de agua · EN_PROGRESO",
+  "payload": { "incidentId": "…", "status": "IN_PROGRESS" },
+  "communityId": "…",
+  "readAt": null,
+  "createdAt": "2026-10-15T13:57:16.303Z"
+}
+```
+
+- `type` es una de las 8 clases de `notification_type`. El catálogo de eventos
+  (NTF-2): `INCIDENT_CREATED`, `INCIDENT_UPDATED`, `RESERVATION_CREATED`,
+  `RESERVATION_CANCELLED`, `ANNOUNCEMENT_NEW`, `VOTE_OPEN`, `VOTE_CLOSED`,
+  `MEMBER_JOINED`. Los que necesitarían un *job* o un `INSERT` directo
+  (`INVOICE_DUE`, `AI_DRAFT_READY`, `INCIDENT_COMMENT`) quedan fuera.
+- `payload` lleva los identificadores para que el frontend haga el enlace sin
+  volver a resolver nada; `communityId` viaja en la fila para que una notificación
+  global (la lista **no** se filtra por comunidad, NTF-3) sepa de dónde salió.
+- `readAt` es `null` mientras no se ha leído, y una **fecha ISO** una vez leída.
+
+### Quién recibe qué
+
+La audiencia la decide el evento, no el rol de quien pregunta (NTF-4):
+
+- **Dirección** (`ADMIN` y `PRESIDENT` `ACTIVE`): `INCIDENT_CREATED`,
+  `MEMBER_JOINED`, `RESERVATION_CREATED`, `RESERVATION_CANCELLED`.
+- **Difusión** (todos los `ACTIVE` **salvo** `PROVIDER`): `ANNOUNCEMENT_NEW`,
+  `VOTE_OPEN`, `VOTE_CLOSED`.
+- **Destinatarios concretos**: `INCIDENT_UPDATED` va al reportero y al proveedor
+  asignado; `RESERVATION_CANCELLED` va también al reservante.
+
+El **actor nunca se auto-notifica** (NTF-7): quien crea la incidencia, cancela su
+reserva o publica el aviso no recibe su propio aviso. Tampoco hay deduplicación:
+dos cambios de estado generan dos notificaciones.
+
+### `GET /api/v1/notifications?unread=true&page=&limit=`
+
+La lista del usuario, **global** (de todas sus comunidades), más nuevas primero.
+`unread=true` deja solo las no leídas; `page` empieza en 1 y `limit` va de 1 a 100
+(por defecto `page=1`, `limit=20`, NTF-5). La paginación viaja en `meta`.
+
+```
+200 → { "data": [ { …Notification… } ],
+        "meta": { "page":1, "limit":20, "total":25, "totalPages":2 } }
+401 → UNAUTHORIZED
+400 → VALIDATION_ERROR (`unread` que no es "true"/"false", `page`<1, `limit` fuera de 1..100, o parámetro desconocido)
+```
+
+### `GET /api/v1/notifications/unread-count`
+
+El número para el *badge* de la campana, sin traer la lista.
+
+```
+200 → { "data": { "count": 3 } }
+401 → UNAUTHORIZED
+```
+
+### `PATCH /api/v1/notifications/:id/read`
+
+Marca una como leída. Es **idempotente**: si ya estaba leída **conserva su
+`readAt` original** (`coalesce(read_at, now())`) en vez de reescribirlo. Una
+notificación de otro usuario es invisible por RLS y responde **404, nunca 403**:
+un 403 confirmaría que ese `id` existe.
+
+```
+200 → { "data": { …Notification…, "readAt":"2026-10-15T14:02:00.000Z" } }
+401 → UNAUTHORIZED
+400 → VALIDATION_ERROR (`:id` que no es UUID)
+404 → NOT_FOUND (no existe o no es tuya)
+```
+
+### `POST /api/v1/notifications/read-all`
+
+Marca **todas** las no leídas del usuario y devuelve cuántas cambió (NTF-6).
+
+```
+200 → { "data": { "updated": 3 } }
+401 → UNAUTHORIZED
+```
+
+---
+
 ## Errores
 
 | HTTP | `code` | Cuándo |

@@ -366,8 +366,9 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_id       uuid;
-  v_priority incident_priority;
+  v_id             uuid;
+  v_priority       incident_priority;
+  v_reference_code text;
 begin
   if app_current_user_id() is null then
     raise exception 'sin contexto de usuario' using errcode = '42501';
@@ -398,7 +399,17 @@ begin
     v_priority = 'CRITICAL'
       and app_role_in(p_community_id) = 'NEIGHBOR'
   )
-  returning id into v_id;
+  returning id, reference_code into v_id, v_reference_code;
+
+  -- Bloque 14 (NTF-2/NTF-4): INCIDENT_CREATED a la direccion, sin el actor.
+  perform app_notify_leadership(
+    p_community_id,
+    'INCIDENT_CREATED',
+    'Nueva incidencia',
+    btrim(p_title),
+    jsonb_build_object('incidentId', v_id, 'referenceCode', v_reference_code),
+    app_current_user_id()
+  );
 
   return v_id;
 end;
@@ -533,13 +544,18 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_community uuid;
+  v_community      uuid;
+  v_reporter       uuid;
+  v_reference_code text;
+  v_title          text;
 begin
   if not app_can_see_incident(p_incident) then
     raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
-  select i.community_id into v_community from incidents i where i.id = p_incident;
+  select i.community_id, i.reporter_id, i.reference_code, i.title
+    into v_community, v_reporter, v_reference_code, v_title
+    from incidents i where i.id = p_incident;
 
   if not app_is_admin_of(v_community) then
     raise exception 'incident_requires_admin: solo un ADMIN puede asignar' using errcode = '42501';
@@ -560,6 +576,25 @@ begin
   update incidents
      set assigned_to_id = p_provider_user_id
    where id = p_incident;
+
+  -- Bloque 14 (NTF-2/NTF-4): INCIDENT_UPDATED al reportero y al proveedor recien
+  -- asignado, sin el actor.
+  if v_reporter is distinct from app_current_user_id() then
+    perform app_notify(
+      v_reporter, v_community, 'INCIDENT_UPDATED',
+      'Incidencia actualizada', v_title,
+      jsonb_build_object('incidentId', p_incident, 'referenceCode', v_reference_code)
+    );
+  end if;
+
+  if p_provider_user_id is distinct from app_current_user_id()
+     and p_provider_user_id is distinct from v_reporter then
+    perform app_notify(
+      p_provider_user_id, v_community, 'INCIDENT_UPDATED',
+      'Se te ha asignado una incidencia', v_title,
+      jsonb_build_object('incidentId', p_incident, 'referenceCode', v_reference_code)
+    );
+  end if;
 end;
 $$;
 
@@ -606,12 +641,18 @@ declare
   v_from      incident_status;
   v_is_admin  boolean;
   v_is_assigned_provider boolean;
+  v_reporter       uuid;
+  v_assigned       uuid;
+  v_reference_code text;
+  v_title          text;
 begin
   if not app_can_see_incident(p_incident) then
     raise exception 'incident_not_found: no existe o no es visible' using errcode = 'P0002';
   end if;
 
-  select i.community_id, i.status into v_community, v_from
+  select i.community_id, i.status, i.reporter_id, i.assigned_to_id,
+         i.reference_code, i.title
+    into v_community, v_from, v_reporter, v_assigned, v_reference_code, v_title
     from incidents i where i.id = p_incident;
 
   v_is_admin := app_is_admin_of(v_community);
@@ -677,6 +718,33 @@ begin
     -- UPDATE. El grafo era válido para el estado que ella leyó, no para el actual.
     raise exception 'incident_invalid_transition: el estado actual ya no es el de partida'
       using errcode = '22023';
+  end if;
+
+  -- Bloque 14 (NTF-2/NTF-4): INCIDENT_UPDATED al reportero y al proveedor asignado,
+  -- sin el actor.
+  if v_reporter is distinct from app_current_user_id() then
+    perform app_notify(
+      v_reporter, v_community, 'INCIDENT_UPDATED',
+      'Tu incidencia ha cambiado de estado', v_title,
+      jsonb_build_object(
+        'incidentId', p_incident,
+        'referenceCode', v_reference_code,
+        'status', p_new_status
+      )
+    );
+  end if;
+
+  if v_assigned is distinct from app_current_user_id()
+     and v_assigned is distinct from v_reporter then
+    perform app_notify(
+      v_assigned, v_community, 'INCIDENT_UPDATED',
+      'Incidencia asignada actualizada', v_title,
+      jsonb_build_object(
+        'incidentId', p_incident,
+        'referenceCode', v_reference_code,
+        'status', p_new_status
+      )
+    );
   end if;
 end;
 $$;
