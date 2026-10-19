@@ -2,7 +2,16 @@ import { api, API_BASE_URL } from '@/services/http'
 import { getAccessToken } from '@/services/session'
 import { ApiError } from '@/services/ApiError'
 import type { ListResult } from '@/types/api'
-import type { AiTool, ChatEvent, ChatMessage, ChatSession, ChatStreamBody } from './types'
+import type {
+  AiTool,
+  ChatEvent,
+  ChatMessage,
+  ChatSession,
+  ChatStreamBody,
+  IncidentDraft,
+  IncidentProposal,
+} from './types'
+import type { Incident, IncidentCategory, IncidentPriority } from '@/features/incidents/types'
 
 type SimpleMeta = { page: number; limit: number; total: number }
 
@@ -20,6 +29,32 @@ export function deleteSession(sessionId: string): Promise<void> {
 
 export function listTools(): Promise<AiTool[]> {
   return api.get<AiTool[]>('/ai/tools')
+}
+
+export function classifyIncident(
+  communityId: string,
+  description: string,
+): Promise<IncidentProposal> {
+  return api.post<IncidentProposal>('/ai/incidents/classify', { communityId, description })
+}
+
+export function createIncidentDraft(
+  communityId: string,
+  description: string,
+): Promise<IncidentDraft> {
+  return api.post<IncidentDraft>('/ai/incidents/drafts', { communityId, description })
+}
+
+export interface ConfirmDraftInput {
+  title?: string
+  description?: string
+  category?: IncidentCategory
+  priority?: IncidentPriority
+  location?: string
+}
+
+export function confirmIncidentDraft(draftId: string, input: ConfirmDraftInput): Promise<Incident> {
+  return api.post<Incident>(`/ai/incidents/drafts/${draftId}/confirm`, input)
 }
 
 export interface StreamHandlers {

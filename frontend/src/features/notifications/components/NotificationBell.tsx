@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spinner } from '@/components/ui'
+import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
 import {
   getUnreadCount,
@@ -8,25 +9,10 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../api'
+import { notificationLink } from '../links'
 import type { Notification } from '../types'
 
 const POLL_MS = 60000
-
-function linkFor(notification: Notification): string | null {
-  const payload = notification.payload as Record<string, unknown>
-  const communityId = notification.communityId
-  if (!communityId) return null
-  if (typeof payload.incidentId === 'string') {
-    return `/c/${communityId}/incidents/${payload.incidentId}`
-  }
-  if (typeof payload.voteId === 'string') {
-    return `/c/${communityId}/votes/${payload.voteId}`
-  }
-  if (typeof payload.announcementId === 'string') {
-    return `/c/${communityId}/announcements`
-  }
-  return null
-}
 
 /**
  * Campana con sondeo cada 60 s y revalidacion al recuperar el foco (FE-12).
@@ -91,7 +77,7 @@ export function NotificationBell() {
         // Ignorar: la notificacion sigue ahi.
       }
     }
-    const link = linkFor(notification)
+    const link = notificationLink(notification)
     if (link) {
       setOpen(false)
       navigate(link)
@@ -116,7 +102,7 @@ export function NotificationBell() {
         type="button"
         onClick={() => void toggle()}
         aria-label={`Notificaciones${count > 0 ? `, ${count} sin leer` : ''}`}
-        className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100"
+        className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current">
           <path
@@ -134,16 +120,18 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-            <span className="text-sm font-semibold text-slate-700">Notificaciones</span>
+        <div className="absolute right-0 z-40 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {t('notifications.title')}
+            </span>
             <button
               type="button"
-              className="text-xs text-brand-700 hover:underline disabled:text-slate-400"
+              className="text-xs text-brand-700 hover:underline disabled:text-slate-400 dark:text-brand-400"
               onClick={() => void readAll()}
               disabled={count === 0}
             >
-              Marcar todas
+              {t('notifications.markAll')}
             </button>
           </div>
           <div className="max-h-80 overflow-y-auto">
@@ -152,8 +140,8 @@ export function NotificationBell() {
                 <Spinner />
               </div>
             ) : items.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-slate-500">
-                No tienes notificaciones.
+              <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                {t('notifications.empty')}
               </p>
             ) : (
               <ul>
@@ -162,21 +150,23 @@ export function NotificationBell() {
                     <button
                       type="button"
                       onClick={() => void openOne(notification)}
-                      className="flex w-full flex-col gap-0.5 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50"
+                      className="flex w-full flex-col gap-0.5 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
                     >
                       <span className="flex items-center gap-2">
                         {!notification.readAt && (
                           <span
                             className="h-2 w-2 rounded-full bg-brand-600"
-                            aria-label="No leída"
+                            aria-label={t('notifications.unread')}
                           />
                         )}
-                        <span className="text-sm font-medium text-slate-800">
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
                           {notification.title}
                         </span>
                       </span>
-                      <span className="text-xs text-slate-500">{notification.body}</span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {notification.body}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
                         {formatDateTime(notification.createdAt)}
                       </span>
                     </button>
@@ -184,6 +174,18 @@ export function NotificationBell() {
                 ))}
               </ul>
             )}
+          </div>
+          <div className="border-t border-slate-100 px-3 py-2 text-center dark:border-slate-800">
+            <button
+              type="button"
+              className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-400"
+              onClick={() => {
+                setOpen(false)
+                navigate('/notifications')
+              }}
+            >
+              {t('notifications.viewAll')}
+            </button>
           </div>
         </div>
       )}

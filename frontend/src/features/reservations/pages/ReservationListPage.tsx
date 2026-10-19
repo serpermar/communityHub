@@ -11,19 +11,26 @@ import {
   LoadingState,
   Pagination,
   Select,
+  useToast,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
 import { cancelReservation, confirmReservation, listReservations } from '../api'
+import { ReservationCalendar } from '../components/ReservationCalendar'
 import { RESERVATION_STATUS_LABELS, type Reservation, type ReservationStatus } from '../types'
+
+type View = 'list' | 'calendar'
 
 export function ReservationListPage() {
   const { user } = useAuth()
   const { active, role } = useCommunity()
+  const { notify } = useToast()
+  const [view, setView] = useState<View>('list')
   const [status, setStatus] = useState<ReservationStatus | ''>('')
   const [date, setDate] = useState('')
   const [page, setPage] = useState(1)
@@ -46,6 +53,7 @@ export function ReservationListPage() {
     setBusyId(id)
     try {
       await action(id)
+      notify(t('toast.updated'), 'success')
       result.reload()
     } catch (caught) {
       setActionError(ApiError.from(caught).message)
@@ -111,61 +119,101 @@ export function ReservationListPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-slate-800">Reservas</h1>
-
-      <Card>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Select
-            aria-label="Estado"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value as ReservationStatus | '')
-              setPage(1)
-            }}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+          {t('nav.reservations')}
+        </h1>
+        <div
+          role="group"
+          aria-label="Vista"
+          className="inline-flex overflow-hidden rounded-md border border-slate-300 dark:border-slate-600"
+        >
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            aria-pressed={view === 'list'}
+            className={`px-3 py-1 text-sm ${
+              view === 'list'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
           >
-            <option value="">Todos los estados</option>
-            {(Object.keys(RESERVATION_STATUS_LABELS) as ReservationStatus[]).map((value) => (
-              <option key={value} value={value}>
-                {RESERVATION_STATUS_LABELS[value]}
-              </option>
-            ))}
-          </Select>
-          <Input
-            aria-label="Fecha"
-            type="date"
-            value={date}
-            onChange={(event) => {
-              setDate(event.target.value)
-              setPage(1)
-            }}
-          />
+            Lista
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('calendar')}
+            aria-pressed={view === 'calendar'}
+            className={`px-3 py-1 text-sm ${
+              view === 'calendar'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
+          >
+            Calendario
+          </button>
         </div>
-      </Card>
+      </div>
 
-      {actionError && <Alert variant="error">{actionError}</Alert>}
-
-      {result.loading ? (
-        <LoadingState />
-      ) : result.error ? (
-        <ErrorState error={result.error} onRetry={result.reload} />
-      ) : result.data ? (
+      {view === 'calendar' ? (
+        <ReservationCalendar />
+      ) : (
         <>
           <Card>
-            <DataTable
-              columns={columns}
-              rows={result.data.data}
-              rowKey={(row) => row.id}
-              empty={<EmptyState title="No hay reservas" />}
-            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Select
+                aria-label="Estado"
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as ReservationStatus | '')
+                  setPage(1)
+                }}
+              >
+                <option value="">Todos los estados</option>
+                {(Object.keys(RESERVATION_STATUS_LABELS) as ReservationStatus[]).map((value) => (
+                  <option key={value} value={value}>
+                    {RESERVATION_STATUS_LABELS[value]}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                aria-label="Fecha"
+                type="date"
+                value={date}
+                onChange={(event) => {
+                  setDate(event.target.value)
+                  setPage(1)
+                }}
+              />
+            </div>
           </Card>
-          <Pagination
-            page={result.data.meta.page}
-            totalPages={result.data.meta.totalPages}
-            total={result.data.meta.total}
-            onPage={setPage}
-          />
+
+          {actionError && <Alert variant="error">{actionError}</Alert>}
+
+          {result.loading ? (
+            <LoadingState />
+          ) : result.error ? (
+            <ErrorState error={result.error} onRetry={result.reload} />
+          ) : result.data ? (
+            <>
+              <Card>
+                <DataTable
+                  columns={columns}
+                  rows={result.data.data}
+                  rowKey={(row) => row.id}
+                  empty={<EmptyState title="No hay reservas" />}
+                />
+              </Card>
+              <Pagination
+                page={result.data.meta.page}
+                totalPages={result.data.meta.totalPages}
+                total={result.data.meta.total}
+                onPage={setPage}
+              />
+            </>
+          ) : null}
         </>
-      ) : null}
+      )}
     </div>
   )
 }

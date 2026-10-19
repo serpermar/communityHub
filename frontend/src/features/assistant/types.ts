@@ -5,10 +5,22 @@ export interface ChatSession {
   createdAt: string
 }
 
+export interface ChatCitation {
+  tool: string
+  ids: string[]
+}
+
+export interface ChatToolCall {
+  name: string
+  args: unknown
+}
+
 export interface ChatMessage {
   id: string
   role: string
   content: string
+  toolCalls: ChatToolCall[] | null
+  citations: ChatCitation[] | null
   tokensIn: number | null
   tokensOut: number | null
   createdAt: string
@@ -34,3 +46,22 @@ export type ChatEvent =
   | { type: 'token'; delta: string }
   | { type: 'done'; tokensIn: number; tokensOut: number }
   | { type: 'error'; code: string; message: string }
+
+export interface IncidentProposal {
+  category: string
+  priority: string
+  title: string
+  description: string
+  confidence: number
+  needsHumanReview: boolean
+}
+
+export interface IncidentDraft {
+  id: string
+  proposal: IncidentProposal
+  status: string
+  confidence: number
+  needsHumanReview: boolean
+  createdAt: string
+  expiresAt: string
+}

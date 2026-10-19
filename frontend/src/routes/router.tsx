@@ -26,6 +26,7 @@ import { VoteCreatePage } from '@/features/voting/pages/VoteCreatePage'
 import { VoteDetailPage } from '@/features/voting/pages/VoteDetailPage'
 import { AssistantPage } from '@/features/assistant/pages/AssistantPage'
 import { AccountPage } from '@/features/account/pages/AccountPage'
+import { NotificationsPage } from '@/features/notifications/pages/NotificationsPage'
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <HomeRedirectPage /> },
       { path: '/invitations/redeem', element: <RedeemInvitationPage /> },
       { path: '/account', element: <AccountPage /> },
+      { path: '/notifications', element: <NotificationsPage /> },
       {
         path: '/admin/communities/new',
         element: (

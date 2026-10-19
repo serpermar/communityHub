@@ -214,7 +214,7 @@ export async function listMessages(
            count(*) over () as total_count
       from ai_chat_messages
      where session_id = ${sessionId}::uuid
-     order by created_at asc
+     order by created_at asc, id asc
      limit ${input.limit} offset ${input.offset}
   `
   return { rows, total: Number(rows[0]?.total_count ?? 0) }

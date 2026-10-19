@@ -11,12 +11,12 @@ export function Badge({
   className?: string
 }) {
   const tones: Record<string, string> = {
-    slate: 'bg-slate-100 text-slate-700',
-    green: 'bg-emerald-100 text-emerald-800',
-    amber: 'bg-amber-100 text-amber-800',
-    red: 'bg-red-100 text-red-800',
-    blue: 'bg-sky-100 text-sky-800',
-    violet: 'bg-violet-100 text-violet-800',
+    slate: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+    green: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+    amber: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+    red: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+    blue: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+    violet: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
   }
   return (
     <span
@@ -43,11 +43,16 @@ export function Card({
   className?: string
 }) {
   return (
-    <section className={cn('rounded-lg border border-slate-200 bg-white shadow-sm', className)}>
+    <section
+      className={cn(
+        'rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900',
+        className,
+      )}
+    >
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           {typeof title === 'string' ? (
-            <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
           ) : (
             title
           )}
@@ -89,22 +94,22 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl"
+        className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl dark:bg-slate-900"
       >
-        <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+        <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="rounded px-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded px-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
           >
-            ×
+            ✕
           </button>
         </header>
         <div className="px-4 py-4">{children}</div>
         {footer && (
-          <footer className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3">
+          <footer className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
             {footer}
           </footer>
         )}

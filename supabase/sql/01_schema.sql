@@ -721,7 +721,7 @@ create table if not exists ai_chat_messages (
 );
 
 create index if not exists ai_chat_messages_session_idx
-  on ai_chat_messages (session_id, created_at);
+  on ai_chat_messages (session_id, created_at, id);
 
 -- ----------------------------------------------------------------------------
 -- 4.21 incident_drafts

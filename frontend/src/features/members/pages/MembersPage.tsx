@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Alert,
@@ -12,12 +12,16 @@ import {
   Input,
   LoadingState,
   Modal,
+  Pagination,
   Select,
+  useToast,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { t } from '@/i18n'
 import { formatDate } from '@/utils/format'
 import { MEMBER_ROLES, MEMBER_ROLE_LABELS, type MemberRole } from '@/types/roles'
 import {
@@ -30,19 +34,42 @@ import {
 import { MEMBER_STATUS_LABELS, MEMBER_STATUSES, type Member, type MemberStatus } from '../types'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PAGE_SIZE = 10
 
 export function MembersPage() {
   const { active, role } = useCommunity()
+  const { notify } = useToast()
   const isAdmin = role === 'ADMIN'
   const [actionError, setActionError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [createdCode, setCreatedCode] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebouncedValue(search, 250)
 
   const members = useResource(() => listMembers(active!.id), [active?.id])
   const invitations = useResource(
     () => (isAdmin ? listInvitations(active!.id) : Promise.resolve([])),
     [active?.id, isAdmin],
   )
+
+  // La API de miembros no pagina (devuelve el padron completo), asi que la
+  // busqueda y el troceado en paginas se hacen en el cliente. `app_list_community_members`
+  // no admite filtros, y no se toca SQL por una mejora de UI.
+  const filtered = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase()
+    const all = members.data ?? []
+    if (!term) return all
+    return all.filter((member) =>
+      [member.fullName, member.email, member.unitNumber]
+        .filter((value): value is string => typeof value === 'string')
+        .some((value) => value.toLowerCase().includes(term)),
+    )
+  }, [members.data, debouncedSearch])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const {
     register,
@@ -55,6 +82,7 @@ export function MembersPage() {
     setActionError(null)
     try {
       await updateMember(active!.id, member.id, input)
+      notify(t('toast.updated'), 'success')
       members.reload()
     } catch (caught) {
       setActionError(ApiError.from(caught).message)
@@ -66,6 +94,7 @@ export function MembersPage() {
     try {
       const created = await createInvitation(active!.id, values.email.trim())
       setCreatedCode(created.code)
+      notify(t('toast.created'), 'success')
       reset({ email: '' })
       invitations.reload()
     } catch (caught) {
@@ -127,25 +156,48 @@ export function MembersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Miembros</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+          {t('nav.members')}
+        </h1>
         {isAdmin && <Button onClick={() => setInviteOpen(true)}>Invitar</Button>}
       </div>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
+
+      <Card>
+        <Input
+          aria-label="Buscar miembros"
+          placeholder="Buscar por nombre, correo o vivienda…"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            setPage(1)
+          }}
+          className="sm:max-w-sm"
+        />
+      </Card>
 
       {members.loading ? (
         <LoadingState />
       ) : members.error ? (
         <ErrorState error={members.error} onRetry={members.reload} />
       ) : members.data ? (
-        <Card>
-          <DataTable
-            columns={columns}
-            rows={members.data}
-            rowKey={(row) => row.id}
-            empty={<EmptyState title="No hay miembros" />}
+        <>
+          <Card>
+            <DataTable
+              columns={columns}
+              rows={paged}
+              rowKey={(row) => row.id}
+              empty={<EmptyState title="No hay miembros" />}
+            />
+          </Card>
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={filtered.length}
+            onPage={setPage}
           />
-        </Card>
+        </>
       ) : null}
 
       {isAdmin && (
