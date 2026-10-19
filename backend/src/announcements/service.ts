@@ -18,7 +18,11 @@
 
 import { withContext } from '../context.js'
 import { notFound } from '../http/errors.js'
-import type { CreateAnnouncementInput, ListQueryInput, UpdateAnnouncementInput } from './validators.js'
+import type {
+  CreateAnnouncementInput,
+  ListQueryInput,
+  UpdateAnnouncementInput,
+} from './validators.js'
 import * as repo from './repository.js'
 import { ejecuta } from './errors.js'
 

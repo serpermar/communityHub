@@ -28,7 +28,14 @@
 // ---------------------------------------------------------------------------
 
 import { Prisma } from '@prisma/client'
-import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../http/errors.js'
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from '../http/errors.js'
 
 /** El `errcode` y el mensaje que PostgreSQL trae al cliente de Prisma. */
 type Origen = { errcode: string; message: string }
@@ -142,7 +149,8 @@ const NEGOCIO: ReadonlyArray<{ sentinel: string; errcode: string; error: () => A
     // contrato propio (spec 10 §7.4).
     sentinel: 'vote_option_invalid',
     errcode: '22023',
-    error: () => new AppError(400, 'VOTE_OPTION_INVALID', 'Esa opción no pertenece a esta votación.'),
+    error: () =>
+      new AppError(400, 'VOTE_OPTION_INVALID', 'Esa opción no pertenece a esta votación.'),
   },
   {
     // Dos opciones iguales (comparadas en minusculas) o 'Abstención' escrita a

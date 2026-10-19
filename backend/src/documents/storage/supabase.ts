@@ -51,7 +51,9 @@ export class SupabaseStorageGateway implements StorageGateway {
   }
 
   async signedUrl(bucketPath: string, expiresIn: number): Promise<string> {
-    const { data, error } = await this.storage.from(this.bucket).createSignedUrl(bucketPath, expiresIn)
+    const { data, error } = await this.storage
+      .from(this.bucket)
+      .createSignedUrl(bucketPath, expiresIn)
 
     if (error) throw error
 

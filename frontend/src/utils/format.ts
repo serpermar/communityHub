@@ -6,12 +6,16 @@ function toDate(value: string | Date | null | undefined): Date | null {
 
 export function formatDate(value: string | Date | null | undefined): string {
   const date = toDate(value)
-  return date ? date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+  return date
+    ? date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—'
 }
 
 export function formatDateLong(value: string | Date | null | undefined): string {
   const date = toDate(value)
-  return date ? date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+  return date
+    ? date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—'
 }
 
 export function formatDateTime(value: string | Date | null | undefined): string {

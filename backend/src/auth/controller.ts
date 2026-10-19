@@ -155,7 +155,11 @@ export async function listSessions(req: Request, res: Response, next: NextFuncti
   }
 }
 
-export async function revokeSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function revokeSession(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     await service.revokeSessionById({ userId: req.auth!.userId, sessionId: routeParam(req, 'id') })
     noContent(res)

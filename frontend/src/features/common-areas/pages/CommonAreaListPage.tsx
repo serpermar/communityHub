@@ -27,9 +27,12 @@ import { COMMON_AREA_TYPES, COMMON_AREA_TYPE_LABELS, type CommonArea } from '../
 const createAreaSchema = z.object({
   name: z.string().trim().min(2, 'El nombre es obligatorio.').max(120),
   type: z.enum(COMMON_AREA_TYPES),
-  slotMinutes: z.coerce.number().int().refine((value) => [30, 60, 90, 120].includes(value), {
-    message: 'La rejilla debe ser 30, 60, 90 o 120 minutos.',
-  }),
+  slotMinutes: z.coerce
+    .number()
+    .int()
+    .refine((value) => [30, 60, 90, 120].includes(value), {
+      message: 'La rejilla debe ser 30, 60, 90 o 120 minutos.',
+    }),
   requiresApproval: z.boolean(),
 })
 

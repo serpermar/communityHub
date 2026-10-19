@@ -56,7 +56,10 @@ export async function findUserByEmailForAuth(tx: Tx, email: string): Promise<Aut
 }
 
 /** Buscar sesion por hash de refresh token. Mismo punto ciego: aun no hay contexto. */
-export async function findSessionByTokenHash(tx: Tx, tokenHash: string): Promise<AuthSessionRow | null> {
+export async function findSessionByTokenHash(
+  tx: Tx,
+  tokenHash: string,
+): Promise<AuthSessionRow | null> {
   const rows = await tx.$queryRaw<AuthSessionRow[]>`
     select * from app_auth_find_session_by_hash(${tokenHash})
   `
@@ -73,7 +76,13 @@ export async function revokeSessionFamily(tx: Tx, familyId: string): Promise<num
 
 export async function createUser(
   tx: Tx,
-  input: { id: string; email: string; passwordHash: string; fullName: string; phone?: string | null },
+  input: {
+    id: string
+    email: string
+    passwordHash: string
+    fullName: string
+    phone?: string | null
+  },
 ) {
   return tx.users.create({
     data: {
@@ -145,7 +154,11 @@ export async function insertSession(
  * Va en la misma transaccion que el INSERT del nuevo, porque un fallo entre
  * ambos dejaria al usuario sin refresh vigente.
  */
-export async function revokeSessionAsReplacedBy(tx: Tx, oldSessionId: string, newSessionId: string): Promise<void> {
+export async function revokeSessionAsReplacedBy(
+  tx: Tx,
+  oldSessionId: string,
+  newSessionId: string,
+): Promise<void> {
   await tx.sessions.update({
     where: { id: oldSessionId },
     data: {

@@ -18,10 +18,7 @@ export interface CommonAreaInput {
   isActive: boolean
 }
 
-export function createCommonArea(
-  communityId: string,
-  input: CommonAreaInput,
-): Promise<CommonArea> {
+export function createCommonArea(communityId: string, input: CommonAreaInput): Promise<CommonArea> {
   return api.post<CommonArea>(`/communities/${communityId}/common-areas`, input)
 }
 

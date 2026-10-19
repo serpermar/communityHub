@@ -36,7 +36,11 @@ export type McpSessionPayload = {
   sessionId: string
 }
 
-export function signMcpSessionToken(input: { userId: string; communityId: string; role: CommunityRole }): string {
+export function signMcpSessionToken(input: {
+  userId: string
+  communityId: string
+  role: CommunityRole
+}): string {
   return jwt.sign({ cid: input.communityId, role: input.role, ver: randomUUID() }, env.JWT_SECRET, {
     algorithm: ALGORITHM,
     audience: 'mcp',

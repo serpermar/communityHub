@@ -40,7 +40,15 @@ describe('createCommunitySchema', () => {
   })
 
   it('rechaza el slug con mayusculas, espacios, tildes o guiones mal puestos', () => {
-    const malos = ['Barrio-Alto', 'barrio alto', 'bairro-alto-', '-bairro', 'barrio--alto', 'barrio_alto', 'barriño']
+    const malos = [
+      'Barrio-Alto',
+      'barrio alto',
+      'bairro-alto-',
+      '-bairro',
+      'barrio--alto',
+      'barrio_alto',
+      'barriño',
+    ]
     for (const slug of malos) {
       const r = createCommunitySchema.safeParse({ ...MINIMO, slug })
       expect(r.success, `deberia rechazar el slug ${JSON.stringify(slug)}`).toBe(false)
@@ -67,7 +75,10 @@ describe('createCommunitySchema', () => {
   })
 
   it('no deja crear en nombre de otro: created_by no es un campo del cuerpo', () => {
-    const r = createCommunitySchema.safeParse({ ...MINIMO, createdBy: '11111111-1111-4111-8111-111111111111' })
+    const r = createCommunitySchema.safeParse({
+      ...MINIMO,
+      createdBy: '11111111-1111-4111-8111-111111111111',
+    })
     expect(r.success).toBe(false)
   })
 
@@ -85,15 +96,27 @@ describe('createCommunitySchema', () => {
     })
 
     it('rechaza latitude fuera de rango y longitude fuera de rango', () => {
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 91, longitude: 0 }).success).toBe(false)
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: -91, longitude: 0 }).success).toBe(false)
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: 181 }).success).toBe(false)
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: -181 }).success).toBe(false)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 91, longitude: 0 }).success,
+      ).toBe(false)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: -91, longitude: 0 }).success,
+      ).toBe(false)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: 181 }).success,
+      ).toBe(false)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: -181 }).success,
+      ).toBe(false)
     })
 
     it('acepta los extremos del rango', () => {
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 90, longitude: 180 }).success).toBe(true)
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: -90, longitude: -180 }).success).toBe(true)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 90, longitude: 180 }).success,
+      ).toBe(true)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: -90, longitude: -180 }).success,
+      ).toBe(true)
     })
 
     it('acepta ambas y las deja como numero', () => {
@@ -107,11 +130,16 @@ describe('createCommunitySchema', () => {
       // tumbar. Lo que se comprueba es que el esquema no lo deja pasar: el
       // backend lo acepta, y por eso el comentario del schema avisa de que no
       // es un default. Este test deja esa decision escrita.
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: 0 }).success).toBe(true)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 0, longitude: 0 }).success,
+      ).toBe(true)
     })
 
     it('rechaza un texto que no es un numero', () => {
-      expect(createCommunitySchema.safeParse({ ...MINIMO, latitude: 'norte', longitude: 'oeste' }).success).toBe(false)
+      expect(
+        createCommunitySchema.safeParse({ ...MINIMO, latitude: 'norte', longitude: 'oeste' })
+          .success,
+      ).toBe(false)
     })
   })
 })
@@ -149,7 +177,9 @@ describe('updateCommunitySchema', () => {
   it('exige emparejar las coordenadas si el PATCH toca una', () => {
     expect(updateCommunitySchema.safeParse({ latitude: 39.474 }).success).toBe(false)
     expect(updateCommunitySchema.safeParse({ longitude: -0.379 }).success).toBe(false)
-    expect(updateCommunitySchema.safeParse({ latitude: 39.474, longitude: -0.379 }).success).toBe(true)
+    expect(updateCommunitySchema.safeParse({ latitude: 39.474, longitude: -0.379 }).success).toBe(
+      true,
+    )
   })
 
   it('permite borrar las coordenadas juntas', () => {
@@ -161,8 +191,12 @@ describe('updateCommunitySchema', () => {
   it('no acepta media coordenada aunque venga null', () => {
     // El caso limite: una en null y la otra con valor sigue siendo media
     // coordenada, y es el que dejaria la comunidad en el golfo de Guinea.
-    expect(updateCommunitySchema.safeParse({ latitude: null, longitude: -0.379 }).success).toBe(false)
-    expect(updateCommunitySchema.safeParse({ latitude: 39.474, longitude: null }).success).toBe(false)
+    expect(updateCommunitySchema.safeParse({ latitude: null, longitude: -0.379 }).success).toBe(
+      false,
+    )
+    expect(updateCommunitySchema.safeParse({ latitude: 39.474, longitude: null }).success).toBe(
+      false,
+    )
   })
 
   it('acepta la baja logica con isActive', () => {

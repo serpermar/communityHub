@@ -129,7 +129,11 @@ export type FiltrosVotes = {
  * `communityId` es null en el detalle por id (GET /votes/:id no lleva la
  * comunidad en la URL): el predicado usa la fila, y la funcion hace el 404.
  */
-export async function listVotes(tx: Tx, communityId: string | null, filtros: FiltrosVotes): Promise<VoteRow[]> {
+export async function listVotes(
+  tx: Tx,
+  communityId: string | null,
+  filtros: FiltrosVotes,
+): Promise<VoteRow[]> {
   return tx.$queryRaw<VoteRow[]>`
     select
       id, community_id, title, question, description,
@@ -213,7 +217,11 @@ export async function createVote(
  * `communityId` no es parametro: la comunidad la decide la propia fila
  * (`app_vote_community`), y el debate del rol lo dirime la funcion.
  */
-export async function updateVote(tx: Tx, voteId: string, patch: Record<string, unknown>): Promise<void> {
+export async function updateVote(
+  tx: Tx,
+  voteId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
   await tx.$executeRaw`
     select app_update_vote(
       ${voteId}::uuid,
@@ -242,7 +250,11 @@ export async function closeVote(tx: Tx, voteId: string): Promise<void> {
  * `$queryRaw` porque la funcion devuelve la fila escrita. El `user_id` sale de
  * `app_current_user_id()`: nunca viaja como parametro.
  */
-export async function castVote(tx: Tx, voteId: string, optionId: string): Promise<CastVoteRow | null> {
+export async function castVote(
+  tx: Tx,
+  voteId: string,
+  optionId: string,
+): Promise<CastVoteRow | null> {
   const rows = await tx.$queryRaw<CastVoteRow[]>`
     select vote_id, option_id, weight, created_at, updated_at
       from app_cast_vote(${voteId}::uuid, ${optionId}::uuid)

@@ -73,9 +73,7 @@ export async function streamChat(
     while (separator !== -1) {
       const frame = buffer.slice(0, separator)
       buffer = buffer.slice(separator + 2)
-      const dataLine = frame
-        .split('\n')
-        .find((line) => line.startsWith('data:'))
+      const dataLine = frame.split('\n').find((line) => line.startsWith('data:'))
       if (dataLine) {
         try {
           handlers.onEvent(JSON.parse(dataLine.slice(5).trim()) as ChatEvent)

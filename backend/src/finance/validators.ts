@@ -36,7 +36,15 @@
 import { z } from 'zod'
 
 /** Los siete valores de `expense_category` (01_schema.sql). */
-export const CATEGORIAS = ['MAINTENANCE', 'CLEANING', 'SECURITY', 'UTILITIES', 'ADMIN', 'INSURANCE', 'OTHER'] as const
+export const CATEGORIAS = [
+  'MAINTENANCE',
+  'CLEANING',
+  'SECURITY',
+  'UTILITIES',
+  'ADMIN',
+  'INSURANCE',
+  'OTHER',
+] as const
 
 /** Los cuatro estados de `invoice_status` (01_schema.sql). OVERDUE se filtra por el estado efectivo (FN-14). */
 export const ESTADOS = ['PENDING', 'PAID', 'OVERDUE', 'CANCELLED'] as const
@@ -111,7 +119,11 @@ export const expenseSchema = z
     amount: importe(),
     expenseDate: fecha,
     supplier: proveedor,
-    invoiceId: z.string().regex(UUID_RE, 'invoiceId debe ser un UUID.').nullish().transform((v) => v ?? null),
+    invoiceId: z
+      .string()
+      .regex(UUID_RE, 'invoiceId debe ser un UUID.')
+      .nullish()
+      .transform((v) => v ?? null),
     notes: notas,
   })
   .strict()
@@ -168,8 +180,17 @@ export const expensesQuerySchema = z
     from: fecha.optional(),
     to: fecha.optional(),
     category: z.enum(CATEGORIAS).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
   .superRefine((datos, ctx) => {
@@ -192,8 +213,17 @@ export const expensesQuerySchema = z
 export const invoicesQuerySchema = z
   .object({
     status: z.enum(ESTADOS).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

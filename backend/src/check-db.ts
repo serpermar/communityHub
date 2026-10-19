@@ -127,10 +127,7 @@ async function main() {
     if (r?.bypass === 'false') {
       ok('sin BYPASSRLS: las politicas se aplicaran')
     } else {
-      bad(
-        `el rol tiene BYPASSRLS = ${r?.bypass}`,
-        'RLS no se evaluara. Usa un rol sin bypass.',
-      )
+      bad(`el rol tiene BYPASSRLS = ${r?.bypass}`, 'RLS no se evaluara. Usa un rol sin bypass.')
     }
   } catch (e) {
     bad('no se pudo leer la identidad del rol', (e as Error).message.split('\n')[0])
@@ -171,8 +168,10 @@ async function main() {
   console.log('\n5. Contexto dentro de transaccion\n')
 
   try {
-    const [r] = await withContext({ userId: ZERO, communityId: ZERO }, (tx) =>
-      tx.$queryRaw<Array<{ user_id: string; community_id: string; role: string | null }>>`
+    const [r] = await withContext(
+      { userId: ZERO, communityId: ZERO },
+      (tx) =>
+        tx.$queryRaw<Array<{ user_id: string; community_id: string; role: string | null }>>`
         select
           app_current_user_id()      as user_id,
           app_current_community_id() as community_id,

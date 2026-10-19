@@ -95,7 +95,12 @@ export function createIncidentRouter(): Router {
 
   router.get('/incidents/:id', requireAuth, requireIncident(), controller.getIncident)
   router.put('/incidents/:id', requireAuth, requireIncident(), controller.updateIncident)
-  router.patch('/incidents/:id/status', requireAuth, requireIncident(), controller.transitionIncident)
+  router.patch(
+    '/incidents/:id/status',
+    requireAuth,
+    requireIncident(),
+    controller.transitionIncident,
+  )
   router.delete('/incidents/:id', requireAuth, requireIncident(), controller.deleteIncident)
   router.get('/incidents/:id/comments', requireAuth, requireIncident(), controller.listComments)
   router.post('/incidents/:id/comments', requireAuth, requireIncident(), controller.createComment)

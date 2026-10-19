@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // Servicio de incidencias.
 //
 // Aqui vive la logica de negocio. Los controllers solo reparten peticiones y los
@@ -11,7 +11,7 @@
 // llamada se puede hacer por PostgREST.
 //
 // Y ninguna regla se decide leyendo filas y comparando en TypeScript. El grafo de
-// transiciones, la pertenencia del proveedor asignado y el borrado lógico son cosas
+// transiciones, la pertenencia del proveedor asignado y el borrado lÃ³gico son cosas
 // que tienen que pasar en la misma transaccion que la escritura, o entre una y otra se
 // cuela otra peticion.
 //
@@ -21,7 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import { withContext } from '../context.js'
-import { badRequest, forbidden, notFound } from '../http/errors.js'
+import { forbidden, notFound } from '../http/errors.js'
 import type {
   CreateCommentInput,
   CreateIncidentInput,
@@ -38,7 +38,7 @@ import { ejecuta } from './errors.js'
  * `reporterName` y `assignedToName` vienen de la funcion de lectura (D-2). `email` NO
  * sale, a proposito: para una lista de incidencias no hace falta, y
  * `app_list_community_members()` ya es la excepcion acotada que expone correos de
- * miembros. Añadir el aqui seria abrir una segunda excepcion sin motivo.
+ * miembros. AÃ±adir el aqui seria abrir una segunda excepcion sin motivo.
  *
  * `referenceCode` sale porque es lo que la gente dice en voz alta ("la incidencia
  * INC-2026-000012"). Es un dato de lectura, no una ruta: el id es el que se usa en la
@@ -148,7 +148,7 @@ function toTotal(total: bigint): number {
  *   - NEIGHBOR ve las suyas.
  *   - PROVIDER ve las que tiene asignadas.
  *
-* Por que el hueco no se cierra aqui con un `where` de Prisma: seria una segunda
+ * Por que el hueco no se cierra aqui con un `where` de Prisma: seria una segunda
  * implementacion de I-1. Y por que el total se pide a la misma funcion en vez de a un
  * `count` aparte: dos consultas son dos peticiones que pueden ver distinto, y un `meta`
  * que no cuadra con la lista es un fallo que solo aparece en la pagina 5.
@@ -175,11 +175,15 @@ function toTotal(total: bigint): number {
  *
  * No es una correccion en la base de datos porque `returns table` no puede decir "cero
  * filas y total 3": el total viaja en cada fila, y sin filas no hay donde llevarlo. La
- * otra forma de arreglarlo —un segundo COUNT en SQL— obliga al service a pedir el total
+ * otra forma de arreglarlo â€”un segundo COUNT en SQLâ€” obliga al service a pedir el total
  * por un canal distinto al de los datos, y es el problema que el `count(*) over ()`
  * evitaria.
  */
-export async function listIncidents(userId: string, communityId: string, query: ListQueryInput): Promise<IncidentListView> {
+export async function listIncidents(
+  userId: string,
+  communityId: string,
+  query: ListQueryInput,
+): Promise<IncidentListView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const page = query.page ?? 1
@@ -204,7 +208,11 @@ export async function listIncidents(userId: string, communityId: string, query: 
         // La pagina estaba mas alla del final. Una fila de la primera pagina es
         // suficiente para traer el total, y si tampoco hay fila es que no hay nada que
         // paginar: total 0 es la respuesta correcta.
-        const muestra = await repo.listIncidents(tx, communityId, { ...filtros, limit: 1, offset: 0 })
+        const muestra = await repo.listIncidents(tx, communityId, {
+          ...filtros,
+          limit: 1,
+          offset: 0,
+        })
         const primeraMuestra = muestra[0]
         total = primeraMuestra ? toTotal(primeraMuestra.total_count) : 0
       }
@@ -234,7 +242,11 @@ export async function listIncidents(userId: string, communityId: string, query: 
  * Y no es una carrera teorica: dos peticiones concurrentes, un `DELETE` por un ADMIN y
  * un `GET` de un vecino, se ejecutan en el mismo orden que el motor quiera.
  */
-export async function getIncident(userId: string, communityId: string, incidentId: string): Promise<IncidentView> {
+export async function getIncident(
+  userId: string,
+  communityId: string,
+  incidentId: string,
+): Promise<IncidentView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const row = await repo.findIncident(tx, incidentId)
@@ -283,7 +295,7 @@ export async function createIncident(
       if (!row) {
         // La funcion es SECURITY DEFINER y acaba de insertar la fila; si no se ve,
         // algo se ha roto por debajo. Un 404 seria mentira: si que existe.
-        throw new Error('La incidencia se creó pero no se puede leer.')
+        throw new Error('La incidencia se creÃ³ pero no se puede leer.')
       }
 
       return toIncidentView(row)
@@ -315,7 +327,7 @@ export async function createIncident(
  *
  * Consecuencia de que sea solo una capa: si alguien quitara el `if` de aqui, el
  *endpoint seguiria siendo seguro, con un mensaje peor y un UPDATE de contenido de mas.
- * Al reves —si se confiara en el `if` y se quitara el `if` de la funcion— seria un
+ * Al reves â€”si se confiara en el `if` y se quitara el `if` de la funcionâ€” seria un
  * agujero. Por eso el orden correcto es: el `if` optimiza, la funcion manda.
  *
  * Las tres llamadas (contenido, prioridad, asignacion) van en la MISMA transaccion
@@ -326,7 +338,7 @@ export async function createIncident(
  * El orden importa en un caso concreto: primero el contenido, despues la prioridad, y
  * al reponer la prioridad se limpia `needs_review`. Si fuera al reves, un texto
  * invalido (un titulo de tres letras) dejaria la prioridad cambiada sin contenido
- * actualizado, y el 23514 del CHECK abortaria la transaccion entera igualmente— pero
+ * actualizado, y el 23514 del CHECK abortaria la transaccion entera igualmenteâ€” pero
  * el orden hace que el fallo que ve el usuario sea el del contenido y no el del
  * permiso.
  */
@@ -343,7 +355,7 @@ export async function updateIncident(
       const tocaAsignacion = input.assignedToId !== undefined
 
       if ((tocaPrioridad || tocaAsignacion) && role !== 'ADMIN') {
-        throw forbidden('Tu rol en esta comunidad no permite esta acción.')
+        throw forbidden('Tu rol en esta comunidad no permite esta acciÃ³n.')
       }
 
       await repo.updateContent(tx, incidentId, {
@@ -409,7 +421,7 @@ export async function transitionIncident(
 }
 
 /**
- * Borrado lógico (I-6). Solo ADMIN.
+ * Borrado lÃ³gico (I-6). Solo ADMIN.
  *
  * Devuelve `void` y la ruta responde 204, no la incidencia con `deleted_at` puesto:
  * una vez borrada, para el cliente no existe (su GET da 404), y devolverla seria
@@ -420,7 +432,11 @@ export async function transitionIncident(
  * es un 404. Un 204 repetido diria que el recurso se puede borrar sin limite, y lo que
  * se puede borrar es una vez.
  */
-export async function deleteIncident(userId: string, communityId: string, incidentId: string): Promise<void> {
+export async function deleteIncident(
+  userId: string,
+  communityId: string,
+  incidentId: string,
+): Promise<void> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       await repo.softDelete(tx, incidentId)
@@ -445,7 +461,11 @@ export async function deleteIncident(userId: string, communityId: string, incide
  * asi que el 0 filas solo es alcanzable por una carrera con un borrado concurrente. Y un
  * array vacio es la respuesta correcta para un GET de una lista.
  */
-export async function listComments(userId: string, communityId: string, incidentId: string): Promise<CommentView[]> {
+export async function listComments(
+  userId: string,
+  communityId: string,
+  incidentId: string,
+): Promise<CommentView[]> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const rows = await repo.listComments(tx, incidentId)
@@ -488,7 +508,7 @@ export async function createComment(
       if (!row) {
         // Acaba de insertarse y la propia politica deja leerlo. Si no aparece, algo se
         // ha roto por debajo; un 404 seria mentira porque si que existe.
-        throw new Error('El comentario se creó pero no se puede leer.')
+        throw new Error('El comentario se creÃ³ pero no se puede leer.')
       }
 
       return toCommentView(row)

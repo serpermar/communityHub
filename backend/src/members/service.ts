@@ -137,7 +137,11 @@ export async function listMembers(userId: string, communityId: string): Promise<
  * busca por `(community_id, member_id)`, asi que para esta comunidad la fila no
  * existe. Un 403 confirmaria que ese `memberId` es real en algun sitio (C-8).
  */
-export async function getMember(userId: string, communityId: string, memberId: string): Promise<MemberView> {
+export async function getMember(
+  userId: string,
+  communityId: string,
+  memberId: string,
+): Promise<MemberView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const row = await repo.findMember(tx, communityId, memberId)
@@ -231,20 +235,21 @@ export async function createInvitation(
   communityId: string,
   input: InviteInput,
 ): Promise<InvitationCreatedView> {
-  return ejecuta(() =>
-    withContext({ userId, communityId }, async (tx) => {
-      const row = await repo.createInvitation(tx, communityId, input.email)
+  return ejecuta(
+    () =>
+      withContext({ userId, communityId }, async (tx) => {
+        const row = await repo.createInvitation(tx, communityId, input.email)
 
-      const invitation = await repo.findInvitation(tx, row.id)
+        const invitation = await repo.findInvitation(tx, row.id)
 
-      if (!invitation) {
-        // La funcion es SECURITY DEFINER y acaba de insertar la fila; si no se ve,
-        // algo se ha roto por debajo. Un 404 seria mentira: si que existe.
-        throw new Error('La invitación se creó pero no se puede leer.')
-      }
+        if (!invitation) {
+          // La funcion es SECURITY DEFINER y acaba de insertar la fila; si no se ve,
+          // algo se ha roto por debajo. Un 404 seria mentira: si que existe.
+          throw new Error('La invitación se creó pero no se puede leer.')
+        }
 
-      return { ...toInvitationView(invitation), code: row.code }
-    }),
+        return { ...toInvitationView(invitation), code: row.code }
+      }),
     'invitacion_viva',
   )
 }
@@ -255,7 +260,10 @@ export async function createInvitation(
  * De mas reciente a mas vieja, e incluyendo las usadas (M-11): el ADMIN necesita
  * ver a quien ha invitado y cuando entro.
  */
-export async function listInvitations(userId: string, communityId: string): Promise<InvitationView[]> {
+export async function listInvitations(
+  userId: string,
+  communityId: string,
+): Promise<InvitationView[]> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const rows = await repo.listInvitations(tx, communityId)
@@ -278,7 +286,11 @@ export async function listInvitations(userId: string, communityId: string): Prom
  * Se devuelve 204 y no 200 con `null`: anular no deja recurso que leer, y el
  * envelope prohibe `data: null` para que nadie lo trate como un error.
  */
-export async function deleteInvitation(userId: string, communityId: string, invitationId: string): Promise<void> {
+export async function deleteInvitation(
+  userId: string,
+  communityId: string,
+  invitationId: string,
+): Promise<void> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const resultado = await repo.deleteInvitation(tx, communityId, invitationId)
@@ -321,12 +333,13 @@ export async function redeemInvitation(
   userId: string,
   input: RedeemInput,
 ): Promise<{ memberId: string; communityId: string }> {
-  return ejecuta(() =>
-    withContext({ userId, communityId: null }, async (tx) => {
-      const row = await repo.redeemInvitation(tx, input.code)
+  return ejecuta(
+    () =>
+      withContext({ userId, communityId: null }, async (tx) => {
+        const row = await repo.redeemInvitation(tx, input.code)
 
-      return { memberId: row.member_id, communityId: row.community_id }
-    }),
+        return { memberId: row.member_id, communityId: row.community_id }
+      }),
     'ya_es_miembro_activo',
   )
 }

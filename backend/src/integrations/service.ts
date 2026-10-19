@@ -24,12 +24,13 @@
 
 import { withContext } from '../context.js'
 import { env } from '../config/env.js'
-import { externalNotConfigured, externalProviderError, geocodingFailed, notFound } from '../http/errors.js'
 import {
-  asGeocodeResult,
-  asMapPayload,
-  asWeatherReading,
-} from './validators.js'
+  externalNotConfigured,
+  externalProviderError,
+  geocodingFailed,
+  notFound,
+} from '../http/errors.js'
+import { asGeocodeResult, asMapPayload, asWeatherReading } from './validators.js'
 import {
   cacheGet,
   cachePut,
@@ -110,7 +111,11 @@ function composeAddress(row: repo.CommunityRow): string | null {
   return parts.join(', ')
 }
 
-function weatherView(reading: WeatherReading, row: repo.CommunityRow, coords: { latitude: number; longitude: number }): WeatherView {
+function weatherView(
+  reading: WeatherReading,
+  row: repo.CommunityRow,
+  coords: { latitude: number; longitude: number },
+): WeatherView {
   return {
     location: {
       city: row.city,
@@ -136,7 +141,12 @@ function mapLocation(row: repo.CommunityRow): MapLocation {
 }
 
 /** Parte los lugares en proveedores y POIs, recalculando el `kind` (EXT-12). */
-function mapView(location: MapLocation, places: PlaceView[], updatedAt: string | null, source: string): MapView {
+function mapView(
+  location: MapLocation,
+  places: PlaceView[],
+  updatedAt: string | null,
+  source: string,
+): MapView {
   const providers: PlaceView[] = []
   const pois: PlaceView[] = []
 
@@ -155,7 +165,9 @@ function emptyMap(location: MapLocation, source: string): MapView {
 // --- Puertas a la base de datos ----------------------------------------------
 
 async function loadCommunity(userId: string, communityId: string): Promise<repo.CommunityRow> {
-  const row = await withContext({ userId, communityId }, (tx) => repo.findCommunity(tx, communityId))
+  const row = await withContext({ userId, communityId }, (tx) =>
+    repo.findCommunity(tx, communityId),
+  )
 
   if (!row) throw notFound('La comunidad no existe.')
 
@@ -195,7 +207,10 @@ export async function getWeather(userId: string, communityId: string): Promise<W
   if (cached?.isFresh) {
     const reading = asWeatherReading(cached.payload)
     if (reading) {
-      return { data: weatherView(reading, community, coords), meta: meta({ cached: true, source: reading.source }) }
+      return {
+        data: weatherView(reading, community, coords),
+        meta: meta({ cached: true, source: reading.source }),
+      }
     }
   }
 
@@ -214,7 +229,10 @@ export async function getWeather(userId: string, communityId: string): Promise<W
     // Stale-while-error (EXT-4): hay una entrada caducada, se sirve marcada.
     const stale = cached ? asWeatherReading(cached.payload) : null
     if (stale) {
-      return { data: weatherView(stale, community, coords), meta: meta({ stale: true, source: stale.source }) }
+      return {
+        data: weatherView(stale, community, coords),
+        meta: meta({ stale: true, source: stale.source }),
+      }
     }
 
     return { data: null, meta: meta({ degraded: true, reason: 'PROVIDER_ERROR' }) }
@@ -229,7 +247,10 @@ export async function getMap(userId: string, communityId: string): Promise<MapRe
   const location = mapLocation(community)
 
   if (!provider) {
-    return { data: emptyMap(location, 'photon'), meta: meta({ degraded: true, reason: 'DISABLED' }) }
+    return {
+      data: emptyMap(location, 'photon'),
+      meta: meta({ degraded: true, reason: 'DISABLED' }),
+    }
   }
 
   const coords = coordinatesOf(community)
@@ -254,7 +275,11 @@ export async function getMap(userId: string, communityId: string): Promise<MapRe
 
   try {
     const places = await provider.searchNearby({ ...coords, radiusM, limit })
-    const payload: MapPayload = { places, updatedAt: new Date().toISOString(), source: provider.name }
+    const payload: MapPayload = {
+      places,
+      updatedAt: new Date().toISOString(),
+      source: provider.name,
+    }
 
     await writeCache(userId, communityId, {
       key,
@@ -263,7 +288,10 @@ export async function getMap(userId: string, communityId: string): Promise<MapRe
       ttlSeconds: mapTtlSeconds(),
     })
 
-    return { data: mapView(location, places, payload.updatedAt, payload.source), meta: meta({ source: provider.name }) }
+    return {
+      data: mapView(location, places, payload.updatedAt, payload.source),
+      meta: meta({ source: provider.name }),
+    }
   } catch (error) {
     if (!(error instanceof ExternalProviderError)) throw error
 
@@ -275,7 +303,10 @@ export async function getMap(userId: string, communityId: string): Promise<MapRe
       }
     }
 
-    return { data: emptyMap(location, provider.name), meta: meta({ degraded: true, reason: 'PROVIDER_ERROR' }) }
+    return {
+      data: emptyMap(location, provider.name),
+      meta: meta({ degraded: true, reason: 'PROVIDER_ERROR' }),
+    }
   }
 }
 
@@ -289,14 +320,19 @@ export async function getMap(userId: string, communityId: string): Promise<MapRe
  * toca la base de datos. No se reescribe la direccion del usuario (EXT-10): la
  * maquina aporta la posicion, no corrige a la persona.
  */
-export async function geocode(userId: string, communityId: string, role: string | null): Promise<GeocodeResult> {
+export async function geocode(
+  userId: string,
+  communityId: string,
+  role: string | null,
+): Promise<GeocodeResult> {
   const provider = getGeocodingProvider()
   const community = await loadCommunity(userId, communityId)
 
   if (!provider) throw externalNotConfigured()
 
   const address = composeAddress(community)
-  if (!address) throw geocodingFailed('La comunidad no tiene una dirección que se pueda geocodificar.')
+  if (!address)
+    throw geocodingFailed('La comunidad no tiene una dirección que se pueda geocodificar.')
 
   const key = geocodeCacheKey(address)
   const cached = await readCache(userId, communityId, key)
@@ -328,7 +364,12 @@ export async function geocode(userId: string, communityId: string, role: string 
   const resolved = result
 
   await withContext({ userId, communityId }, async (tx) => {
-    const affected = await repo.updateCoordinates(tx, communityId, resolved.latitude, resolved.longitude)
+    const affected = await repo.updateCoordinates(
+      tx,
+      communityId,
+      resolved.latitude,
+      resolved.longitude,
+    )
 
     if (affected === 0) throw notFound('La comunidad no existe.')
 

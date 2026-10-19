@@ -43,11 +43,35 @@ import * as controller from './controller.js'
 export function createFinanceRouter(): Router {
   const router = Router()
 
-  router.get('/:communityId/expenses', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.listExpenses)
-  router.post('/:communityId/expenses', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.createExpense)
+  router.get(
+    '/:communityId/expenses',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.listExpenses,
+  )
+  router.post(
+    '/:communityId/expenses',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.createExpense,
+  )
 
-  router.get('/:communityId/invoices', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.listInvoices)
-  router.post('/:communityId/invoices', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.createInvoice)
+  router.get(
+    '/:communityId/invoices',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.listInvoices,
+  )
+  router.post(
+    '/:communityId/invoices',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.createInvoice,
+  )
   router.post(
     '/:communityId/invoices/:invoiceId/pay',
     requireAuth,
@@ -56,7 +80,13 @@ export function createFinanceRouter(): Router {
     controller.payInvoice,
   )
 
-  router.get('/:communityId/finance/summary', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.financeSummary)
+  router.get(
+    '/:communityId/finance/summary',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.financeSummary,
+  )
 
   return router
 }

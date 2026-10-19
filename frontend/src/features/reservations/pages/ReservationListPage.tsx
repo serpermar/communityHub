@@ -56,16 +56,18 @@ export function ReservationListPage() {
 
   const columns: Column<Reservation>[] = [
     { key: 'area', header: 'Zona', render: (row) => row.commonAreaName },
-    { key: 'when', header: 'Franja', render: (row) => `${formatDateTime(row.startsAt)} – ${formatDateTime(row.endsAt)}` },
+    {
+      key: 'when',
+      header: 'Franja',
+      render: (row) => `${formatDateTime(row.startsAt)} – ${formatDateTime(row.endsAt)}`,
+    },
     { key: 'user', header: 'Reserva', render: (row) => row.userName ?? '—' },
     {
       key: 'status',
       header: 'Estado',
       render: (row) => (
         <Badge
-          tone={
-            row.status === 'CONFIRMED' ? 'green' : row.status === 'PENDING' ? 'amber' : 'slate'
-          }
+          tone={row.status === 'CONFIRMED' ? 'green' : row.status === 'PENDING' ? 'amber' : 'slate'}
         >
           {RESERVATION_STATUS_LABELS[row.status]}
         </Badge>

@@ -59,71 +59,135 @@ describe('createVoteSchema', () => {
   })
 
   it('acepta una votacion QUORUM con su quorum', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 60 }).success).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 60 }).success,
+    ).toBe(true)
   })
 
   it('exige quorumPercent cuando type es QUORUM', () => {
     expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM' }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: null }).success).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: null })
+        .success,
+    ).toBe(false)
   })
 
   it('prohibe quorumPercent cuando NO es QUORUM', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, quorumPercent: 60 }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'SINGLE', quorumPercent: 10 }).success).toBe(false)
+    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, quorumPercent: 60 }).success).toBe(
+      false,
+    )
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'SINGLE', quorumPercent: 10 }).success,
+    ).toBe(false)
   })
 
   it('acota quorumPercent a 1-100', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 1 }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 100 }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 0 }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 101 }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 60.5 }).success).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 1 }).success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 100 })
+        .success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 0 }).success,
+    ).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 101 })
+        .success,
+    ).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, type: 'QUORUM', quorumPercent: 60.5 })
+        .success,
+    ).toBe(false)
   })
 
   it('acepta los dos tipos y rechaza uno inventado', () => {
     for (const type of TIPOS_VALIDOS) {
       // QUORUM necesita su porcentaje (V-9); SINGLE no lo admite.
-      const base = type === 'QUORUM' ? { ...VOTACION_VALIDA, type, quorumPercent: 60 } : { ...VOTACION_VALIDA, type }
+      const base =
+        type === 'QUORUM'
+          ? { ...VOTACION_VALIDA, type, quorumPercent: 60 }
+          : { ...VOTACION_VALIDA, type }
       expect(createVoteSchema.safeParse(base).success, `con ${type}`).toBe(true)
     }
     for (const type of ['MULTIPLE', 'single', '']) {
-      expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, type }).success, `con ${JSON.stringify(type)}`).toBe(false)
+      expect(
+        createVoteSchema.safeParse({ ...VOTACION_VALIDA, type }).success,
+        `con ${JSON.stringify(type)}`,
+      ).toBe(false)
     }
   })
 
   it('acepta las tres visibilidades y rechaza una inventada', () => {
     for (const resultVisibility of VISIBILIDADES_VALIDAS) {
-      expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, resultVisibility }).success, `con ${resultVisibility}`).toBe(true)
+      expect(
+        createVoteSchema.safeParse({ ...VOTACION_VALIDA, resultVisibility }).success,
+        `con ${resultVisibility}`,
+      ).toBe(true)
     }
     for (const resultVisibility of ['ALWAYS', 'after_close', '']) {
-      expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, resultVisibility }).success, `con ${JSON.stringify(resultVisibility)}`).toBe(false)
+      expect(
+        createVoteSchema.safeParse({ ...VOTACION_VALIDA, resultVisibility }).success,
+        `con ${JSON.stringify(resultVisibility)}`,
+      ).toBe(false)
     }
   })
 
   it('exige title 1-120 y question 1-200', () => {
     expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: '' }).success).toBe(false)
     expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: '   ' }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: 'a'.repeat(120) }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: 'a'.repeat(121) }).success).toBe(false)
+    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: 'a'.repeat(120) }).success).toBe(
+      true,
+    )
+    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, title: 'a'.repeat(121) }).success).toBe(
+      false,
+    )
 
     expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, question: '' }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, question: 'a'.repeat(200) }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, question: 'a'.repeat(201) }).success).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, question: 'a'.repeat(200) }).success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, question: 'a'.repeat(201) }).success,
+    ).toBe(false)
   })
 
   it('acota description a 1000 y admite vaciarla', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, description: 'a'.repeat(1000) }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, description: 'a'.repeat(1001) }).success).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, description: 'a'.repeat(1000) }).success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, description: 'a'.repeat(1001) }).success,
+    ).toBe(false)
     expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, description: null }).success).toBe(true)
   })
 
   it('exige options de 2-20 cadenas no vacias de 1-120', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['Solo una'] }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['', 'No'] }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: Array.from({ length: 20 }, (_, i) => `O${i}`) }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: Array.from({ length: 21 }, (_, i) => `O${i}`) }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['a'.repeat(120), 'No'] }).success).toBe(true)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['a'.repeat(121), 'No'] }).success).toBe(false)
+    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['Solo una'] }).success).toBe(
+      false,
+    )
+    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['', 'No'] }).success).toBe(
+      false,
+    )
+    expect(
+      createVoteSchema.safeParse({
+        ...VOTACION_VALIDA,
+        options: Array.from({ length: 20 }, (_, i) => `O${i}`),
+      }).success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({
+        ...VOTACION_VALIDA,
+        options: Array.from({ length: 21 }, (_, i) => `O${i}`),
+      }).success,
+    ).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['a'.repeat(120), 'No'] }).success,
+    ).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, options: ['a'.repeat(121), 'No'] }).success,
+    ).toBe(false)
   })
 
   it('rechaza options como texto suelto', () => {
@@ -131,22 +195,41 @@ describe('createVoteSchema', () => {
   })
 
   it('exige endsAt posterior a startsAt', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: FIN, endsAt: INICIO }).success).toBe(false)
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: INICIO, endsAt: INICIO }).success).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: FIN, endsAt: INICIO }).success,
+    ).toBe(false)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: INICIO, endsAt: INICIO }).success,
+    ).toBe(false)
   })
 
   it('acepta un instante con offset explicito', () => {
-    expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: '2026-11-01T10:00:00+02:00' }).success).toBe(true)
+    expect(
+      createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: '2026-11-01T10:00:00+02:00' })
+        .success,
+    ).toBe(true)
   })
 
   it('rechaza un instante sin zona o mal formado', () => {
     for (const malo of ['2026-11-01', '2026-11-01T10:00:00', 'ayer', '']) {
-      expect(createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: malo }).success, `con ${malo}`).toBe(false)
+      expect(
+        createVoteSchema.safeParse({ ...VOTACION_VALIDA, startsAt: malo }).success,
+        `con ${malo}`,
+      ).toBe(false)
     }
   })
 
   it('rechaza claves desconocidas (status, communityId, createdBy...)', () => {
-    for (const clave of ['id', 'communityId', 'createdBy', 'status', 'effectiveStatus', 'closedAt', 'deletedAt', 'myOptionId']) {
+    for (const clave of [
+      'id',
+      'communityId',
+      'createdBy',
+      'status',
+      'effectiveStatus',
+      'closedAt',
+      'deletedAt',
+      'myOptionId',
+    ]) {
       expect(
         createVoteSchema.safeParse({ ...VOTACION_VALIDA, [clave]: 'lo-que-sea' }).success,
         `con la clave ${clave}`,
@@ -228,7 +311,9 @@ describe('votesQuerySchema', () => {
       expect(votesQuerySchema.safeParse({ status }).success, `con ${status}`).toBe(true)
     }
     for (const status of ['PAGADA', 'open', '']) {
-      expect(votesQuerySchema.safeParse({ status }).success, `con ${JSON.stringify(status)}`).toBe(false)
+      expect(votesQuerySchema.safeParse({ status }).success, `con ${JSON.stringify(status)}`).toBe(
+        false,
+      )
     }
   })
 

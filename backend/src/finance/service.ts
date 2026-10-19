@@ -24,7 +24,12 @@ import { withContext } from '../context.js'
 import { notFound } from '../http/errors.js'
 import * as repo from './repository.js'
 import { ejecuta } from './errors.js'
-import type { CreateInvoiceInput, ExpenseInput, ExpensesQueryInput, InvoicesQueryInput } from './validators.js'
+import type {
+  CreateInvoiceInput,
+  ExpenseInput,
+  ExpensesQueryInput,
+  InvoicesQueryInput,
+} from './validators.js'
 
 /** El gasto tal como sale en la API (spec 09 §7.4). */
 export type ExpenseView = {
@@ -69,7 +74,14 @@ export type FinanceSummaryView = {
   expenseTotal: number
   expenseCount: number
   expenseByCategory: Array<{ category: string; total: number; count: number }>
-  expenseRecent: Array<{ id: string; concept: string; category: string; amount: number; expenseDate: string; supplier: string | null }>
+  expenseRecent: Array<{
+    id: string
+    concept: string
+    category: string
+    amount: number
+    expenseDate: string
+    supplier: string | null
+  }>
   invoiceTotal: number
   invoiceCount: number
   invoiceOpenAmount: number
@@ -178,7 +190,11 @@ export async function listExpenses(
       if (primera) {
         total = Number(primera.total_count)
       } else if (offset > 0) {
-        const muestra = await repo.listExpenses(tx, communityId, { ...filtros, limit: 1, offset: 0 })
+        const muestra = await repo.listExpenses(tx, communityId, {
+          ...filtros,
+          limit: 1,
+          offset: 0,
+        })
         const primeraMuestra = muestra[0]
         total = primeraMuestra ? Number(primeraMuestra.total_count) : 0
       }
@@ -228,7 +244,11 @@ export async function listInvoices(
       if (primera) {
         total = Number(primera.total_count)
       } else if (offset > 0) {
-        const muestra = await repo.listInvoices(tx, communityId, { ...filtros, limit: 1, offset: 0 })
+        const muestra = await repo.listInvoices(tx, communityId, {
+          ...filtros,
+          limit: 1,
+          offset: 0,
+        })
         const primeraMuestra = muestra[0]
         total = primeraMuestra ? Number(primeraMuestra.total_count) : 0
       }
@@ -242,7 +262,10 @@ export async function listInvoices(
 }
 
 /** El resumen economico (spec 09 §5.10). La funcion garantiza UNA fila (D-2). */
-export async function financeSummary(userId: string, communityId: string): Promise<FinanceSummaryView> {
+export async function financeSummary(
+  userId: string,
+  communityId: string,
+): Promise<FinanceSummaryView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const row = await repo.financeSummary(tx, communityId)
@@ -384,7 +407,11 @@ export async function createInvoice(
  * un 200 idempotente, y lo levanta la funcion. La relectura trae el estado
  * post-pago (PAID + paidAt).
  */
-export async function payInvoice(userId: string, communityId: string, invoiceId: string): Promise<InvoiceView> {
+export async function payInvoice(
+  userId: string,
+  communityId: string,
+  invoiceId: string,
+): Promise<InvoiceView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       await repo.payInvoice(tx, invoiceId)

@@ -59,11 +59,15 @@ describe('read_file', () => {
   })
 
   it('rechaza una ruta que escapa de la raiz con ..', async () => {
-    await expect(runDevTool('read_file', { path: '../secreto.txt' }, ctx)).rejects.toBeInstanceOf(AppError)
+    await expect(runDevTool('read_file', { path: '../secreto.txt' }, ctx)).rejects.toBeInstanceOf(
+      AppError,
+    )
   })
 
   it('rechaza una ruta absoluta', async () => {
-    await expect(runDevTool('read_file', { path: join(root, 'a.txt') }, ctx)).rejects.toThrow(AppError)
+    await expect(runDevTool('read_file', { path: join(root, 'a.txt') }, ctx)).rejects.toThrow(
+      AppError,
+    )
   })
 })
 
@@ -92,6 +96,8 @@ describe('catalogo', () => {
   })
 
   it('rechaza una ruta que escapa con ..', async () => {
-    await expect(runDevTool('read_file', { path: '../fuera.txt' }, ctx)).rejects.toBeInstanceOf(AppError)
+    await expect(runDevTool('read_file', { path: '../fuera.txt' }, ctx)).rejects.toBeInstanceOf(
+      AppError,
+    )
   })
 })

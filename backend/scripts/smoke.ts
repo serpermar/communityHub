@@ -31,26 +31,46 @@ const MIGRATION_URL = process.env.MIGRATION_DATABASE_URL
 const admin = MIGRATION_URL
   ? new PrismaClient({
       datasources: {
-        db: { url: (() => { const u = new URL(MIGRATION_URL!); u.searchParams.delete('sslmode'); return u.toString() })() },
+        db: {
+          url: (() => {
+            const u = new URL(MIGRATION_URL!)
+            u.searchParams.delete('sslmode')
+            return u.toString()
+          })(),
+        },
       },
     })
   : null
 
-async function call(method: string, path: string, opts: { token?: string; cookie?: string; body?: unknown } = {}) {
+async function call(
+  method: string,
+  path: string,
+  opts: { token?: string; cookie?: string; body?: unknown } = {},
+) {
   const headers: Record<string, string> = {}
   if (opts.token) headers.authorization = `Bearer ${opts.token}`
   if (opts.cookie) headers.cookie = opts.cookie
   if (opts.body) headers['content-type'] = 'application/json'
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: opts.body ? JSON.stringify(opts.body) : undefined })
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  })
   const text = await res.text()
-  let body: any = null
-  try { body = text ? JSON.parse(text) : null } catch { body = text }
+  let body: unknown
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    body = text
+  }
   return { status: res.status, body, headers: res.headers }
 }
 
 async function login(email = CRED.email, password = CRED.password) {
   const res = await call('POST', '/login', { body: { email, password } })
-  const cookie = 'refresh_token=' + (/refresh_token=([^;]*)/.exec(res.headers?.getSetCookie?.().join('') ?? '')?.[1] ?? '')
+  const cookie =
+    'refresh_token=' +
+    (/refresh_token=([^;]*)/.exec(res.headers?.getSetCookie?.().join('') ?? '')?.[1] ?? '')
   return { ...res, cookie }
 }
 
@@ -75,7 +95,11 @@ console.log('\nA. Camino feliz')
   const l = await login()
   check('login', l.status, 200, `  rol=${l.body.data?.user?.globalRole}`)
   check('cookie httpOnly', /HttpOnly/i.test(String(l.headers?.getSetCookie?.() ?? '')) ? 1 : 0, 1)
-  check('cookie SameSite=Strict', /SameSite=Strict/i.test(String(l.headers?.getSetCookie?.() ?? '')) ? 1 : 0, 1)
+  check(
+    'cookie SameSite=Strict',
+    /SameSite=Strict/i.test(String(l.headers?.getSetCookie?.() ?? '')) ? 1 : 0,
+    1,
+  )
 
   const me = await call('GET', '/me', { token: l.body.data.accessToken })
   check('me', me.status, 200, `  ${me.body.data?.email}`)
@@ -83,7 +107,9 @@ console.log('\nA. Camino feliz')
   const r = await call('POST', '/refresh', { cookie: l.cookie })
   check('refresh', r.status, 200)
   const token2 = r.body.data?.accessToken
-  const cookie2 = 'refresh_token=' + (/refresh_token=([^;]*)/.exec(r.headers?.getSetCookie?.().join('') ?? '')?.[1] ?? '')
+  const cookie2 =
+    'refresh_token=' +
+    (/refresh_token=([^;]*)/.exec(r.headers?.getSetCookie?.().join('') ?? '')?.[1] ?? '')
 
   const me2 = await call('GET', '/me', { token: token2 })
   check('me con token rotado', me2.status, 200, `  ${me2.body.data?.email}`)
@@ -125,7 +151,9 @@ console.log('\nD. Login: credenciales malas')
   const bad = await call('POST', '/login', { body: { email: CRED.email, password: ' incorrecta' } })
   check('password incorrecta', bad.status, 401, `  ${bad.body.error?.code}`)
 
-  const noexiste = await call('POST', '/login', { body: { email: 'nadie@ejemplo.test', password: 'CommunityHub2026' } })
+  const noexiste = await call('POST', '/login', {
+    body: { email: 'nadie@ejemplo.test', password: 'CommunityHub2026' },
+  })
   check('email inexistente', noexiste.status, 401, `  ${noexiste.body.error?.code}`)
 }
 

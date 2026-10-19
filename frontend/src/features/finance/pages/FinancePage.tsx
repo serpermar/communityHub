@@ -18,7 +18,16 @@ import {
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
-import { createExpense, createInvoice, deleteExpense, getFinanceSummary, listExpenses, listInvoices, payInvoice, updateExpense } from '../api'
+import {
+  createExpense,
+  createInvoice,
+  deleteExpense,
+  getFinanceSummary,
+  listExpenses,
+  listInvoices,
+  payInvoice,
+  updateExpense,
+} from '../api'
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABELS,
@@ -123,10 +132,10 @@ function ExpensesTab({ communityId }: { communityId: string }) {
   const [supplier, setSupplier] = useState('')
   const [notes, setNotes] = useState('')
 
-  const result = useResource(() => listExpenses(communityId, { page, limit: 20 }), [
-    communityId,
-    page,
-  ])
+  const result = useResource(
+    () => listExpenses(communityId, { page, limit: 20 }),
+    [communityId, page],
+  )
 
   const openCreate = () => {
     setEditing(null)
@@ -188,7 +197,11 @@ function ExpensesTab({ communityId }: { communityId: string }) {
 
   const columns: Column<Expense>[] = [
     { key: 'concept', header: 'Concepto', render: (row) => row.concept },
-    { key: 'category', header: 'Categoría', render: (row) => EXPENSE_CATEGORY_LABELS[row.category] },
+    {
+      key: 'category',
+      header: 'Categoría',
+      render: (row) => EXPENSE_CATEGORY_LABELS[row.category],
+    },
     { key: 'date', header: 'Fecha', render: (row) => row.expenseDate },
     { key: 'amount', header: 'Importe', render: (row) => money(row.amount) },
     { key: 'supplier', header: 'Proveedor', render: (row) => row.supplier ?? '—' },
@@ -282,7 +295,11 @@ function ExpensesTab({ communityId }: { communityId: string }) {
             </Select>
           </Field>
           <Field label="Proveedor" htmlFor="exp-supplier">
-            <Input id="exp-supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+            <Input
+              id="exp-supplier"
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+            />
           </Field>
           <Field label="Notas" htmlFor="exp-notes">
             <Input id="exp-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -314,10 +331,10 @@ function InvoicesTab({ communityId }: { communityId: string }) {
   const [concept, setConcept] = useState('')
   const [supplier, setSupplier] = useState('')
 
-  const result = useResource(() => listInvoices(communityId, { page, limit: 20 }), [
-    communityId,
-    page,
-  ])
+  const result = useResource(
+    () => listInvoices(communityId, { page, limit: 20 }),
+    [communityId, page],
+  )
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -466,7 +483,11 @@ function InvoicesTab({ communityId }: { communityId: string }) {
             <Input id="inv-concept" value={concept} onChange={(e) => setConcept(e.target.value)} />
           </Field>
           <Field label="Proveedor" htmlFor="inv-supplier">
-            <Input id="inv-supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+            <Input
+              id="inv-supplier"
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+            />
           </Field>
           {error && <Alert variant="error">{error}</Alert>}
           <div className="flex justify-end gap-2">

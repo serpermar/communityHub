@@ -146,7 +146,11 @@ export async function listDocuments(
       if (primera) {
         total = Number(primera.total_count)
       } else if (offset > 0) {
-        const muestra = await repo.listDocuments(tx, communityId, { ...filtros, limit: 1, offset: 0 })
+        const muestra = await repo.listDocuments(tx, communityId, {
+          ...filtros,
+          limit: 1,
+          offset: 0,
+        })
         const primeraMuestra = muestra[0]
         total = primeraMuestra ? Number(primeraMuestra.total_count) : 0
       }
@@ -208,7 +212,10 @@ export async function getDocument(userId: string, documentId: string): Promise<D
  * unico que se consulta, y mantener una conexion abierta mientras se habla con
  * el provedor de storage es gastarla sin necesidad.
  */
-export async function downloadDocument(userId: string, documentId: string): Promise<{ url: string; expiresIn: number }> {
+export async function downloadDocument(
+  userId: string,
+  documentId: string,
+): Promise<{ url: string; expiresIn: number }> {
   return ejecuta(async () => {
     const storagePath = await withContext({ userId, communityId: null }, async (tx) => {
       const path = await repo.documentStoragePath(tx, documentId, false)
@@ -302,7 +309,10 @@ export async function createDocument(
       // insert.
       logger.warn({ storagePath }, 'alta de documento: compensación, se borra el objeto del bucket')
       await gateway.remove(storagePath).catch((fallo) => {
-        logger.warn({ error: fallo, storagePath }, 'fallo al borrar el objeto durante la compensación')
+        logger.warn(
+          { error: fallo, storagePath },
+          'fallo al borrar el objeto durante la compensación',
+        )
       })
       throw error
     }
@@ -353,6 +363,9 @@ export async function deleteDocument(userId: string, documentId: string): Promis
   )
 
   await gateway.remove(storagePath).catch((error) => {
-    logger.warn({ error, storagePath }, 'documento borrado, pero el objeto del bucket quedo sin eliminar')
+    logger.warn(
+      { error, storagePath },
+      'documento borrado, pero el objeto del bucket quedo sin eliminar',
+    )
   })
 }

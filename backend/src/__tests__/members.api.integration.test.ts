@@ -49,7 +49,9 @@ afterEach(async () => {
 })
 
 /** Crea un usuario que se limpia solo al terminar cada test. */
-async function nuevoUsuario(overrides: { email?: string; fullName?: string } = {}): Promise<TestUser> {
+async function nuevoUsuario(
+  overrides: { email?: string; fullName?: string } = {},
+): Promise<TestUser> {
   const user = await createUser(overrides)
   usuarios.push(user.id)
   return user
@@ -109,8 +111,15 @@ async function escenario(
 }
 
 /** Invita a un correo y devuelve el id de la invitacion y el codigo en claro. */
-async function invitar(token: string, comunidad: string, email: string): Promise<{ id: string; code: string }> {
-  const res = await request(app()).post(`${COM}/${comunidad}/invitations`).set('Authorization', token).send({ email })
+async function invitar(
+  token: string,
+  comunidad: string,
+  email: string,
+): Promise<{ id: string; code: string }> {
+  const res = await request(app())
+    .post(`${COM}/${comunidad}/invitations`)
+    .set('Authorization', token)
+    .send({ email })
   expect(res.status, `invitando a ${email}`).toBe(201)
   return { id: res.body.data.id, code: res.body.data.code }
 }
@@ -124,7 +133,10 @@ async function invitar(token: string, comunidad: string, email: string): Promise
 // `await canjear(token, codigo)` y `await canjear(token, codigo).expect(201)`.
  */
 function canjear(token: string, code: string) {
-  return request(app()).post('/api/v1/invitations/redeem').set('Authorization', token).send({ code })
+  return request(app())
+    .post('/api/v1/invitations/redeem')
+    .set('Authorization', token)
+    .send({ code })
 }
 
 /** El `id` de la membresia de un usuario en una comunidad. */
@@ -144,7 +156,9 @@ describe('GET /communities/:communityId/members', () => {
   it('devuelve los miembros con nombre, email, rol y estado', async () => {
     const { comunidad, admin: adminA, vecino } = await escenario()
 
-    const res = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', adminA.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', adminA.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(2)
@@ -172,7 +186,9 @@ describe('GET /communities/:communityId/members', () => {
     // necesita para saber a quien esperar (spec 03, seccion 6).
     const { comunidad, vecino } = await escenario()
 
-    const res = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', vecino.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', vecino.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(2)
@@ -195,12 +211,16 @@ describe('GET /communities/:communityId/members', () => {
       data: { status: 'LEFT' },
     })
 
-    const res = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', adminA.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', adminA.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(4)
 
-    const porUser = Object.fromEntries(res.body.data.map((m: { userId: string; status: string }) => [m.userId, m.status]))
+    const porUser = Object.fromEntries(
+      res.body.data.map((m: { userId: string; status: string }) => [m.userId, m.status]),
+    )
     // SUSPENDED es visible, no secreto, y el historico es el punto de M-4.
     expect(porUser[suspendido.id]).toBe('SUSPENDED')
     expect(porUser[ida.id]).toBe('LEFT')
@@ -234,7 +254,9 @@ describe('GET /communities/:communityId/members', () => {
     const { admin: adminA } = await escenario()
 
     for (const malo of ['no-es-un-uuid', '123', '1234-5678']) {
-      const res = await request(app()).get(`${COM}/${malo}/members`).set('Authorization', adminA.token)
+      const res = await request(app())
+        .get(`${COM}/${malo}/members`)
+        .set('Authorization', adminA.token)
       expect(res.status, `con id ${JSON.stringify(malo)}`).toBe(400)
       expect(res.body.error.code).toBe('VALIDATION_ERROR')
     }
@@ -568,7 +590,8 @@ describe('POST /communities/:communityId/invitations', () => {
     expect(res.body.data.code).toMatch(/^[0-9a-f]{64}$/)
 
     // Caduca a 7 dias (M-7) y no cuando el cliente quiera.
-    const dias = (Date.parse(res.body.data.expiresAt) - Date.parse(res.body.data.createdAt)) / 86_400_000
+    const dias =
+      (Date.parse(res.body.data.expiresAt) - Date.parse(res.body.data.createdAt)) / 86_400_000
     expect(dias).toBeCloseTo(7, 1)
   })
 
@@ -695,7 +718,9 @@ describe('GET /communities/:communityId/invitations', () => {
 
     const pendiente = await invitar(adminA.token, comunidad, uniqueEmail('pendiente'))
 
-    const res = await request(app()).get(`${COM}/${comunidad}/invitations`).set('Authorization', adminA.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/invitations`)
+      .set('Authorization', adminA.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(2)
@@ -713,7 +738,9 @@ describe('GET /communities/:communityId/invitations', () => {
     const invitado = uniqueEmail('visible')
     await invitar(adminA.token, comunidad, invitado)
 
-    const res = await request(app()).get(`${COM}/${comunidad}/invitations`).set('Authorization', vecino.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/invitations`)
+      .set('Authorization', vecino.token)
 
     expect(res.status).toBe(403)
     expect(JSON.stringify(res.body)).not.toContain(invitado)
@@ -845,7 +872,11 @@ describe('POST /invitations/redeem', () => {
     expect(segundo.body.error.code).toBe('VALIDATION_ERROR')
 
     // Y no se ha creado una segunda membresia.
-    expect(await admin.communityMembers.count({ where: { community_id: comunidad, user_id: vecino.id } })).toBe(1)
+    expect(
+      await admin.communityMembers.count({
+        where: { community_id: comunidad, user_id: vecino.id },
+      }),
+    ).toBe(1)
   })
 
   it('un codigo caducado da 400, no 403 (M-7)', async () => {
@@ -929,7 +960,11 @@ describe('POST /invitations/redeem', () => {
     expect(fila?.status).toBe('ACTIVE')
     // Y vuelve como vecino, no como el PRESIDENT que era.
     expect(fila?.role).toBe('NEIGHBOR')
-    expect(await admin.communityMembers.count({ where: { community_id: comunidad, user_id: vecino.id } })).toBe(1)
+    expect(
+      await admin.communityMembers.count({
+        where: { community_id: comunidad, user_id: vecino.id },
+      }),
+    ).toBe(1)
   })
 
   it('un codigo mete en una sola comunidad', async () => {
@@ -963,14 +998,19 @@ describe('POST /invitations/redeem', () => {
   })
 
   it('sin sesion da 401, y un cuerpo invalido da 400', async () => {
-    const sinToken = await request(app()).post('/api/v1/invitations/redeem').send({ code: 'a'.repeat(64) })
+    const sinToken = await request(app())
+      .post('/api/v1/invitations/redeem')
+      .send({ code: 'a'.repeat(64) })
     expect(sinToken.status).toBe(401)
 
     const { comunidad, admin: adminA } = await escenario()
     const vecino = await nuevoUsuario()
     const token = await tokenDe(vecino)
 
-    const vacio = await request(app()).post('/api/v1/invitations/redeem').set('Authorization', token).send({})
+    const vacio = await request(app())
+      .post('/api/v1/invitations/redeem')
+      .set('Authorization', token)
+      .send({})
     expect(vacio.status).toBe(400)
 
     // Con communityId el cliente no elige a que comunidad entra: 400, no 403.
@@ -1047,7 +1087,9 @@ describe('invariantes de la base de datos', () => {
     // Sin permiso de INSERT, el motor responde permission denied antes incluso de
     // mirar RLS. Con `force row level security` seria "new row violates row-level
     // security". Los dos son 42501 y los dos son el final del camino.
-    expect(await admin.communityMembers.count({ where: { community_id: comunidad, role: 'ADMIN' } })).toBe(1)
+    expect(
+      await admin.communityMembers.count({ where: { community_id: comunidad, role: 'ADMIN' } }),
+    ).toBe(1)
   })
 
   it('un UPDATE directo con app_runtime falla y no cambia el rol', async () => {
@@ -1107,7 +1149,9 @@ describe('invariantes de la base de datos', () => {
   it('la funcion de lectura si ve a los vecinos: es la excepcion acotada', async () => {
     const { comunidad, admin: adminA, vecino } = await escenario()
 
-    const res = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', adminA.token)
+    const res = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', adminA.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data.map((m: { email: string }) => m.email)).toContain(vecino.email)
@@ -1146,7 +1190,9 @@ describe('invariantes de la base de datos', () => {
   })
 
   it('las seis funciones son SECURITY DEFINER con search_path fijo', async () => {
-    const filas = await admin.$queryRaw<Array<{ routine_name: string; sec: boolean; cfg: string[] | null }>>`
+    const filas = await admin.$queryRaw<
+      Array<{ routine_name: string; sec: boolean; cfg: string[] | null }>
+    >`
       select p.proname as routine_name, p.prosecdef as sec, p.proconfig as cfg
         from pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
@@ -1219,7 +1265,9 @@ describe('invariantes de la base de datos', () => {
   })
 
   it('la invitacion viva por email la garantiza un indice, no solo un if', async () => {
-    const indices = await admin.$queryRaw<Array<{ nombre: string; unico: boolean; parcial: string | null }>>`
+    const indices = await admin.$queryRaw<
+      Array<{ nombre: string; unico: boolean; parcial: string | null }>
+    >`
       select i.relname as nombre,
              ix.indisunique as unico,
              pg_get_expr(ix.indpred, ix.indrelid) as parcial
@@ -1249,7 +1297,9 @@ describe('contrato HTTP', () => {
     const { code } = await invitar(adminA.token, comunidad, nuevo.email)
 
     // 1. GET /members
-    const listado = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', adminA.token)
+    const listado = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', adminA.token)
     expect(listado.body).toHaveProperty('data')
     expect(listado.body).not.toHaveProperty('error')
 
@@ -1303,7 +1353,9 @@ describe('contrato HTTP', () => {
     expect(fallido.body.data).toBeUndefined()
 
     // El listado ya incluye al vecino recien llegado: tres en total.
-    const final = await request(app()).get(`${COM}/${comunidad}/members`).set('Authorization', vecino.token)
+    const final = await request(app())
+      .get(`${COM}/${comunidad}/members`)
+      .set('Authorization', vecino.token)
     expect(final.body.data).toHaveLength(3)
   })
 

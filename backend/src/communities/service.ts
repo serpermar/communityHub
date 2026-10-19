@@ -111,7 +111,11 @@ export async function listMine(userId: string): Promise<CommunityView[]> {
  * en el caso de "no existe" confirmaria que el id esta libre, que es informacion
  * sobre los ids de los demas.
  */
-export async function getOne(userId: string, communityId: string, memberRole: string): Promise<CommunityView> {
+export async function getOne(
+  userId: string,
+  communityId: string,
+  memberRole: string,
+): Promise<CommunityView> {
   return withContext({ userId, communityId }, async (tx) => {
     const row = await repo.findCommunityById(tx, communityId)
 
@@ -141,18 +145,18 @@ export async function getOne(userId: string, communityId: string, memberRole: st
  * comprueba que la comunidad nace con exactamente un ADMIN.
  */
 export async function create(userId: string, input: CreateCommunityInput): Promise<CommunityView> {
-  const id = await withContext({ userId, communityId: null }, (tx) => repo.createCommunity(tx, input)).catch(
-    (error: unknown) => {
-      // 23505 sobre el indice del slug -> 409. El error se translatee aqui y no
-      // en el middleware de errores porque el middleware no sabe de comunidades:
-      // esta decision es de este dominio.
-      if (slugEnUso(error)) {
-        throw conflict('CONFLICT', 'Ya existe una comunidad con ese identificador.')
-      }
+  const id = await withContext({ userId, communityId: null }, (tx) =>
+    repo.createCommunity(tx, input),
+  ).catch((error: unknown) => {
+    // 23505 sobre el indice del slug -> 409. El error se translatee aqui y no
+    // en el middleware de errores porque el middleware no sabe de comunidades:
+    // esta decision es de este dominio.
+    if (slugEnUso(error)) {
+      throw conflict('CONFLICT', 'Ya existe una comunidad con ese identificador.')
+    }
 
-      throw error
-    },
-  )
+    throw error
+  })
 
   const row = await withContext({ userId, communityId: id }, (tx) => repo.findCommunityById(tx, id))
 

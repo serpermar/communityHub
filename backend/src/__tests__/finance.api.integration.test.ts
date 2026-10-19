@@ -69,7 +69,9 @@ async function nuevaComunidad(nombre = 'Comunidad de prueba'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
@@ -254,11 +256,23 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     }
 
     await sinToken('GET expenses', request(app()).get(`${V1}/communities/${e.comunidad}/expenses`))
-    await sinToken('POST expenses', request(app()).post(`${V1}/communities/${e.comunidad}/expenses`))
+    await sinToken(
+      'POST expenses',
+      request(app()).post(`${V1}/communities/${e.comunidad}/expenses`),
+    )
     await sinToken('GET invoices', request(app()).get(`${V1}/communities/${e.comunidad}/invoices`))
-    await sinToken('POST invoices', request(app()).post(`${V1}/communities/${e.comunidad}/invoices`))
-    await sinToken('POST pay', request(app()).post(`${V1}/communities/${e.comunidad}/invoices/${factura}/pay`))
-    await sinToken('GET summary', request(app()).get(`${V1}/communities/${e.comunidad}/finance/summary`))
+    await sinToken(
+      'POST invoices',
+      request(app()).post(`${V1}/communities/${e.comunidad}/invoices`),
+    )
+    await sinToken(
+      'POST pay',
+      request(app()).post(`${V1}/communities/${e.comunidad}/invoices/${factura}/pay`),
+    )
+    await sinToken(
+      'GET summary',
+      request(app()).get(`${V1}/communities/${e.comunidad}/finance/summary`),
+    )
     await sinToken('GET expense', request(app()).get(`${V1}/expenses/${gasto}`))
     await sinToken('PUT expense', request(app()).put(`${V1}/expenses/${gasto}`))
     await sinToken('DELETE expense', request(app()).delete(`${V1}/expenses/${gasto}`))
@@ -276,7 +290,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     expect((await resumen(ajeno.token, e.comunidad)).status).toBe(403)
 
     // Por id resuelve con el predicado de la funcion: cero filas -> 404 (C-8).
-    const detalle = await request(app()).get(`${V1}/expenses/${gasto}`).set('Authorization', ajeno.token)
+    const detalle = await request(app())
+      .get(`${V1}/expenses/${gasto}`)
+      .set('Authorization', ajeno.token)
     expect(detalle.status).toBe(404)
     expect(detalle.body.error.code).toBe('NOT_FOUND')
   })
@@ -289,7 +305,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
 
     expect((await listarGastos(e.vecino.token, comunidadB)).status).toBe(403)
 
-    const detalle = await request(app()).get(`${V1}/expenses/${gastoB}`).set('Authorization', e.vecino.token)
+    const detalle = await request(app())
+      .get(`${V1}/expenses/${gastoB}`)
+      .set('Authorization', e.vecino.token)
     expect(detalle.status).toBe(404)
   })
 
@@ -301,7 +319,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     expect((await resumen(elena.token, e.comunidad)).status).toBe(403)
     expect((await listarGastos(elena.token, e.comunidad)).status).toBe(403)
 
-    const detalle = await request(app()).get(`${V1}/expenses/${gasto}`).set('Authorization', elena.token)
+    const detalle = await request(app())
+      .get(`${V1}/expenses/${gasto}`)
+      .set('Authorization', elena.token)
     expect(detalle.status).toBe(404)
   })
 
@@ -316,7 +336,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
 
     expect((await listarGastos(e.vecino.token, e.comunidad)).status).toBe(403)
 
-    const detalle = await request(app()).get(`${V1}/expenses/${gasto}`).set('Authorization', e.vecino.token)
+    const detalle = await request(app())
+      .get(`${V1}/expenses/${gasto}`)
+      .set('Authorization', e.vecino.token)
     expect(detalle.status).toBe(404)
   })
 
@@ -350,15 +372,31 @@ describe('Solo ADMIN, listar incluido (FN-1)', () => {
       ['NEIGHBOR', e.vecino],
       ['PROVIDER', e.proveedor],
     ] as const) {
-      expect((await listarGastos(actor_.token, e.comunidad)).status, `listar gastos ${nombre}`).toBe(403)
-      expect((await crearGasto(actor_.token, e.comunidad)).status, `crear gasto ${nombre}`).toBe(403)
-      expect((await listarFacturas(actor_.token, e.comunidad)).status, `listar facturas ${nombre}`).toBe(403)
-      expect((await crearFactura(actor_.token, e.comunidad)).status, `crear factura ${nombre}`).toBe(403)
-      expect((await pagarFactura(actor_.token, e.comunidad, factura)).status, `pagar ${nombre}`).toBe(403)
+      expect(
+        (await listarGastos(actor_.token, e.comunidad)).status,
+        `listar gastos ${nombre}`,
+      ).toBe(403)
+      expect((await crearGasto(actor_.token, e.comunidad)).status, `crear gasto ${nombre}`).toBe(
+        403,
+      )
+      expect(
+        (await listarFacturas(actor_.token, e.comunidad)).status,
+        `listar facturas ${nombre}`,
+      ).toBe(403)
+      expect(
+        (await crearFactura(actor_.token, e.comunidad)).status,
+        `crear factura ${nombre}`,
+      ).toBe(403)
+      expect(
+        (await pagarFactura(actor_.token, e.comunidad, factura)).status,
+        `pagar ${nombre}`,
+      ).toBe(403)
       expect((await resumen(actor_.token, e.comunidad)).status, `resumen ${nombre}`).toBe(403)
 
       // El gasto por id tampoco: 404, no 403 (C-8, FN-4).
-      const detalle = await request(app()).get(`${V1}/expenses/${gasto}`).set('Authorization', actor_.token)
+      const detalle = await request(app())
+        .get(`${V1}/expenses/${gasto}`)
+        .set('Authorization', actor_.token)
       expect(detalle.status, `detalle ${nombre}`).toBe(404)
     }
   })
@@ -374,7 +412,9 @@ describe('Solo ADMIN, listar incluido (FN-1)', () => {
     expect(put.status).toBe(403)
     expect(put.body.error.message).toBe('Solo un administrador puede gestionar gastos.')
 
-    const del = await request(app()).delete(`${V1}/expenses/${gasto}`).set('Authorization', e.presidente.token)
+    const del = await request(app())
+      .delete(`${V1}/expenses/${gasto}`)
+      .set('Authorization', e.presidente.token)
     expect(del.status).toBe(403)
   })
 })
@@ -442,19 +482,27 @@ describe('Gastos (FN-7, FN-8, FN-9)', () => {
     const e = await escena()
     const creado = (await crearGasto(e.admin.token, e.comunidad)).body.data
 
-    const res = await request(app()).get(`${V1}/expenses/${creado.id}`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .get(`${V1}/expenses/${creado.id}`)
+      .set('Authorization', e.admin.token)
     expect(res.status).toBe(200)
     expect(res.body.data.id).toBe(creado.id)
     expect(res.body.data.concept).toBe('Reparación de la bomba')
 
-    const ausente = await request(app()).get(`${V1}/expenses/${randomUUID()}`).set('Authorization', e.admin.token)
+    const ausente = await request(app())
+      .get(`${V1}/expenses/${randomUUID()}`)
+      .set('Authorization', e.admin.token)
     expect(ausente.status).toBe(404)
   })
 
   it('el PUT reemplaza por completo: limpiar el proveedor es mandarlo nulo o vacio', async () => {
     const e = await escena()
     const creado = (
-      await crearGasto(e.admin.token, e.comunidad, { ...GASTO_VALIDO, supplier: 'Proveedor original', notes: 'Nota' })
+      await crearGasto(e.admin.token, e.comunidad, {
+        ...GASTO_VALIDO,
+        supplier: 'Proveedor original',
+        notes: 'Nota',
+      })
     ).body.data
 
     const res = await request(app())
@@ -500,21 +548,30 @@ describe('Gastos (FN-7, FN-8, FN-9)', () => {
     const e = await escena()
     const creado = (await crearGasto(e.admin.token, e.comunidad)).body.data
 
-    const borrado = await request(app()).delete(`${V1}/expenses/${creado.id}`).set('Authorization', e.admin.token)
+    const borrado = await request(app())
+      .delete(`${V1}/expenses/${creado.id}`)
+      .set('Authorization', e.admin.token)
     expect(borrado.status).toBe(200)
     expect(borrado.body.data).toEqual({ id: creado.id, deleted: true })
 
     // La fila sigue viva (soft delete), pero ya no se sirve por la API.
-    const fila = await admin.expenses.findUnique({ where: { id: creado.id }, select: { deleted_at: true } })
+    const fila = await admin.expenses.findUnique({
+      where: { id: creado.id },
+      select: { deleted_at: true },
+    })
     expect(fila?.deleted_at).not.toBeNull()
 
-    const detalle = await request(app()).get(`${V1}/expenses/${creado.id}`).set('Authorization', e.admin.token)
+    const detalle = await request(app())
+      .get(`${V1}/expenses/${creado.id}`)
+      .set('Authorization', e.admin.token)
     expect(detalle.status).toBe(404)
 
     const lista = await listarGastos(e.admin.token, e.comunidad)
     expect(lista.body.data).toHaveLength(0)
 
-    const otraVez = await request(app()).delete(`${V1}/expenses/${creado.id}`).set('Authorization', e.admin.token)
+    const otraVez = await request(app())
+      .delete(`${V1}/expenses/${creado.id}`)
+      .set('Authorization', e.admin.token)
     expect(otraVez.status).toBe(404)
     expect(otraVez.body.error.code).toBe('NOT_FOUND')
   })
@@ -551,7 +608,10 @@ describe('Facturas (FN-5, FN-6, FN-12, FN-14)', () => {
     const e = await escena()
     await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-DUP' })
 
-    const repetida = await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-DUP' })
+    const repetida = await crearFactura(e.admin.token, e.comunidad, {
+      ...FACTURA_VALIDA,
+      number: 'INV-DUP',
+    })
     expect(repetida.status).toBe(409)
     expect(repetida.body.error.code).toBe('INVOICE_NUMBER_TAKEN')
   })
@@ -562,7 +622,10 @@ describe('Facturas (FN-5, FN-6, FN-12, FN-14)', () => {
     await makeMember(e.admin.id, comunidadB, 'ADMIN')
 
     await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-SHARED' })
-    const enB = await crearFactura(e.admin.token, comunidadB, { ...FACTURA_VALIDA, number: 'INV-SHARED' })
+    const enB = await crearFactura(e.admin.token, comunidadB, {
+      ...FACTURA_VALIDA,
+      number: 'INV-SHARED',
+    })
     expect(enB.status).toBe(201)
   })
 
@@ -606,7 +669,9 @@ describe('Facturas (FN-5, FN-6, FN-12, FN-14)', () => {
 
   it('pagar: 200 con status PAID y paidAt; el segundo pago es 409 INVOICE_ALREADY_PAID (FN-6)', async () => {
     const e = await escena()
-    const factura = (await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-PAGO' })).body.data
+    const factura = (
+      await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-PAGO' })
+    ).body.data
 
     const pago = await pagarFactura(e.admin.token, e.comunidad, factura.id)
     expect(pago.status, JSON.stringify(pago.body)).toBe(200)
@@ -631,9 +696,14 @@ describe('Facturas (FN-5, FN-6, FN-12, FN-14)', () => {
 describe('Vinculo gasto-factura (FN-10)', () => {
   it('un gasto puede apuntar a una factura de su comunidad y la vista trae el numero', async () => {
     const e = await escena()
-    const factura = (await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-VINC' })).body.data
+    const factura = (
+      await crearFactura(e.admin.token, e.comunidad, { ...FACTURA_VALIDA, number: 'INV-VINC' })
+    ).body.data
 
-    const res = await crearGasto(e.admin.token, e.comunidad, { ...GASTO_VALIDO, invoiceId: factura.id })
+    const res = await crearGasto(e.admin.token, e.comunidad, {
+      ...GASTO_VALIDO,
+      invoiceId: factura.id,
+    })
     expect(res.status, JSON.stringify(res.body)).toBe(201)
     expect(res.body.data.invoiceId).toBe(factura.id)
     expect(res.body.data.invoiceNumber).toBe('INV-VINC')
@@ -644,7 +714,10 @@ describe('Vinculo gasto-factura (FN-10)', () => {
     const comunidadB = await nuevaComunidad('Comunidad B')
     const facturaB = await makeInvoiceRow(comunidadB, { number: 'INV-B' })
 
-    const res = await crearGasto(e.admin.token, e.comunidad, { ...GASTO_VALIDO, invoiceId: facturaB })
+    const res = await crearGasto(e.admin.token, e.comunidad, {
+      ...GASTO_VALIDO,
+      invoiceId: facturaB,
+    })
     expect(res.status).toBe(400)
     expect(res.body.error.code).toBe('EXPENSE_INVOICE_MISMATCH')
   })
@@ -654,11 +727,31 @@ describe('Resumen (spec 09 §5.10)', () => {
   it('resume gastos por categoria y el estado de las facturas, con el vencido aparte', async () => {
     const e = await escena()
 
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'A', category: 'CLEANING', amount: '100.00', expenseDate: new Date('2026-01-10') })
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'B', category: 'CLEANING', amount: '50.00', expenseDate: new Date('2026-01-11') })
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'C', category: 'INSURANCE', amount: '200.00', expenseDate: new Date('2026-01-12') })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'A',
+      category: 'CLEANING',
+      amount: '100.00',
+      expenseDate: new Date('2026-01-10'),
+    })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'B',
+      category: 'CLEANING',
+      amount: '50.00',
+      expenseDate: new Date('2026-01-11'),
+    })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'C',
+      category: 'INSURANCE',
+      amount: '200.00',
+      expenseDate: new Date('2026-01-12'),
+    })
 
-    await makeInvoiceRow(e.comunidad, { number: 'INV-P', amount: '300.00', status: 'PAID', paidAt: new Date('2026-01-20') })
+    await makeInvoiceRow(e.comunidad, {
+      number: 'INV-P',
+      amount: '300.00',
+      status: 'PAID',
+      paidAt: new Date('2026-01-20'),
+    })
     await makeInvoiceRow(e.comunidad, {
       number: 'INV-PEND',
       amount: '80.00',
@@ -681,7 +774,9 @@ describe('Resumen (spec 09 §5.10)', () => {
     expect(s.expenseTotal).toBe(350)
     expect(s.expenseCount).toBe(3)
 
-    const limpieza = s.expenseByCategory.find((c: { category: string }) => c.category === 'CLEANING')
+    const limpieza = s.expenseByCategory.find(
+      (c: { category: string }) => c.category === 'CLEANING',
+    )
     expect(limpieza.total).toBe(150)
     expect(limpieza.count).toBe(2)
 
@@ -723,9 +818,18 @@ describe('Resumen (spec 09 §5.10)', () => {
 describe('Listado y filtros (§7.3)', () => {
   it('ordena por fecha descendente y paginacion con meta', async () => {
     const e = await escena()
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'Viejo', expenseDate: new Date('2026-01-01') })
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'Medio', expenseDate: new Date('2026-02-01') })
-    await makeExpenseRow(e.comunidad, e.admin.id, { concept: 'Nuevo', expenseDate: new Date('2026-03-01') })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'Viejo',
+      expenseDate: new Date('2026-01-01'),
+    })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'Medio',
+      expenseDate: new Date('2026-02-01'),
+    })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      concept: 'Nuevo',
+      expenseDate: new Date('2026-03-01'),
+    })
 
     const pagina1 = await listarGastos(e.admin.token, e.comunidad, '?page=1&limit=2')
     expect(pagina1.body.data.map((g: { concept: string }) => g.concept)).toEqual(['Nuevo', 'Medio'])
@@ -742,16 +846,30 @@ describe('Listado y filtros (§7.3)', () => {
 
   it('filtra por categoria y por rango de fechas', async () => {
     const e = await escena()
-    const limpieza = await makeExpenseRow(e.comunidad, e.admin.id, { category: 'CLEANING', expenseDate: new Date('2026-01-15') })
-    await makeExpenseRow(e.comunidad, e.admin.id, { category: 'INSURANCE', expenseDate: new Date('2026-06-15') })
+    const limpieza = await makeExpenseRow(e.comunidad, e.admin.id, {
+      category: 'CLEANING',
+      expenseDate: new Date('2026-01-15'),
+    })
+    await makeExpenseRow(e.comunidad, e.admin.id, {
+      category: 'INSURANCE',
+      expenseDate: new Date('2026-06-15'),
+    })
 
     const porCategoria = await listarGastos(e.admin.token, e.comunidad, '?category=CLEANING')
     expect(porCategoria.body.data.map((g: { id: string }) => g.id)).toEqual([limpieza])
 
-    const porRango = await listarGastos(e.admin.token, e.comunidad, '?from=2026-01-01&to=2026-02-01')
+    const porRango = await listarGastos(
+      e.admin.token,
+      e.comunidad,
+      '?from=2026-01-01&to=2026-02-01',
+    )
     expect(porRango.body.data.map((g: { id: string }) => g.id)).toEqual([limpieza])
 
-    const fueraDeRango = await listarGastos(e.admin.token, e.comunidad, '?from=2027-01-01&to=2027-12-31')
+    const fueraDeRango = await listarGastos(
+      e.admin.token,
+      e.comunidad,
+      '?from=2027-01-01&to=2027-12-31',
+    )
     expect(fueraDeRango.body.data).toHaveLength(0)
   })
 

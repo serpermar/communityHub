@@ -24,7 +24,14 @@
 // ---------------------------------------------------------------------------
 
 import { Prisma } from '@prisma/client'
-import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../http/errors.js'
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from '../http/errors.js'
 
 /** El `errcode` y el mensaje que PostgreSQL trae al cliente de Prisma. */
 type Origen = { errcode: string; message: string }
@@ -95,13 +102,37 @@ const NEGOCIO: ReadonlyArray<{ sentinel: string; errcode: string; error: () => A
   // ser alcanzables desde la API: están para que un fallo ahi sea un 403 legible
   // en vez de un 500, y para que el SQL siga siendo correcto si alguien lo llama
   // desde otro sitio.
-  { sentinel: 'solo un ADMIN', errcode: '42501', error: () => forbidden('Tu rol en esta comunidad no permite esta acción.') },
-  { sentinel: 'no es miembro de la comunidad', errcode: '42501', error: () => forbidden('No perteneces a esta comunidad.') },
+  {
+    sentinel: 'solo un ADMIN',
+    errcode: '42501',
+    error: () => forbidden('Tu rol en esta comunidad no permite esta acción.'),
+  },
+  {
+    sentinel: 'no es miembro de la comunidad',
+    errcode: '42501',
+    error: () => forbidden('No perteneces a esta comunidad.'),
+  },
   { sentinel: 'sin contexto de usuario', errcode: '42501', error: () => unauthorized() },
-  { sentinel: 'email invalido', errcode: '22023', error: () => badRequest('El correo no tiene un formato válido.') },
-  { sentinel: 'el codigo es obligatorio', errcode: '22023', error: () => badRequest('El código es obligatorio.') },
-  { sentinel: 'el rol es obligatorio', errcode: '22023', error: () => badRequest('El rol es obligatorio.') },
-  { sentinel: 'el estado es obligatorio', errcode: '22023', error: () => badRequest('El estado es obligatorio.') },
+  {
+    sentinel: 'email invalido',
+    errcode: '22023',
+    error: () => badRequest('El correo no tiene un formato válido.'),
+  },
+  {
+    sentinel: 'el codigo es obligatorio',
+    errcode: '22023',
+    error: () => badRequest('El código es obligatorio.'),
+  },
+  {
+    sentinel: 'el rol es obligatorio',
+    errcode: '22023',
+    error: () => badRequest('El rol es obligatorio.'),
+  },
+  {
+    sentinel: 'el estado es obligatorio',
+    errcode: '22023',
+    error: () => badRequest('El estado es obligatorio.'),
+  },
 ]
 
 /**
@@ -124,13 +155,14 @@ const NEGOCIO: ReadonlyArray<{ sentinel: string; errcode: string; error: () => A
  * es el texto, para que el cliente sepa si tiene que anular una invitacion o
  * simplemente dejar de canjear codigos.
  */
-export type Conflicto =
-  | 'invitacion_viva'
-  | 'ya_es_miembro_activo'
+export type Conflicto = 'invitacion_viva' | 'ya_es_miembro_activo'
 
 const CONFLICTO: Readonly<Record<Conflicto, () => AppError>> = {
   invitacion_viva: () =>
-    conflict('CONFLICT', 'Ya hay una invitación viva para ese correo. Anúlala antes de crear otra.'),
+    conflict(
+      'CONFLICT',
+      'Ya hay una invitación viva para ese correo. Anúlala antes de crear otra.',
+    ),
   ya_es_miembro_activo: () => conflict('CONFLICT', 'Ya eres miembro activo de esta comunidad.'),
 }
 

@@ -110,7 +110,11 @@ export const patchMemberSchema = z
  */
 export const redeemSchema = z
   .object({
-    code: z.string().trim().min(1, 'El código es obligatorio.').max(200, 'El código es demasiado largo.'),
+    code: z
+      .string()
+      .trim()
+      .min(1, 'El código es obligatorio.')
+      .max(200, 'El código es demasiado largo.'),
   })
   .strict()
 

@@ -25,7 +25,12 @@ import { withContext } from '../context.js'
 import { notFound } from '../http/errors.js'
 import * as repo from './repository.js'
 import { ejecuta } from './errors.js'
-import type { CastVoteInput, CreateVoteInput, UpdateVoteInput, VotesQueryInput } from './validators.js'
+import type {
+  CastVoteInput,
+  CreateVoteInput,
+  UpdateVoteInput,
+  VotesQueryInput,
+} from './validators.js'
 
 /** La votacion tal como sale en la API (spec 10 §7.3). */
 export type VoteView = {
@@ -117,7 +122,11 @@ function votacionAVista(row: repo.VoteRow): VoteView {
 // ---------------------------------------------------------------------------
 
 /** Listar las votaciones de una comunidad (V-5: el no-miembro/PROVIDER recibe 403 DENTRO de la funcion). */
-export async function listVotes(userId: string, communityId: string, query: VotesQueryInput): Promise<Paged<VoteView>> {
+export async function listVotes(
+  userId: string,
+  communityId: string,
+  query: VotesQueryInput,
+): Promise<Paged<VoteView>> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const page = query.page ?? 1
@@ -203,7 +212,11 @@ export async function voteResults(userId: string, voteId: string): Promise<VoteR
  * escrito, con los `btrim`/`nullif` de la funcion ya aplicados y las opciones
  * generadas (incluida la abstencion, V-10).
  */
-export async function createVote(userId: string, communityId: string, input: CreateVoteInput): Promise<VoteView> {
+export async function createVote(
+  userId: string,
+  communityId: string,
+  input: CreateVoteInput,
+): Promise<VoteView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const id = await repo.createVote(tx, communityId, {
@@ -238,7 +251,11 @@ export async function createVote(userId: string, communityId: string, input: Cre
  * opcionales del validador no transforman, una clave ausente no existe y el SQL
  * la deja como estaba.
  */
-export async function updateVote(userId: string, voteId: string, input: UpdateVoteInput): Promise<VoteView> {
+export async function updateVote(
+  userId: string,
+  voteId: string,
+  input: UpdateVoteInput,
+): Promise<VoteView> {
   const patch: Record<string, unknown> = {}
 
   if (input.title !== undefined) patch.title = input.title
@@ -306,7 +323,11 @@ export async function closeVote(userId: string, voteId: string): Promise<VoteVie
  * no da 409. La ventana, el veto a PROVIDER y el "optionId es de esta votacion"
  * los decide la funcion.
  */
-export async function castVote(userId: string, voteId: string, input: CastVoteInput): Promise<CastVoteView> {
+export async function castVote(
+  userId: string,
+  voteId: string,
+  input: CastVoteInput,
+): Promise<CastVoteView> {
   return ejecuta(() =>
     withContext({ userId, communityId: null }, async (tx) => {
       const row = await repo.castVote(tx, voteId, input.optionId)
@@ -346,7 +367,10 @@ function celdaCsv(valor: string): string {
  * genera en el backend y no en SQL porque es formato, no autorizacion; la
  * visibilidad la decide `app_vote_results()`, a la que se delega.
  */
-export async function exportResults(userId: string, voteId: string): Promise<{ filename: string; csv: string }> {
+export async function exportResults(
+  userId: string,
+  voteId: string,
+): Promise<{ filename: string; csv: string }> {
   const resultados = await voteResults(userId, voteId)
 
   const lineas = ['opción,votos,porcentaje']

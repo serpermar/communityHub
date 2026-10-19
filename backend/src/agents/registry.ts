@@ -48,7 +48,8 @@ export const AGENTS: AgentDefinition[] = [
   {
     name: 'community',
     title: 'Agente de comunidad',
-    description: 'Resuelve consultas generales de una comunidad: sus datos, miembros, avisos, documentos y votaciones.',
+    description:
+      'Resuelve consultas generales de una comunidad: sus datos, miembros, avisos, documentos y votaciones.',
     kind: 'runtime',
     roles: ['NEIGHBOR', 'PROVIDER', 'ADMIN', 'PRESIDENT'],
     skills: ['community-management', 'incident-management', 'reservations', 'finance'],
@@ -58,11 +59,18 @@ export const AGENTS: AgentDefinition[] = [
   {
     name: 'maintenance',
     title: 'Agente de mantenimiento',
-    description: 'Sigue una incidencia desde que se reporta hasta que se cierra: triage, escalado y cierre.',
+    description:
+      'Sigue una incidencia desde que se reporta hasta que se cierra: triage, escalado y cierre.',
     kind: 'runtime',
     roles: ['ADMIN', 'PRESIDENT'],
     skills: ['incident-management'],
-    tools: ['get_incidents', 'get_open_incidents', 'get_incident', 'get_common_areas', 'get_weather'],
+    tools: [
+      'get_incidents',
+      'get_open_incidents',
+      'get_incident',
+      'get_common_areas',
+      'get_weather',
+    ],
     file: 'agents/maintenance.agent.md',
   },
   {
@@ -88,7 +96,8 @@ export const AGENTS: AgentDefinition[] = [
   {
     name: 'testing',
     title: 'Agente de testing',
-    description: 'Escribe y revisa tests siguiendo la regla de sembrar con privilegio y afirmar con restricción.',
+    description:
+      'Escribe y revisa tests siguiendo la regla de sembrar con privilegio y afirmar con restricción.',
     kind: 'development',
     roles: [],
     skills: ['testing'],
@@ -98,7 +107,8 @@ export const AGENTS: AgentDefinition[] = [
   {
     name: 'security',
     title: 'Agente de seguridad',
-    description: 'Revisa autenticación, autorización, validación y tratamiento del contenido ajeno.',
+    description:
+      'Revisa autenticación, autorización, validación y tratamiento del contenido ajeno.',
     kind: 'development',
     roles: [],
     skills: ['security'],

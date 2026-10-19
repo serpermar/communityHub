@@ -165,10 +165,18 @@ export async function listReservations(
         status: query.status,
       }
 
-      const rows = await repo.listCommunityReservations(tx, communityId, { ...filtros, limit, offset })
+      const rows = await repo.listCommunityReservations(tx, communityId, {
+        ...filtros,
+        limit,
+        offset,
+      })
 
       if (rows.length === 0 && offset > 0) {
-        const muestra = await repo.listCommunityReservations(tx, communityId, { ...filtros, limit: 1, offset: 0 })
+        const muestra = await repo.listCommunityReservations(tx, communityId, {
+          ...filtros,
+          limit: 1,
+          offset: 0,
+        })
         if (muestra.length === 0) {
           return { items: [], meta: { page, limit, total: 0, totalPages: 0 } }
         }
@@ -188,7 +196,10 @@ export async function listReservations(
  * `user_id = app_current_user_id()`, y `notes` sale siempre sin redactar porque
  * las filas son del llamante.
  */
-export async function listMyReservations(userId: string, query: MeQueryInput): Promise<ReservationListView> {
+export async function listMyReservations(
+  userId: string,
+  query: MeQueryInput,
+): Promise<ReservationListView> {
   return ejecuta(() =>
     withContext({ userId, communityId: null }, async (tx) => {
       const page = query.page ?? 1
@@ -198,7 +209,11 @@ export async function listMyReservations(userId: string, query: MeQueryInput): P
       const rows = await repo.listUserReservations(tx, { status: query.status, limit, offset })
 
       if (rows.length === 0 && offset > 0) {
-        const muestra = await repo.listUserReservations(tx, { status: query.status, limit: 1, offset: 0 })
+        const muestra = await repo.listUserReservations(tx, {
+          status: query.status,
+          limit: 1,
+          offset: 0,
+        })
         if (muestra.length === 0) {
           return { items: [], meta: { page, limit, total: 0, totalPages: 0 } }
         }
@@ -221,7 +236,11 @@ export async function listMyReservations(userId: string, query: MeQueryInput): P
  * (fisicamente no puede: no hay DELETE, pero si un cambio de membresia), aqui
  * sale el 404 correcto en vez de un objeto a medias.
  */
-export async function getReservation(userId: string, communityId: string, reservationId: string): Promise<ReservationView> {
+export async function getReservation(
+  userId: string,
+  communityId: string,
+  reservationId: string,
+): Promise<ReservationView> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const row = await repo.findReservation(tx, reservationId)

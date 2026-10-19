@@ -61,7 +61,12 @@ import { requireAnnouncement } from './middleware.js'
 export function createAnnouncementsRouter(): Router {
   const router = Router()
 
-  router.get('/:communityId/announcements', requireAuth, requireCommunity(), controller.listAnnouncements)
+  router.get(
+    '/:communityId/announcements',
+    requireAuth,
+    requireCommunity(),
+    controller.listAnnouncements,
+  )
 
   router.post(
     '/:communityId/announcements',
@@ -89,8 +94,18 @@ export function createAnnouncementsRouter(): Router {
 export function createAnnouncementRouter(): Router {
   const router = Router()
 
-  router.put('/announcements/:id', requireAuth, requireAnnouncement(), controller.updateAnnouncement)
-  router.delete('/announcements/:id', requireAuth, requireAnnouncement(), controller.deleteAnnouncement)
+  router.put(
+    '/announcements/:id',
+    requireAuth,
+    requireAnnouncement(),
+    controller.updateAnnouncement,
+  )
+  router.delete(
+    '/announcements/:id',
+    requireAuth,
+    requireAnnouncement(),
+    controller.deleteAnnouncement,
+  )
 
   return router
 }

@@ -42,7 +42,9 @@ async function nuevoUsuario(): Promise<TestUser> {
 
 /** Crea el usuario, entra y devuelve su cabecera de autorizacion. */
 async function tokenDe(user: { email: string; password: string }): Promise<string> {
-  const res = await request(app()).post('/api/v1/auth/login').send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post('/api/v1/auth/login')
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
@@ -150,7 +152,10 @@ describe('POST /api/v1/communities', () => {
     expect(miembros[0]!.joined_at).not.toBeNull()
 
     // Y el que se creo es el mismo actor.
-    const fila = await admin.communities.findUniqueOrThrow({ where: { id }, select: { created_by: true } })
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id },
+      select: { created_by: true },
+    })
     expect(fila.created_by).toBe(staff.id)
   })
 
@@ -203,7 +208,9 @@ describe('POST /api/v1/communities', () => {
     expect(await admin.communities.count({ where: { slug: cuerpo.slug } })).toBe(1)
     // El staff sigue con una sola membresia ADMIN: la de la primera comunidad. Si
     // la segunda hubiera inserciones a medias, serían dos.
-    const membresias = await admin.communityMembers.count({ where: { user_id: staff.id, role: 'ADMIN' } })
+    const membresias = await admin.communityMembers.count({
+      where: { user_id: staff.id, role: 'ADMIN' },
+    })
     expect(membresias).toBe(1)
   })
 
@@ -219,7 +226,9 @@ describe('POST /api/v1/communities', () => {
 
     expect(res.status).toBe(400)
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
-    expect(res.body.error.details.some((d: { field: string }) => d.field.includes('latitude'))).toBe(true)
+    expect(
+      res.body.error.details.some((d: { field: string }) => d.field.includes('latitude')),
+    ).toBe(true)
   })
 })
 
@@ -256,7 +265,10 @@ describe('aislamiento entre comunidades', () => {
 
     // ADMIN de B, asi que tiene que verla.
     const dentro = await withContext({ userId: vecino.id, communityId: comunidadB }, (tx) =>
-      tx.$queryRawUnsafe<Array<{ n: number }>>('select count(*)::int as n from communities where id = $1::uuid', comunidadB),
+      tx.$queryRawUnsafe<Array<{ n: number }>>(
+        'select count(*)::int as n from communities where id = $1::uuid',
+        comunidadB,
+      ),
     )
     expect(dentro[0]!.n).toBe(1)
 
@@ -267,7 +279,10 @@ describe('aislamiento entre comunidades', () => {
     await makeMember(otroVecino.id, comunidadA, 'ADMIN')
 
     const fuera = await withContext({ userId: otroVecino.id, communityId: comunidadA }, (tx) =>
-      tx.$queryRawUnsafe<Array<{ n: number }>>('select count(*)::int as n from communities where id = $1::uuid', comunidadB),
+      tx.$queryRawUnsafe<Array<{ n: number }>>(
+        'select count(*)::int as n from communities where id = $1::uuid',
+        comunidadB,
+      ),
     )
     // Cero filas y NO un error: con SELECT, RLS filtra en silencio. Por eso la
     // afirmacion es sobre el contenido y no sobre que no reviente.
@@ -291,7 +306,10 @@ describe('aislamiento entre comunidades', () => {
 
     // Y la fila sigue intacta. Sin esto, un 403 por el motivo equivocado tambien
     // dejaria el nombre intacto y el test pasaria.
-    const fila = await admin.communities.findUniqueOrThrow({ where: { id: comunidadB }, select: { name: true } })
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id: comunidadB },
+      select: { name: true },
+    })
     expect(fila.name).toBe('Comunidad B')
   })
 
@@ -333,7 +351,9 @@ describe('GET /api/v1/communities', () => {
     // Ni una fila de la ajena, ni un nombre suyo filtrado.
     expect(JSON.stringify(res.body)).not.toContain('Gamma')
 
-    const roles = Object.fromEntries(res.body.data.map((c: { id: string; memberRole: string }) => [c.id, c.memberRole]))
+    const roles = Object.fromEntries(
+      res.body.data.map((c: { id: string; memberRole: string }) => [c.id, c.memberRole]),
+    )
     expect(roles[a]).toBe('PRESIDENT')
     expect(roles[b]).toBe('NEIGHBOR')
   })
@@ -418,7 +438,9 @@ describe('GET /api/v1/communities/:communityId', () => {
     const vecino = await nuevoUsuario()
     const token = await tokenDe(vecino)
 
-    const res = await request(app()).get(`${RUTAS}/${'99999999-9999-4999-8999-999999999999'}`).set('Authorization', token)
+    const res = await request(app())
+      .get(`${RUTAS}/${'99999999-9999-4999-8999-999999999999'}`)
+      .set('Authorization', token)
     expect(res.status).toBe(403)
   })
 })
@@ -441,7 +463,11 @@ describe('PATCH /api/v1/communities/:communityId', () => {
       .send({ name: 'Renombrada', city: 'Zaragoza' })
 
     expect(res.status).toBe(200)
-    expect(res.body.data).toMatchObject({ name: 'Renombrada', city: 'Zaragoza', memberRole: 'ADMIN' })
+    expect(res.body.data).toMatchObject({
+      name: 'Renombrada',
+      city: 'Zaragoza',
+      memberRole: 'ADMIN',
+    })
   })
 
   it('un PATCH parcial no toca los campos que no vienen', async () => {
@@ -454,11 +480,18 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     await makeMember(adminC.id, id, 'ADMIN')
     await admin.communities.update({
       where: { id },
-      data: { description: 'Una descripcion que debe sobrevivir', postal_code: '46001', province: 'Valencia' },
+      data: {
+        description: 'Una descripcion que debe sobrevivir',
+        postal_code: '46001',
+        province: 'Valencia',
+      },
     })
 
     const token = await tokenDe(adminC)
-    const res = await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ name: 'Solo el nombre' })
+    const res = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ name: 'Solo el nombre' })
 
     expect(res.status).toBe(200)
     expect(res.body.data).toMatchObject({
@@ -476,13 +509,19 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     await makeMember(vecino.id, id, 'NEIGHBOR')
 
     const token = await tokenDe(vecino)
-    const res = await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ name: 'Cambiada' })
+    const res = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ name: 'Cambiada' })
 
     // Y NO un 404: la politica habria afectado a cero filas y Prisma habria
     // lanzado P2025, que el middleware traduce a 404. El chequeo de rol va antes
     // justamente para que el codigo de error signifique algo.
     expect(res.status).toBe(403)
-    const fila = await admin.communities.findUniqueOrThrow({ where: { id }, select: { name: true } })
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id },
+      select: { name: true },
+    })
     expect(fila.name).toBe('Intacta')
   })
 
@@ -493,7 +532,10 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     await makeMember(presidente.id, id, 'PRESIDENT')
 
     const token = await tokenDe(presidente)
-    const res = await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ name: 'Cambiada' })
+    const res = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ name: 'Cambiada' })
     expect(res.status).toBe(403)
   })
 
@@ -505,16 +547,24 @@ describe('PATCH /api/v1/communities/:communityId', () => {
 
     // Se lee ANTES de intentarlo: el helper anade un sufijo unico al slug, asi que
     // no se puede comparar con un literal.
-    const slugAntes = (await admin.communities.findUniqueOrThrow({ where: { id }, select: { slug: true } })).slug
+    const slugAntes = (
+      await admin.communities.findUniqueOrThrow({ where: { id }, select: { slug: true } })
+    ).slug
 
     const token = await tokenDe(adminC)
-    const res = await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ slug: 'otro-slug' })
+    const res = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ slug: 'otro-slug' })
 
     expect(res.status).toBe(400)
     // El mensaje tiene que explicar que es deliberado, no "clave desconocida".
     expect(JSON.stringify(res.body.error.details)).toContain('slug')
 
-    const fila = await admin.communities.findUniqueOrThrow({ where: { id }, select: { slug: true } })
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id },
+      select: { slug: true },
+    })
     expect(fila.slug).toBe(slugAntes)
   })
 
@@ -551,7 +601,10 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     await makeMember(adminC.id, id, 'ADMIN')
 
     const token = await tokenDe(adminC)
-    const baja = await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ isActive: false })
+    const baja = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ isActive: false })
     expect(baja.status).toBe(200)
     expect(baja.body.data.isActive).toBe(false)
 
@@ -572,7 +625,10 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     await makeMember(adminC.id, id, 'ADMIN')
 
     const token = await tokenDe(adminC)
-    await request(app()).patch(`${RUTAS}/${id}`).set('Authorization', token).send({ isActive: false })
+    await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ isActive: false })
 
     const listado = await request(app()).get(RUTAS).set('Authorization', token)
     expect(listado.body.data.map((c: { id: string }) => c.id)).not.toContain(id)
@@ -738,7 +794,10 @@ describe('invariantes de la base de datos', () => {
     const id = res.body.data.id
     comunidades.push(id)
 
-    const fila = await admin.communities.findUniqueOrThrow({ where: { id }, select: { slug: true } })
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id },
+      select: { slug: true },
+    })
     expect(fila.slug).toBe(bueno)
     expect(fila.slug).toBe(fila.slug.toLowerCase())
   })

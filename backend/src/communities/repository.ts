@@ -87,7 +87,9 @@ const COMMUNITY_FIELDS = {
  * Se escribe a mano porque la consulta necesita una columna calculada
  * (`app_role_in`) al lado, y el cliente de Prisma no sabe expresar eso.
  */
-export async function listCommunities(tx: Tx): Promise<Array<CommunityRow & { member_role: string | null }>> {
+export async function listCommunities(
+  tx: Tx,
+): Promise<Array<CommunityRow & { member_role: string | null }>> {
   return tx.$queryRaw<Array<CommunityRow & { member_role: string | null }>>`
     select c.id, c.name, c.slug, c.description, c.address_line1, c.city, c.province,
            c.postal_code, c.country, c.latitude, c.longitude, c.timezone,
@@ -126,20 +128,23 @@ export async function findCommunityById(tx: Tx, communityId: string) {
  * el del DTO de la API. Un NULL explicito en `country` o `timezone` es lo
  * correcto: la funcion tiene su propio valor por defecto y lo aplica dentro.
  */
-export async function createCommunity(tx: Tx, input: {
-  name: string
-  slug: string
-  addressLine1: string
-  city: string
-  country: string
-  description: string | null
-  province: string | null
-  postalCode: string | null
-  registrationNumber: string | null
-  timezone: string
-  latitude: number | null
-  longitude: number | null
-}): Promise<string> {
+export async function createCommunity(
+  tx: Tx,
+  input: {
+    name: string
+    slug: string
+    addressLine1: string
+    city: string
+    country: string
+    description: string | null
+    province: string | null
+    postalCode: string | null
+    registrationNumber: string | null
+    timezone: string
+    latitude: number | null
+    longitude: number | null
+  },
+): Promise<string> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
     select app_create_community(
       ${input.name},

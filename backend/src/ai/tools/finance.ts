@@ -19,7 +19,8 @@ const ADMIN = ['ADMIN'] as const
 export const financeTools: ToolDefinition[] = [
   defineTool({
     name: 'get_expenses',
-    description: 'Lista los gastos de la comunidad, con filtros opcionales por fecha, categoría o importe.',
+    description:
+      'Lista los gastos de la comunidad, con filtros opcionales por fecha, categoría o importe.',
     roles: [...ADMIN],
     requiresCommunity: true,
     sensitive: true,

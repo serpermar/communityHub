@@ -56,9 +56,13 @@ const REJILLAS = [30, 60, 90, 120] as const
  */
 const rejilla = z
   .number()
-  .refine((valor): valor is (typeof REJILLAS)[number] => (REJILLAS as ReadonlyArray<number>).includes(valor), {
-    message: 'slotMinutes debe ser 30, 60, 90 o 120.',
-  })
+  .refine(
+    (valor): valor is (typeof REJILLAS)[number] =>
+      (REJILLAS as ReadonlyArray<number>).includes(valor),
+    {
+      message: 'slotMinutes debe ser 30, 60, 90 o 120.',
+    },
+  )
 
 /** Mismo criterio que `members/validators.ts` (C-9). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -71,9 +75,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
-const hora = z
-  .string()
-  .regex(HORA_RE, 'La hora debe tener el formato HH:MM (de 00:00 a 23:59).')
+const hora = z.string().regex(HORA_RE, 'La hora debe tener el formato HH:MM (de 00:00 a 23:59).')
 
 /**
  * El nombre. 2-80, igual que `common_areas_name_length`.

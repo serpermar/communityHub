@@ -44,7 +44,10 @@ export const admin = new PrismaClient({
 
   // Log de consultas desactivado a proposito: los fixtures insertan miles de
   // filas en cada pasada y el ruido tapa lo que interesa.
-  log: [{ level: 'warn', emit: 'stdout' }, { level: 'error', emit: 'stdout' }],
+  log: [
+    { level: 'warn', emit: 'stdout' },
+    { level: 'error', emit: 'stdout' },
+  ],
 })
 
 /**

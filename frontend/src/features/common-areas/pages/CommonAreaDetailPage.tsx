@@ -75,11 +75,13 @@ export function CommonAreaDetailPage() {
       <Card>
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-slate-800">{area.name}</h1>
-          <Badge tone={area.isActive ? 'green' : 'slate'}>{area.isActive ? 'Activa' : 'Baja'}</Badge>
+          <Badge tone={area.isActive ? 'green' : 'slate'}>
+            {area.isActive ? 'Activa' : 'Baja'}
+          </Badge>
         </div>
         <p className="mt-1 text-sm text-slate-500">
-          {COMMON_AREA_TYPE_LABELS[area.type]} · franjas de {area.slotMinutes} min · {area.openTime}–
-          {area.closeTime}
+          {COMMON_AREA_TYPE_LABELS[area.type]} · franjas de {area.slotMinutes} min · {area.openTime}
+          –{area.closeTime}
           {area.requiresApproval && ' · requiere aprobación'}
         </p>
       </Card>

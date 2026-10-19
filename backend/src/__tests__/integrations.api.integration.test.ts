@@ -27,10 +27,22 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { admin } from '../db-admin.js'
 import { ExternalProviderError } from '../integrations/errors.js'
 import { FakeGeocodingProvider } from '../integrations/map/fake.js'
-import { resetProviders, setGeocodingProvider, setWeatherProvider } from '../integrations/providers.js'
+import {
+  resetProviders,
+  setGeocodingProvider,
+  setWeatherProvider,
+} from '../integrations/providers.js'
 import type { PlaceView } from '../integrations/types.js'
 import { FakeWeatherProvider, defaultReading } from '../integrations/weather/fake.js'
-import { app, createUser, deleteCommunity, deleteUser, makeCommunity, makeMember, type TestUser } from './helpers.js'
+import {
+  app,
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeCommunity,
+  makeMember,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 
@@ -102,14 +114,19 @@ async function nuevaComunidad(nombre = 'Comunidad Externa'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
 
 type Actor = TestUser & { token: string }
 
-async function miembro(comunidad: string, role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT'): Promise<Actor> {
+async function miembro(
+  comunidad: string,
+  role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT',
+): Promise<Actor> {
   const user = await nuevoUsuario(`Actor ${role}`)
   await makeMember(user.id, comunidad, role)
   return { ...user, token: await tokenDe(user) }
@@ -161,7 +178,11 @@ describe('GET /communities/:id/weather', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.data.location).toMatchObject({ city: 'Zaragoza', timezone: 'Europe/Madrid' })
-    expect(res.body.data.current).toMatchObject({ temperatureC: 21, condition: 'CLEAR', isDay: true })
+    expect(res.body.data.current).toMatchObject({
+      temperatureC: 21,
+      condition: 'CLEAR',
+      isDay: true,
+    })
     expect(res.body.data.today).toMatchObject({ minC: 14, maxC: 24 })
     expect(res.body.meta).toMatchObject({ cached: false, stale: false, degraded: false })
   })
@@ -202,7 +223,11 @@ describe('degradacion de weather', () => {
   it('con el proveedor caido y sin cache degrada con PROVIDER_ERROR (nunca 5xx)', async () => {
     const c = await nuevaComunidad()
     const vecino = await miembro(c, 'NEIGHBOR')
-    setWeatherProvider(new FakeWeatherProvider(() => { throw new ExternalProviderError('caido') }))
+    setWeatherProvider(
+      new FakeWeatherProvider(() => {
+        throw new ExternalProviderError('caido')
+      }),
+    )
 
     const res = await weather(c, vecino)
 
@@ -239,8 +264,20 @@ describe('GET /communities/:id/map', () => {
     setGeocodingProvider(
       new FakeGeocodingProvider({
         searchNearby: () => [
-          place({ name: 'Ferretería', category: 'Ferretería', osmKey: 'shop', osmValue: 'hardware', distanceM: 30 }),
-          place({ name: 'Parque', category: 'Parque', osmKey: 'leisure', osmValue: 'park', distanceM: 120 }),
+          place({
+            name: 'Ferretería',
+            category: 'Ferretería',
+            osmKey: 'shop',
+            osmValue: 'hardware',
+            distanceM: 30,
+          }),
+          place({
+            name: 'Parque',
+            category: 'Parque',
+            osmKey: 'leisure',
+            osmValue: 'park',
+            distanceM: 120,
+          }),
         ],
       }),
     )
@@ -256,7 +293,13 @@ describe('GET /communities/:id/map', () => {
   it('con el proveedor caido mantiene location y deja las listas vacias', async () => {
     const c = await nuevaComunidad()
     const vecino = await miembro(c, 'NEIGHBOR')
-    setGeocodingProvider(new FakeGeocodingProvider({ searchNearby: () => { throw new ExternalProviderError('caido') } }))
+    setGeocodingProvider(
+      new FakeGeocodingProvider({
+        searchNearby: () => {
+          throw new ExternalProviderError('caido')
+        },
+      }),
+    )
 
     const res = await map(c, vecino)
 
@@ -278,7 +321,12 @@ describe('POST /communities/:id/geocode', () => {
     const admin_ = await miembro(c, 'ADMIN')
     setGeocodingProvider(
       new FakeGeocodingProvider({
-        geocode: () => ({ latitude: 40.4168, longitude: -3.7038, formattedAddress: 'Calle de Prueba 1, Zaragoza, ES', source: 'fake' }),
+        geocode: () => ({
+          latitude: 40.4168,
+          longitude: -3.7038,
+          formattedAddress: 'Calle de Prueba 1, Zaragoza, ES',
+          source: 'fake',
+        }),
       }),
     )
 
@@ -287,7 +335,10 @@ describe('POST /communities/:id/geocode', () => {
     expect(res.status).toBe(200)
     expect(res.body.data).toMatchObject({ latitude: 40.4168, longitude: -3.7038, source: 'fake' })
 
-    const fila = await admin.communities.findUnique({ where: { id: c }, select: { latitude: true, longitude: true } })
+    const fila = await admin.communities.findUnique({
+      where: { id: c },
+      select: { latitude: true, longitude: true },
+    })
     expect(Number(fila?.latitude)).toBeCloseTo(40.4168, 5)
     expect(Number(fila?.longitude)).toBeCloseTo(-3.7038, 5)
 
@@ -318,7 +369,13 @@ describe('POST /communities/:id/geocode', () => {
   it('si el proveedor cae da 502 EXTERNAL_PROVIDER_ERROR', async () => {
     const c = await nuevaComunidad()
     const admin_ = await miembro(c, 'ADMIN')
-    setGeocodingProvider(new FakeGeocodingProvider({ geocode: () => { throw new ExternalProviderError('caido') } }))
+    setGeocodingProvider(
+      new FakeGeocodingProvider({
+        geocode: () => {
+          throw new ExternalProviderError('caido')
+        },
+      }),
+    )
 
     const res = await geocode(c, admin_)
 

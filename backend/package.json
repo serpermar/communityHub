@@ -11,6 +11,10 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:pull": "tsx prisma/pull.ts",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
@@ -24,12 +28,12 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:watch:integration": "vitest --config vitest.integration.config.ts",
     "test:coverage": "vitest run --config vitest.config.ts --coverage",
-    "lint": "tsc -p tsconfig.json --noEmit",
     "smoke": "tsx scripts/smoke.ts",
     "mcp": "tsx src/mcp/stdio.ts",
     "mcp:dist": "node dist/mcp/stdio.js",
     "agent": "tsx src/agents/dev/cli.ts",
-    "agent:dist": "node dist/agents/dev/cli.js"
+    "agent:dist": "node dist/agents/dev/cli.js",
+    "lint:ci": "eslint ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -49,6 +53,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -58,11 +63,16 @@
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
     "pg": "^8.23.1",
+    "prettier": "^3.9.10",
     "prisma": "^6.1.0",
     "supertest": "^7.3.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.71.2",
     "vitest": "^5.0.3"
   }
 }

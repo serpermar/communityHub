@@ -59,8 +59,24 @@ const IGNORED_DIRS = new Set([
 ])
 
 const BINARY_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.gz', '.tgz',
-  '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.webm', '.mp3', '.wav', '.map',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.ico',
+  '.pdf',
+  '.zip',
+  '.gz',
+  '.tgz',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.mp4',
+  '.webm',
+  '.mp3',
+  '.wav',
+  '.map',
 ])
 
 const MAX_FILE_BYTES = 128 * 1024
@@ -173,7 +189,11 @@ const listFiles = defineTool({
     limit: z.number().int().min(1).max(2000).optional(),
   }),
   async run(args, ctx) {
-    const { path: base = '.', glob, limit = DEFAULT_LIST_LIMIT } = args as {
+    const {
+      path: base = '.',
+      glob,
+      limit = DEFAULT_LIST_LIMIT,
+    } = args as {
       path?: string
       glob?: string
       limit?: number
@@ -224,7 +244,11 @@ const searchRepo = defineTool({
     max: z.number().int().min(1).max(1000).optional(),
   }),
   async run(args, ctx) {
-    const { pattern, path: base = '.', max = DEFAULT_SEARCH_MAX } = args as {
+    const {
+      pattern,
+      path: base = '.',
+      max = DEFAULT_SEARCH_MAX,
+    } = args as {
       pattern: string
       path?: string
       max?: number
@@ -274,7 +298,11 @@ export function findDevTool(name: string): DevTool | undefined {
 
 /** El catalogo de dev tools tal como se le describe al modelo. */
 export function devToolSpecs(tools: readonly DevTool[] = DEV_TOOLS) {
-  return tools.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.parameters }))
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  }))
 }
 
 /** Ejecuta una dev tool validando sus argumentos con zod. */

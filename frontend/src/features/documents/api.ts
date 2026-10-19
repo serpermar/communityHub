@@ -44,9 +44,7 @@ export function uploadDocument(
   return api.upload<CommunityDocument>(`/communities/${communityId}/documents`, form)
 }
 
-export function getDownloadUrl(
-  documentId: string,
-): Promise<{ url: string; expiresIn: number }> {
+export function getDownloadUrl(documentId: string): Promise<{ url: string; expiresIn: number }> {
   return api.get<{ url: string; expiresIn: number }>(`/documents/${documentId}/download`)
 }
 

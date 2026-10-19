@@ -98,12 +98,12 @@ describe('getStorageGateway', () => {
   it('reset crea una instancia nueva con carpeta nueva', async () => {
     await resetStorageGateway()
 
-    const primero = await getStorageGateway() as LocalStorageGateway
+    const primero = (await getStorageGateway()) as LocalStorageGateway
     const primeraRuta = primero.rutaLocal('x')
 
     await resetStorageGateway()
 
-    const segundo = await getStorageGateway() as LocalStorageGateway
+    const segundo = (await getStorageGateway()) as LocalStorageGateway
     const segundaRuta = segundo.rutaLocal('x')
 
     expect(segundo).toBeInstanceOf(LocalStorageGateway)

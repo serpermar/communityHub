@@ -53,7 +53,10 @@ beforeEach(() => {
 
 describe('listNotifications', () => {
   it('mapea a camelCase y a ISO, y calcula offset y meta', async () => {
-    mocks.listNotifications.mockResolvedValue([fila({ total_count: 45n }), fila({ id: 'otra', total_count: 45n })])
+    mocks.listNotifications.mockResolvedValue([
+      fila({ total_count: 45n }),
+      fila({ id: 'otra', total_count: 45n }),
+    ])
 
     const page = await service.listNotifications('user-1', { unread: false, page: 2, limit: 20 })
 
@@ -114,7 +117,9 @@ describe('markRead', () => {
   it('sin fila: 404 NOT_FOUND (no existe o no es tuya)', async () => {
     mocks.markRead.mockResolvedValue(null)
 
-    await expect(service.markRead('user-1', '11111111-1111-1111-1111-111111111111')).rejects.toMatchObject({
+    await expect(
+      service.markRead('user-1', '11111111-1111-1111-1111-111111111111'),
+    ).rejects.toMatchObject({
       status: 404,
       code: 'NOT_FOUND',
     })

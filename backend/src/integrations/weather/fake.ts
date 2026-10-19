@@ -18,7 +18,8 @@ export type WeatherCall = {
   timezone: string
 }
 
-export type FakeWeatherScript = WeatherReading[] | ((input: WeatherCall) => WeatherReading | Promise<WeatherReading>)
+export type FakeWeatherScript =
+  WeatherReading[] | ((input: WeatherCall) => WeatherReading | Promise<WeatherReading>)
 
 /** Reading por defecto: un dia despejado de temperaturas suaves y valores completos. */
 export function defaultReading(): WeatherReading {
@@ -57,7 +58,11 @@ export class FakeWeatherProvider implements WeatherProvider {
   }
 
   async fetchWeather(input: WeatherCall): Promise<WeatherReading> {
-    this.calls.push({ latitude: input.latitude, longitude: input.longitude, timezone: input.timezone })
+    this.calls.push({
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone,
+    })
 
     if (typeof this.script === 'function') {
       return this.script(input)

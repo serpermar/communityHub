@@ -163,7 +163,11 @@ async function outsider(): Promise<Actor> {
 }
 
 /** Una zona creada por la API con el ADMIN. Devuelve su id. */
-async function crearZona(token: string, comunidad: string, extra: Record<string, unknown> = {}): Promise<string> {
+async function crearZona(
+  token: string,
+  comunidad: string,
+  extra: Record<string, unknown> = {},
+): Promise<string> {
   const res = await request(app())
     .post(`${V1}/communities/${comunidad}/common-areas`)
     .set('Authorization', token)
@@ -203,7 +207,10 @@ function altaValida(inicio: Date, extra: Record<string, unknown> = {}) {
 
 /** Crea una reserva y devuelve la respuesta entera, sin asumir el status. */
 async function reservar(token: string, zona: string, body: Record<string, unknown>) {
-  return request(app()).post(`${V1}/common-areas/${zona}/reservations`).set('Authorization', token).send(body)
+  return request(app())
+    .post(`${V1}/common-areas/${zona}/reservations`)
+    .set('Authorization', token)
+    .send(body)
 }
 
 /** La disponibilidad de un dia, para comprobar slots desde fuera. */
@@ -320,11 +327,31 @@ describe('Alta de reservas (R-1, R-2, R-7)', () => {
     const zona = await crearZona(e.admin.token, e.comunidad, { capacity: 2 })
 
     const casos: Array<[string, Date, Record<string, unknown>, string]> = [
-      ['hora pasada', new Date(Date.now() - 3_600_000), {}, 'La reserva no puede empezar en el pasado.'],
-      ['fuera de rejilla', enFuturo(7, 10, 30), {}, 'Las horas deben encajar en la rejilla de reservas de la zona.'],
+      [
+        'hora pasada',
+        new Date(Date.now() - 3_600_000),
+        {},
+        'La reserva no puede empezar en el pasado.',
+      ],
+      [
+        'fuera de rejilla',
+        enFuturo(7, 10, 30),
+        {},
+        'Las horas deben encajar en la rejilla de reservas de la zona.',
+      ],
       ['fuera de horario', enFuturo(7, 23), {}, 'La reserva cae fuera del horario de la zona.'],
-      ['capacidad', enFuturo(7, 12), { attendees: 5 }, 'La asistencia supera la capacidad de la zona.'],
-      ['orden', enFuturo(7, 14), { endsAt: enFuturo(7, 13).toISOString() }, 'El fin de la reserva debe ser posterior al inicio.'],
+      [
+        'capacidad',
+        enFuturo(7, 12),
+        { attendees: 5 },
+        'La asistencia supera la capacidad de la zona.',
+      ],
+      [
+        'orden',
+        enFuturo(7, 14),
+        { endsAt: enFuturo(7, 13).toISOString() },
+        'El fin de la reserva debe ser posterior al inicio.',
+      ],
     ]
 
     for (const [nombre, inicio, extra, mensaje] of casos) {
@@ -340,9 +367,7 @@ describe('Alta de reservas (R-1, R-2, R-7)', () => {
       // que el contrato de API.md lleva en details campo a campo.
       const nombrado =
         res.body.error.message === mensaje ||
-        (res.body.error.details ?? []).some(
-          (d: { message?: string }) => d.message === mensaje,
-        )
+        (res.body.error.details ?? []).some((d: { message?: string }) => d.message === mensaje)
       expect(nombrado, `con ${nombre}: ${JSON.stringify(res.body)}`).toBe(true)
     }
   })
@@ -456,7 +481,9 @@ describe('Limite diario (R-7)', () => {
     const segunda = await reservar(e.vecinoB.token, zona, altaValida(enFuturo(7, 13)))
 
     expect(segunda.status).toBe(400)
-    expect(segunda.body.error.message).toBe('Se ha alcanzado el límite diario de reservas de esa zona.')
+    expect(segunda.body.error.message).toBe(
+      'Se ha alcanzado el límite diario de reservas de esa zona.',
+    )
 
     // Y al dia siguiente la plaza vuelve a estar.
     const manana = await reservar(e.vecinoB.token, zona, altaValida(enFuturo(8, 9)))
@@ -653,8 +680,16 @@ describe('Listado de comunidad y redaccion (R-5, R-10)', () => {
     const zona = await crearZona(e.admin.token, e.comunidad)
     const inicioA = enFuturo(7, 10)
 
-    const a = await reservar(e.vecinoA.token, zona, altaValida(inicioA, { notes: 'Traigo la pata de mesa.', attendees: 3 }))
-    const b = await reservar(e.vecinoB.token, zona, altaValida(enFuturo(7, 12), { notes: 'Notas de B.' }))
+    const a = await reservar(
+      e.vecinoA.token,
+      zona,
+      altaValida(inicioA, { notes: 'Traigo la pata de mesa.', attendees: 3 }),
+    )
+    const b = await reservar(
+      e.vecinoB.token,
+      zona,
+      altaValida(enFuturo(7, 12), { notes: 'Notas de B.' }),
+    )
     expect(a.status).toBe(201)
     expect(b.status).toBe(201)
 
@@ -704,7 +739,9 @@ describe('Listado de comunidad y redaccion (R-5, R-10)', () => {
       .set('Authorization', e.vecinoB.token)
 
     expect(deB.status).toBe(200)
-    const vistaDeB = deB.body.data.find((r: { id: string; userId: string }) => r.userId === e.vecinoA.id)
+    const vistaDeB = deB.body.data.find(
+      (r: { id: string; userId: string }) => r.userId === e.vecinoA.id,
+    )
     expect(vistaDeB.notes).toBeNull()
     // La distincion entre "sin notas" y "no te las enseno" solo beneficiaria
     // a un atacante, asi que sale null en los dos casos.
@@ -718,7 +755,9 @@ describe('Listado de comunidad y redaccion (R-5, R-10)', () => {
       const res = await request(app())
         .get(`${V1}/communities/${e.comunidad}/reservations`)
         .set('Authorization', actor.token)
-      const propia = res.body.data.find((r: { id: string; userId: string }) => r.userId === e.vecinoA.id)
+      const propia = res.body.data.find(
+        (r: { id: string; userId: string }) => r.userId === e.vecinoA.id,
+      )
       expect(propia.notes, `con ${nombre}`).toBe('Traigo la pata de mesa.')
     }
   })
@@ -755,7 +794,9 @@ describe('Listado de comunidad y redaccion (R-5, R-10)', () => {
     expect(elMismoDia.body.data).toHaveLength(2)
 
     const otroDia = await request(app())
-      .get(`${V1}/communities/${e.comunidad}/reservations?date=${diaDe(new Date(inicioA.getTime() + 86_400_000))}`)
+      .get(
+        `${V1}/communities/${e.comunidad}/reservations?date=${diaDe(new Date(inicioA.getTime() + 86_400_000))}`,
+      )
       .set('Authorization', e.vecinoA.token)
     expect(otroDia.body.data).toHaveLength(0)
     expect(otroDia.body.meta.total).toBe(0)
@@ -820,19 +861,29 @@ describe('Detalle GET /reservations/:id', () => {
   it('el dueño ve las notas; otro miembro ve la reserva con notes null', async () => {
     const e = await escena()
     const zona = await crearZona(e.admin.token, e.comunidad)
-    const creada = await reservar(e.vecinoA.token, zona, altaValida(enFuturo(7, 10), { notes: 'Solo la dueña.' }))
+    const creada = await reservar(
+      e.vecinoA.token,
+      zona,
+      altaValida(enFuturo(7, 10), { notes: 'Solo la dueña.' }),
+    )
     const id = creada.body.data.id
 
-    const propia = await request(app()).get(`${V1}/reservations/${id}`).set('Authorization', e.vecinoA.token)
+    const propia = await request(app())
+      .get(`${V1}/reservations/${id}`)
+      .set('Authorization', e.vecinoA.token)
     expect(propia.status).toBe(200)
     expect(propia.body.data.notes).toBe('Solo la dueña.')
 
-    const ajena = await request(app()).get(`${V1}/reservations/${id}`).set('Authorization', e.vecinoB.token)
+    const ajena = await request(app())
+      .get(`${V1}/reservations/${id}`)
+      .set('Authorization', e.vecinoB.token)
     expect(ajena.status).toBe(200)
     expect(ajena.body.data.notes).toBeNull()
     expect(ajena.body.data.userId).toBe(e.vecinoA.id)
 
-    const presidente = await request(app()).get(`${V1}/reservations/${id}`).set('Authorization', e.presidente.token)
+    const presidente = await request(app())
+      .get(`${V1}/reservations/${id}`)
+      .set('Authorization', e.presidente.token)
     expect(presidente.status).toBe(200)
     expect(presidente.body.data.notes).toBe('Solo la dueña.')
   })
@@ -844,10 +895,14 @@ describe('Detalle GET /reservations/:id', () => {
     const id = creada.body.data.id
 
     const deFuera = await outsider()
-    const ajena = await request(app()).get(`${V1}/reservations/${id}`).set('Authorization', deFuera.token)
+    const ajena = await request(app())
+      .get(`${V1}/reservations/${id}`)
+      .set('Authorization', deFuera.token)
     expect(ajena.status).toBe(404)
 
-    const sinUuid = await request(app()).get(`${V1}/reservations/no-es-uuid`).set('Authorization', e.vecinoA.token)
+    const sinUuid = await request(app())
+      .get(`${V1}/reservations/no-es-uuid`)
+      .set('Authorization', e.vecinoA.token)
     expect(sinUuid.status).toBe(400)
 
     const sinToken = await request(app()).get(`${V1}/reservations/${id}`)
@@ -861,7 +916,11 @@ describe('Detalle GET /reservations/:id', () => {
     const id = creada.body.data.id
 
     const otra = await nuevaComunidad('Comunidad ajena')
-    const adminDeOtra = await actorEn(await nuevoUsuario({ fullName: 'Admin ajeno' }), otra, 'ADMIN')
+    const adminDeOtra = await actorEn(
+      await nuevoUsuario({ fullName: 'Admin ajeno' }),
+      otra,
+      'ADMIN',
+    )
 
     // Un ADMIN de otra comunidad es ADMIN... pero de OTRA. Ni cancelar ni
     // confirmar pueden salir 403: eso confirmaria que la reserva existe.
@@ -884,7 +943,11 @@ describe('Agenda propia GET /reservations/me', () => {
     const e = await escena()
     const zona = await crearZona(e.admin.token, e.comunidad)
 
-    const mia = await reservar(e.vecinoA.token, zona, altaValida(enFuturo(7, 10), { notes: 'Notas propias.' }))
+    const mia = await reservar(
+      e.vecinoA.token,
+      zona,
+      altaValida(enFuturo(7, 10), { notes: 'Notas propias.' }),
+    )
     const suya = await reservar(e.vecinoB.token, zona, altaValida(enFuturo(7, 12)))
     expect(mia.status).toBe(201)
     expect(suya.status).toBe(201)
@@ -893,23 +956,32 @@ describe('Agenda propia GET /reservations/me', () => {
     // es la de TODAS sus comunidades, y por eso no puede llevar :communityId.
     const otra = await nuevaComunidad('Comunidad vecina')
     await makeMember(e.vecinoA.id, otra, 'NEIGHBOR')
-    const adminDeOtra = await actorEn(await nuevoUsuario({ fullName: 'Admin vecino' }), otra, 'ADMIN')
+    const adminDeOtra = await actorEn(
+      await nuevoUsuario({ fullName: 'Admin vecino' }),
+      otra,
+      'ADMIN',
+    )
     const zonaOtra = await crearZona(adminDeOtra.token, otra)
     const enOtra = await reservar(e.vecinoA.token, zonaOtra, altaValida(enFuturo(8, 10)))
     expect(enOtra.status).toBe(201)
 
-    const suAgenda = await request(app()).get(`${V1}/reservations/me`).set('Authorization', e.vecinoA.token)
+    const suAgenda = await request(app())
+      .get(`${V1}/reservations/me`)
+      .set('Authorization', e.vecinoA.token)
     expect(suAgenda.status).toBe(200)
     expect(suAgenda.body.data).toHaveLength(2)
-    expect(suAgenda.body.data.every((r: { userId: string }) => r.userId === e.vecinoA.id)).toBe(true)
-    expect(suAgenda.body.data.map((r: { communityName: string }) => r.communityName).sort()).toEqual([
-      'Comunidad de prueba',
-      'Comunidad vecina',
-    ])
+    expect(suAgenda.body.data.every((r: { userId: string }) => r.userId === e.vecinoA.id)).toBe(
+      true,
+    )
+    expect(
+      suAgenda.body.data.map((r: { communityName: string }) => r.communityName).sort(),
+    ).toEqual(['Comunidad de prueba', 'Comunidad vecina'])
     // Las suyas nunca se redactan: todas las filas son del llamante.
     expect(suAgenda.body.data[0].notes).not.toBeNull()
 
-    const agendaDeB = await request(app()).get(`${V1}/reservations/me`).set('Authorization', e.vecinoB.token)
+    const agendaDeB = await request(app())
+      .get(`${V1}/reservations/me`)
+      .set('Authorization', e.vecinoB.token)
     expect(agendaDeB.body.data).toHaveLength(1)
     expect(agendaDeB.body.data[0].id).toBe(suya.body.data.id)
   })
@@ -923,7 +995,9 @@ describe('Agenda propia GET /reservations/me', () => {
     // meQuerySchema es strict: aqui NO hay commonAreaId ni date, porque el
     // ambito es el usuario y no hay comunidad en la ruta donde colgarlos.
     for (const query of ['status=INVENTADO', 'commonAreaId=otra-cosa', 'date=ayer', 'page=0']) {
-      const res = await request(app()).get(`${V1}/reservations/me?${query}`).set('Authorization', e.vecinoA.token)
+      const res = await request(app())
+        .get(`${V1}/reservations/me?${query}`)
+        .set('Authorization', e.vecinoA.token)
       expect(res.status, `con ${query}`).toBe(400)
     }
   })
@@ -939,7 +1013,9 @@ describe('Agenda propia GET /reservations/me', () => {
       .send({})
     expect(cancelada.status).toBe(200)
 
-    const porDefecto = await request(app()).get(`${V1}/reservations/me`).set('Authorization', e.vecinoA.token)
+    const porDefecto = await request(app())
+      .get(`${V1}/reservations/me`)
+      .set('Authorization', e.vecinoA.token)
     expect(porDefecto.body.data).toHaveLength(0)
 
     const canceladas = await request(app())

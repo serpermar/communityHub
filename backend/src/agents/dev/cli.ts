@@ -85,7 +85,9 @@ async function main(): Promise<number> {
         `[${result.agent}] ${result.toolCalls.length} tool call(s), ${result.tokensIn}+${result.tokensOut} tokens\n`,
       )
     } else {
-      process.stderr.write(`[${result.agent}] modo prompt (--prompt o sin proveedor): listo para pegar en el chat.\n`)
+      process.stderr.write(
+        `[${result.agent}] modo prompt (--prompt o sin proveedor): listo para pegar en el chat.\n`,
+      )
     }
 
     const text = `${result.answer}\n`
@@ -112,7 +114,9 @@ async function main(): Promise<number> {
       return 1
     }
 
-    process.stderr.write(`Error inesperado: ${error instanceof Error ? error.message : String(error)}\n`)
+    process.stderr.write(
+      `Error inesperado: ${error instanceof Error ? error.message : String(error)}\n`,
+    )
     return 1
   }
 }

@@ -1,12 +1,4 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, ErrorState, LoadingState } from '@/components/ui'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
@@ -144,22 +136,18 @@ export function DashboardPage() {
             label="Pendiente de pago"
             value={`${data.finance.invoiceOpenAmount.toFixed(2)} €`}
           />
-          <Stat label="Facturas vencidas" value={data.finance.invoiceOverdueCount} tone="text-red-600" />
+          <Stat
+            label="Facturas vencidas"
+            value={data.finance.invoiceOverdueCount}
+            tone="text-red-600"
+          />
         </div>
       )}
     </div>
   )
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: number | string
-  tone?: string
-}) {
+function Stat({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
     <Card>
       <p className="text-sm text-slate-500">{label}</p>

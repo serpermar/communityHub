@@ -27,7 +27,15 @@ import request from 'supertest'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import type { notification_type } from '@prisma/client'
 import { admin } from '../db-admin.js'
-import { app, createUser, deleteCommunity, deleteUser, makeCommunity, makeMember, type TestUser } from './helpers.js'
+import {
+  app,
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeCommunity,
+  makeMember,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 
@@ -76,12 +84,18 @@ async function nuevoUsuario(fullName: string, email?: string): Promise<TestUser>
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
 
-async function actor(comunidad: string, role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT', email?: string): Promise<Actor> {
+async function actor(
+  comunidad: string,
+  role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT',
+  email?: string,
+): Promise<Actor> {
   const user = await nuevoUsuario(`Actor ${role}`, email)
   await makeMember(user.id, comunidad, role)
   return { ...user, token: await tokenDe(user) }
@@ -176,7 +190,9 @@ describe('autenticacion', () => {
   it('las cuatro rutas dan 401 sin token', async () => {
     expect((await request(app()).get(`${V1}/notifications`)).status).toBe(401)
     expect((await request(app()).get(`${V1}/notifications/unread-count`)).status).toBe(401)
-    expect((await request(app()).patch(`${V1}/notifications/${randomUUID()}/read`)).status).toBe(401)
+    expect((await request(app()).patch(`${V1}/notifications/${randomUUID()}/read`)).status).toBe(
+      401,
+    )
     expect((await request(app()).post(`${V1}/notifications/read-all`)).status).toBe(401)
   })
 })
@@ -240,7 +256,9 @@ describe('generacion: incidencias', () => {
     expect(cambio.status, JSON.stringify(cambio.body)).toBe(200)
 
     const delVecino = await lista(e.vecinoA)
-    const actualizados = delVecino.body.data.filter((n: { type: string }) => n.type === 'INCIDENT_UPDATED')
+    const actualizados = delVecino.body.data.filter(
+      (n: { type: string }) => n.type === 'INCIDENT_UPDATED',
+    )
     expect(actualizados).toHaveLength(2)
     expect(actualizados[0].payload).toHaveProperty('incidentId', incidentId)
   })
@@ -265,7 +283,10 @@ describe('generacion: reservas', () => {
     const reserva = await request(app())
       .post(`${V1}/common-areas/${areaId}/reservations`)
       .set('Authorization', e.vecinoA.token)
-      .send({ startsAt: inicio.toISOString(), endsAt: new Date(inicio.getTime() + 3_600_000).toISOString() })
+      .send({
+        startsAt: inicio.toISOString(),
+        endsAt: new Date(inicio.getTime() + 3_600_000).toISOString(),
+      })
     expect(reserva.status, JSON.stringify(reserva.body)).toBe(201)
     const reservationId = reserva.body.data.id
 
@@ -371,7 +392,10 @@ describe('generacion: miembros', () => {
     const nuevo = await nuevoUsuario('Vecino Nuevo', email)
     const token = await tokenDe(nuevo)
 
-    const canje = await request(app()).post(`${V1}/invitations/redeem`).set('Authorization', token).send({ code })
+    const canje = await request(app())
+      .post(`${V1}/invitations/redeem`)
+      .set('Authorization', token)
+      .send({ code })
     expect(canje.status, JSON.stringify(canje.body)).toBe(201)
 
     expect(await tiposDe(e.admin)).toContain('MEMBER_JOINED')
@@ -413,7 +437,10 @@ describe('listado', () => {
 
   it('unread=true filtra solo las no leidas', async () => {
     const e = await escenario()
-    await sembrarNotif(e.vecinoA.id, e.comunidad, 'VOTE_OPEN', { title: 'Leída', readAt: new Date() })
+    await sembrarNotif(e.vecinoA.id, e.comunidad, 'VOTE_OPEN', {
+      title: 'Leída',
+      readAt: new Date(),
+    })
     await sembrarNotif(e.vecinoA.id, e.comunidad, 'VOTE_OPEN', { title: 'Sin leer' })
 
     const todas = await lista(e.vecinoA)
@@ -521,4 +548,3 @@ describe('validacion', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })
 })
-

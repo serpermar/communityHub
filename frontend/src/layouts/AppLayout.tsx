@@ -56,7 +56,9 @@ function AppLayoutInner() {
     )
   }
 
-  const visibleItems = NAV_ITEMS.filter((item) => !item.roles || (role && item.roles.includes(role)))
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.roles || (role && item.roles.includes(role)),
+  )
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -124,9 +126,7 @@ function AppLayoutInner() {
               ))}
             </nav>
           ) : (
-            <p className="px-3 py-2 text-sm text-slate-500">
-              No perteneces a ninguna comunidad.
-            </p>
+            <p className="px-3 py-2 text-sm text-slate-500">No perteneces a ninguna comunidad.</p>
           )}
         </aside>
 

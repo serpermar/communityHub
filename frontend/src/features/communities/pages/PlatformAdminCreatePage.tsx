@@ -59,7 +59,12 @@ export function PlatformAdminCreatePage() {
           >
             <Input id="slug" {...register('slug')} />
           </Field>
-          <Field label="Dirección" htmlFor="addressLine1" error={errors.addressLine1?.message} required>
+          <Field
+            label="Dirección"
+            htmlFor="addressLine1"
+            error={errors.addressLine1?.message}
+            required
+          >
             <Input id="addressLine1" {...register('addressLine1')} />
           </Field>
           <Field label="Ciudad" htmlFor="city" error={errors.city?.message} required>

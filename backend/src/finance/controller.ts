@@ -96,7 +96,11 @@ export async function listExpenses(req: Request, res: Response, next: NextFuncti
  * grueso) y lo repite `app_create_expense()` dentro de la transaccion. El 201
  * lleva `Location` con el gasto recien creado.
  */
-export async function createExpense(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createExpense(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = comunidadDeRuta(req)
     const input = parse(expenseSchema, req.body)
@@ -130,7 +134,11 @@ export async function listInvoices(req: Request, res: Response, next: NextFuncti
  * El 201 NO lleva `Location` (FN-13): no hay `GET /invoices/:id`. El 409 por
  * numero repetido lo levanta `app_create_invoice()` con `invoice_number_taken`.
  */
-export async function createInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createInvoice(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = comunidadDeRuta(req)
     const input = parse(createInvoiceSchema, req.body)
@@ -164,7 +172,11 @@ export async function payInvoice(req: Request, res: Response, next: NextFunction
 }
 
 /** `GET /communities/:communityId/finance/summary` (solo ADMIN, sin query). */
-export async function financeSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function financeSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = comunidadDeRuta(req)
 
@@ -202,7 +214,11 @@ export async function getExpense(req: Request, res: Response, next: NextFunction
  * Sin guard de rol en la ruta: `app_update_expense()` decide el 404
  * (`expense_not_found`) y el 403 (`expense_requires_admin`).
  */
-export async function updateExpense(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateExpense(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const expenseId = uuidParam(req, 'id')
@@ -220,7 +236,11 @@ export async function updateExpense(req: Request, res: Response, next: NextFunct
  * 200 con `{ id, deleted: true }`. El rol (solo ADMIN) lo decide
  * `app_delete_expense()`; el segundo borrado es 404, no un 200 idempotente.
  */
-export async function deleteExpense(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteExpense(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const expenseId = uuidParam(req, 'id')

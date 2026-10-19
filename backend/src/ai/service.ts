@@ -100,9 +100,14 @@ function toMessageView(row: repo.MessageRow): MessageView {
 }
 
 /** El rol del actor en una comunidad, o null si no es miembro. */
-export async function roleInCommunity(userId: string, communityId: string): Promise<CommunityRole | null> {
-  const rows = await withContext({ userId, communityId }, (tx) =>
-    tx.$queryRaw<Array<{ role: string | null }>>`
+export async function roleInCommunity(
+  userId: string,
+  communityId: string,
+): Promise<CommunityRole | null> {
+  const rows = await withContext(
+    { userId, communityId },
+    (tx) =>
+      tx.$queryRaw<Array<{ role: string | null }>>`
       select app_role_in(${communityId}::uuid) as role
     `,
   )
@@ -122,7 +127,10 @@ async function requireRole(userId: string, communityId: string): Promise<Communi
  * baja, aunque el cliente haya dicho que no hace falta.
  */
 function avecCommitment(proposal: IncidentProposal): IncidentProposal {
-  const needsHumanReview = proposal.needsHumanReview || proposal.priority === 'CRITICAL' || proposal.confidence < env.AI_CONFIDENCE_THRESHOLD
+  const needsHumanReview =
+    proposal.needsHumanReview ||
+    proposal.priority === 'CRITICAL' ||
+    proposal.confidence < env.AI_CONFIDENCE_THRESHOLD
   return { ...proposal, needsHumanReview }
 }
 
@@ -144,7 +152,9 @@ async function consume(
 
 /** Comprueba el presupuesto ANTES de abrir un stream, para poder dar 429 JSON. */
 async function assertBudget(userId: string): Promise<void> {
-  const usage = await withContext({ userId, communityId: null }, (tx) => repo.usageToday(tx, userId))
+  const usage = await withContext({ userId, communityId: null }, (tx) =>
+    repo.usageToday(tx, userId),
+  )
   const tokens = usage.input_tokens + usage.output_tokens
 
   if (usage.requests >= env.AI_DAILY_MAX_REQUESTS || tokens >= env.AI_DAILY_MAX_TOKENS) {
@@ -195,7 +205,11 @@ async function beginChat(userId: string, input: ChatBodyInput): Promise<ChatCont
  * SSE. Lanza antes de emitir nada si no hay proveedor o no hay presupuesto, para
  * que el cliente reciba un error JSON y no un stream roto.
  */
-export async function chat(userId: string, input: ChatBodyInput, onEvent: (event: ChatEvent) => void): Promise<void> {
+export async function chat(
+  userId: string,
+  input: ChatBodyInput,
+  onEvent: (event: ChatEvent) => void,
+): Promise<void> {
   const client: LLMClient | null = getLLMClient()
   if (!client) throw aiNotConfigured()
 
@@ -246,7 +260,10 @@ export async function chat(userId: string, input: ChatBodyInput, onEvent: (event
   })
 }
 
-export async function listSessions(userId: string, query: PaginationQueryInput): Promise<Paged<SessionView>> {
+export async function listSessions(
+  userId: string,
+  query: PaginationQueryInput,
+): Promise<Paged<SessionView>> {
   const page = query.page ?? 1
   const limit = query.limit ?? 20
 
@@ -269,13 +286,18 @@ export async function listMessages(
     const session = await repo.findSessionOwn(tx, sessionId)
     if (!session) throw chatSessionNotFound()
 
-    const { rows, total } = await repo.listMessages(tx, sessionId, { limit, offset: (page - 1) * limit })
+    const { rows, total } = await repo.listMessages(tx, sessionId, {
+      limit,
+      offset: (page - 1) * limit,
+    })
     return { items: rows.map(toMessageView), meta: { page, limit, total } }
   })
 }
 
 export async function deleteSession(userId: string, sessionId: string): Promise<void> {
-  await ejecuta(() => withContext({ userId, communityId: null }, (tx) => repo.deleteSession(tx, sessionId)))
+  await ejecuta(() =>
+    withContext({ userId, communityId: null }, (tx) => repo.deleteSession(tx, sessionId)),
+  )
 }
 
 // --- Clasificacion y borradores (AI-2, AI-6, AI-14) --------------------------
@@ -287,7 +309,11 @@ export type ClassifyResult = {
   cacheHit: boolean
 }
 
-export async function classify(userId: string, communityId: string, description: string): Promise<ClassifyResult> {
+export async function classify(
+  userId: string,
+  communityId: string,
+  description: string,
+): Promise<ClassifyResult> {
   await requireRole(userId, communityId)
 
   const client = getLLMClient()
@@ -363,12 +389,20 @@ export async function createDraft(
  * confirm haria un `withContext` anidado, y el contexto del interno no veria la
  * fila que aun no se ha commiteado.
  */
-export async function confirmDraft(userId: string, draftId: string, patch: ConfirmBodyInput): Promise<unknown> {
+export async function confirmDraft(
+  userId: string,
+  draftId: string,
+  patch: ConfirmBodyInput,
+): Promise<unknown> {
   const incidentId = await ejecuta(() =>
-    withContext({ userId, communityId: null }, (tx) => repo.confirmDraft(tx, draftId, patch as Record<string, unknown>)),
+    withContext({ userId, communityId: null }, (tx) =>
+      repo.confirmDraft(tx, draftId, patch as Record<string, unknown>),
+    ),
   )
 
-  const communityId = await withContext({ userId, communityId: null }, (tx) => repo.incidentCommunity(tx, incidentId))
+  const communityId = await withContext({ userId, communityId: null }, (tx) =>
+    repo.incidentCommunity(tx, incidentId),
+  )
 
   if (!communityId) {
     // La incidencia existe (la acabamos de crear) pero el actor no la ve: seria

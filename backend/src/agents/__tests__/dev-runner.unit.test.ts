@@ -30,11 +30,21 @@ afterAll(() => {
 describe('runDevAgent', () => {
   it('hace el bucle de tool calling y devuelve la propuesta', async () => {
     const client = new FakeLLMClient([
-      { content: '', toolCalls: [{ id: '1', name: 'read_file', args: { path: 'notes.txt' } }], tokensIn: 5, tokensOut: 0, model: 'fake' },
+      {
+        content: '',
+        toolCalls: [{ id: '1', name: 'read_file', args: { path: 'notes.txt' } }],
+        tokensIn: 5,
+        tokensOut: 0,
+        model: 'fake',
+      },
       { content: 'Propuesta concreta.', toolCalls: [], tokensIn: 2, tokensOut: 3, model: 'fake' },
     ])
 
-    const result = await runDevAgent('testing', { instruction: 'lee notes.txt', repoRoot: root, client })
+    const result = await runDevAgent('testing', {
+      instruction: 'lee notes.txt',
+      repoRoot: root,
+      client,
+    })
 
     expect(result.mode).toBe('llm')
     expect(result.answer).toBe('Propuesta concreta.')
@@ -56,8 +66,12 @@ describe('runDevAgent', () => {
   })
 
   it('rechaza agentes de runtime e inexistentes', async () => {
-    await expect(runDevAgent('community', { instruction: 'x', client: null })).rejects.toBeInstanceOf(AppError)
-    await expect(runDevAgent('no-existe', { instruction: 'x', client: null })).rejects.toBeInstanceOf(AppError)
+    await expect(
+      runDevAgent('community', { instruction: 'x', client: null }),
+    ).rejects.toBeInstanceOf(AppError)
+    await expect(
+      runDevAgent('no-existe', { instruction: 'x', client: null }),
+    ).rejects.toBeInstanceOf(AppError)
   })
 
   it('corta el bucle al tope de iteraciones', async () => {
@@ -69,7 +83,12 @@ describe('runDevAgent', () => {
       model: 'fake',
     }))
 
-    const result = await runDevAgent('testing', { instruction: 'insiste', repoRoot: root, client, maxIterations: 1 })
+    const result = await runDevAgent('testing', {
+      instruction: 'insiste',
+      repoRoot: root,
+      client,
+      maxIterations: 1,
+    })
 
     expect(result.answer).toBe('No he podido completar la propuesta con la informacion leida.')
   })

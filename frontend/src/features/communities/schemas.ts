@@ -9,10 +9,18 @@ export const createCommunitySchema = z.object({
     .trim()
     .min(2, 'El identificador es obligatorio.')
     .max(80, 'Identificador demasiado largo.')
-    .regex(slugPattern, 'Solo minúsculas, números y guiones simples (sin empezar ni acabar en guion).'),
+    .regex(
+      slugPattern,
+      'Solo minúsculas, números y guiones simples (sin empezar ni acabar en guion).',
+    ),
   addressLine1: z.string().trim().min(1, 'La dirección es obligatoria.').max(200),
   city: z.string().trim().min(1, 'La ciudad es obligatoria.').max(120),
-  description: z.string().trim().max(1000, 'Descripción demasiado larga.').optional().or(z.literal('')),
+  description: z
+    .string()
+    .trim()
+    .max(1000, 'Descripción demasiado larga.')
+    .optional()
+    .or(z.literal('')),
 })
 
 export const updateCommunitySchema = z.object({

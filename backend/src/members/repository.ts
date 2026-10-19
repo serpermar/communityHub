@@ -109,7 +109,11 @@ export async function listMembers(tx: Tx, communityId: string): Promise<MemberRo
 }
 
 /** Un miembro concreto. Que exista dentro de esa comunidad lo decide la funcion. */
-export async function findMember(tx: Tx, communityId: string, memberId: string): Promise<MemberRow | null> {
+export async function findMember(
+  tx: Tx,
+  communityId: string,
+  memberId: string,
+): Promise<MemberRow | null> {
   const rows = await tx.$queryRaw<MemberRow[]>`
     select id, user_id, full_name, email, unit_number, role, status,
            joined_at, created_at, updated_at
@@ -134,12 +138,22 @@ export async function findMember(tx: Tx, communityId: string, memberId: string):
  * cuenta: es lo que impide que un ADMIN de A toque a un miembro de B diciendo un
  * `memberId` de B, y lo que convierte ese intento en un 404 (spec 03, seccion 6).
  */
-export async function setMemberRole(tx: Tx, communityId: string, memberId: string, role: string): Promise<void> {
+export async function setMemberRole(
+  tx: Tx,
+  communityId: string,
+  memberId: string,
+  role: string,
+): Promise<void> {
   await tx.$executeRaw`select app_set_member_role(${communityId}::uuid, ${memberId}::uuid, ${role}::member_role)`
 }
 
 /** Cambiar el estado de un miembro. Simetrica a la anterior, con su invariante propio. */
-export async function setMemberStatus(tx: Tx, communityId: string, memberId: string, status: string): Promise<void> {
+export async function setMemberStatus(
+  tx: Tx,
+  communityId: string,
+  memberId: string,
+  status: string,
+): Promise<void> {
   await tx.$executeRaw`select app_set_member_status(${communityId}::uuid, ${memberId}::uuid, ${status}::member_status)`
 }
 
@@ -244,7 +258,10 @@ export async function deleteInvitation(
  * Se llama con `communityId: null` en el contexto a proposito: la comunidad la
  * decide el codigo, y fijar una antes seria fijar una suposicion.
  */
-export async function redeemInvitation(tx: Tx, code: string): Promise<{ member_id: string; community_id: string }> {
+export async function redeemInvitation(
+  tx: Tx,
+  code: string,
+): Promise<{ member_id: string; community_id: string }> {
   const rows = await tx.$queryRaw<Array<{ member_id: string; community_id: string }>>`
     select member_id, community_id
       from app_redeem_invitation(${code})

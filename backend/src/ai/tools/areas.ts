@@ -15,7 +15,10 @@ import { z } from 'zod'
 import * as areas from '../../common-areas/service.js'
 import { availabilityQuerySchema } from '../../common-areas/validators.js'
 import * as reservations from '../../reservations/service.js'
-import { listQuerySchema as reservationsQuerySchema, meQuerySchema } from '../../reservations/validators.js'
+import {
+  listQuerySchema as reservationsQuerySchema,
+  meQuerySchema,
+} from '../../reservations/validators.js'
 import { ALL_ROLES, defineTool, type ToolDefinition } from './registry.js'
 
 const availabilityArgsSchema = z
@@ -28,7 +31,8 @@ const availabilityArgsSchema = z
 export const areaTools: ToolDefinition[] = [
   defineTool({
     name: 'get_common_areas',
-    description: 'Devuelve las zonas comunes de la comunidad (nombre, tipo, si necesita reserva) y su disponibilidad general.',
+    description:
+      'Devuelve las zonas comunes de la comunidad (nombre, tipo, si necesita reserva) y su disponibilidad general.',
     roles: ALL_ROLES,
     requiresCommunity: true,
     schema: z.object({}).strict(),
@@ -45,16 +49,22 @@ export const areaTools: ToolDefinition[] = [
     requiresCommunity: true,
     schema: availabilityArgsSchema,
     async run(args: z.infer<typeof availabilityArgsSchema>, ctx) {
-      const availability = await areas.getAvailability(ctx.userId, ctx.communityId as string, args.areaId, {
-        date: args.date,
-      })
+      const availability = await areas.getAvailability(
+        ctx.userId,
+        ctx.communityId as string,
+        args.areaId,
+        {
+          date: args.date,
+        },
+      )
       return { result: availability, citations: [args.areaId] }
     },
   }),
 
   defineTool({
     name: 'get_reservations',
-    description: 'Lista las reservas de zonas comunes que puede ver el usuario, con filtros opcionales.',
+    description:
+      'Lista las reservas de zonas comunes que puede ver el usuario, con filtros opcionales.',
     roles: ALL_ROLES,
     requiresCommunity: true,
     schema: reservationsQuerySchema,

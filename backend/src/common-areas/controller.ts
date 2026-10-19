@@ -86,7 +86,11 @@ function actor(req: Request): { userId: string; communityId: string } {
  * El rol no se mira aqui: leer zonas es de cualquier miembro activo (CA-1) y
  * `app_list_common_areas()` es quien lo comprueba.
  */
-export async function listCommonAreas(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listCommonAreas(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
 
@@ -104,7 +108,11 @@ export async function listCommonAreas(req: Request, res: Response, next: NextFun
  * peor que no ponerlo. La respuesta lleva la zona entera, que es lo que el
  * cliente necesita para pintarla.
  */
-export async function createCommonArea(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createCommonArea(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const input = parse(createCommonAreaSchema, req.body)
@@ -120,7 +128,11 @@ export async function createCommonArea(req: Request, res: Response, next: NextFu
 // ---------------------------------------------------------------------------
 
 /** `PUT /common-areas/:id`. Reemplazo completo (CA-4): no hay PATCH. */
-export async function updateCommonArea(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateCommonArea(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const areaId = uuidParam(req, 'id')
@@ -140,7 +152,11 @@ export async function updateCommonArea(req: Request, res: Response, next: NextFu
  * haria que dos clientes pidieran "el mismo dia" y el backend resolviera dias
  * distintos.
  */
-export async function getAvailability(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getAvailability(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const areaId = uuidParam(req, 'id')

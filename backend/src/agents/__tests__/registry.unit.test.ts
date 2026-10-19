@@ -8,7 +8,13 @@
 
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../http/errors.js'
-import { AGENTS, agentFilesOnDisk, findAgent, requireRuntimeAgent, runtimeAgents } from '../registry.js'
+import {
+  AGENTS,
+  agentFilesOnDisk,
+  findAgent,
+  requireRuntimeAgent,
+  runtimeAgents,
+} from '../registry.js'
 import { findSkill } from '../skills.js'
 
 describe('registro de agentes', () => {
@@ -20,7 +26,10 @@ describe('registro de agentes', () => {
   it('cada agente referencia skills que existen', () => {
     for (const agent of AGENTS) {
       for (const skill of agent.skills) {
-        expect(findSkill(skill), `el agente ${agent.name} referencia la skill ${skill}`).toBeDefined()
+        expect(
+          findSkill(skill),
+          `el agente ${agent.name} referencia la skill ${skill}`,
+        ).toBeDefined()
       }
     }
   })

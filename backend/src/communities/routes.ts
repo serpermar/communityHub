@@ -18,7 +18,12 @@
 
 import { Router } from 'express'
 import * as controller from './controller.js'
-import { requireAuth, requireCommunity, requireCommunityRole, requireGlobalAdmin } from '../auth/middleware.js'
+import {
+  requireAuth,
+  requireCommunity,
+  requireCommunityRole,
+  requireGlobalAdmin,
+} from '../auth/middleware.js'
 
 export function createCommunitiesRouter(): Router {
   const router = Router()
@@ -35,7 +40,13 @@ export function createCommunitiesRouter(): Router {
   router.post('/', requireAuth, requireGlobalAdmin(), controller.create)
 
   router.get('/:communityId', requireAuth, requireCommunity(), controller.getOne)
-  router.patch('/:communityId', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.update)
+  router.patch(
+    '/:communityId',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.update,
+  )
 
   return router
 }

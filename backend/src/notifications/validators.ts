@@ -26,9 +26,20 @@ export const uuidSchema = z.string().regex(UUID_RE, 'Debe ser un UUID.')
  */
 export const listQuerySchema = z
   .object({
-    unread: z.enum(['true', 'false'], { message: 'El filtro "unread" debe ser "true" o "false".' }).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    unread: z
+      .enum(['true', 'false'], { message: 'El filtro "unread" debe ser "true" o "false".' })
+      .optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
   .transform((valor) => ({

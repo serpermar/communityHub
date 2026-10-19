@@ -18,7 +18,6 @@
 // Cubre los criterios 12, 13 y 14 de la spec 01.
 // ---------------------------------------------------------------------------
 
-import { randomUUID } from 'node:crypto'
 import express from 'express'
 import request from 'supertest'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -76,14 +75,9 @@ async function community(name: string) {
 function probeApp() {
   const probe = express()
   probe.use(express.json())
-  probe.get(
-    '/sonda/:communityId',
-    requireAuth,
-    requireCommunity(),
-    (req, res) => {
-      res.json({ data: { communityId: req.community?.communityId, role: req.community?.role } })
-    },
-  )
+  probe.get('/sonda/:communityId', requireAuth, requireCommunity(), (req, res) => {
+    res.json({ data: { communityId: req.community?.communityId, role: req.community?.role } })
+  })
   probe.use(errorHandler)
   return probe
 }

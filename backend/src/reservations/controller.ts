@@ -89,7 +89,11 @@ function actor(req: Request): { userId: string; communityId: string } {
  * `app_list_community_reservations()` es quien lo comprueba y quien redacta
  * `notes` por fila.
  */
-export async function listReservations(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listReservations(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const query = parse(listQuerySchema, req.query)
@@ -114,7 +118,11 @@ export async function listReservations(req: Request, res: Response, next: NextFu
  * Por eso la ruta NO pasa por `requireReservation()`: no hay recurso que
  * resolver, y `req.community` no existe —este handler tampoco lo usa.
  */
-export async function listMyReservations(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listMyReservations(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     if (!req.auth) {
       throw badRequest('Petición sin sesión.')
@@ -131,7 +139,11 @@ export async function listMyReservations(req: Request, res: Response, next: Next
 }
 
 /** `GET /reservations/:id` */
-export async function getReservation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getReservation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const reservationId = uuidParam(req, 'id')
@@ -155,7 +167,11 @@ export async function getReservation(req: Request, res: Response, next: NextFunc
  * que si existe (a diferencia de las zonas comunes, que no exponen `GET
  * /:id`).
  */
-export async function createReservation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createReservation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const areaId = uuidParam(req, 'id')
@@ -180,7 +196,11 @@ export async function createReservation(req: Request, res: Response, next: NextF
  * El dueño o ADMIN lo decide `app_cancel_reservation()` contra la fila, dentro
  * de la transaccion. Aqui no se compara `userId`.
  */
-export async function cancelReservation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function cancelReservation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const reservationId = uuidParam(req, 'id')
@@ -204,7 +224,11 @@ export async function cancelReservation(req: Request, res: Response, next: NextF
  *
  * El cuerpo, igual que en cancel, debe ser `{}` o ausente.
  */
-export async function confirmReservation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function confirmReservation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const reservationId = uuidParam(req, 'id')

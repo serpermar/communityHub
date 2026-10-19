@@ -73,8 +73,10 @@ export class AppError extends Error {
 export const badRequest = (message: string, details?: unknown) =>
   new AppError(400, 'VALIDATION_ERROR', message, details)
 
-export const unauthorized = (message = 'Necesitas iniciar sesión.', code: ErrorCode = 'UNAUTHORIZED') =>
-  new AppError(401, code, message)
+export const unauthorized = (
+  message = 'Necesitas iniciar sesión.',
+  code: ErrorCode = 'UNAUTHORIZED',
+) => new AppError(401, code, message)
 
 export const invalidCredentials = () =>
   new AppError(401, 'INVALID_CREDENTIALS', 'Correo o contraseña incorrectos.')
@@ -92,8 +94,9 @@ export const notFound = (message = 'No encontrado.') => new AppError(404, 'NOT_F
 
 export const conflict = (code: ErrorCode, message: string) => new AppError(409, code, message)
 
-export const rateLimited = (message = 'Demasiados intentos. Espera unos minutos y vuelve a probar.') =>
-  new AppError(429, 'RATE_LIMITED', message)
+export const rateLimited = (
+  message = 'Demasiados intentos. Espera unos minutos y vuelve a probar.',
+) => new AppError(429, 'RATE_LIMITED', message)
 
 export const internal = (message = 'Error interno.') => new AppError(500, 'INTERNAL_ERROR', message)
 

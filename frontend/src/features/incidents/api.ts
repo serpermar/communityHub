@@ -1,6 +1,12 @@
 import { api, cleanParams } from '@/services/http'
 import type { ListResult } from '@/types/api'
-import type { Incident, IncidentCategory, IncidentComment, IncidentPriority, IncidentStatus } from './types'
+import type {
+  Incident,
+  IncidentCategory,
+  IncidentComment,
+  IncidentPriority,
+  IncidentStatus,
+} from './types'
 
 export interface IncidentListQuery {
   status?: IncidentStatus
@@ -32,10 +38,7 @@ export interface CreateIncidentInput {
   location?: string | null
 }
 
-export function createIncident(
-  communityId: string,
-  input: CreateIncidentInput,
-): Promise<Incident> {
+export function createIncident(communityId: string, input: CreateIncidentInput): Promise<Incident> {
   return api.post<Incident>(`/communities/${communityId}/incidents`, input)
 }
 

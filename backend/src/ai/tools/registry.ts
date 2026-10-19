@@ -85,7 +85,11 @@ function jsonSchema(schema: z.ZodType): Record<string, unknown> {
 export function defineTool(
   definition: Omit<ToolDefinition, 'parameters' | 'sensitive'> & { sensitive?: boolean },
 ): ToolDefinition {
-  return { ...definition, sensitive: definition.sensitive ?? false, parameters: jsonSchema(definition.schema) }
+  return {
+    ...definition,
+    sensitive: definition.sensitive ?? false,
+    parameters: jsonSchema(definition.schema),
+  }
 }
 
 // --- Consultas sobre una lista de tools --------------------------------------
@@ -100,7 +104,10 @@ export function toolSpecs(tools: readonly ToolDefinition[]): ToolSpec[] {
 }
 
 /** Las tools que puede usar un rol. Un rol nulo (sin comunidad) no ve ninguna. */
-export function toolsForRole(tools: readonly ToolDefinition[], role: CommunityRole | null): ToolDefinition[] {
+export function toolsForRole(
+  tools: readonly ToolDefinition[],
+  role: CommunityRole | null,
+): ToolDefinition[] {
   if (!role) return []
   return tools.filter((tool) => tool.roles.includes(role))
 }
@@ -109,12 +116,18 @@ export function toolsForRole(tools: readonly ToolDefinition[], role: CommunityRo
  * Las tools que puede usar al menos uno de los roles dados (union). Es lo que
  * devuelve `GET /ai/tools`: el catalogo del rol MENOS restrictivo del actor.
  */
-export function toolsForRoles(tools: readonly ToolDefinition[], roles: ReadonlySet<CommunityRole>): ToolDefinition[] {
+export function toolsForRoles(
+  tools: readonly ToolDefinition[],
+  roles: ReadonlySet<CommunityRole>,
+): ToolDefinition[] {
   if (roles.size === 0) return []
   return tools.filter((tool) => tool.roles.some((role) => roles.has(role)))
 }
 
-export function findTool(tools: readonly ToolDefinition[], name: string): ToolDefinition | undefined {
+export function findTool(
+  tools: readonly ToolDefinition[],
+  name: string,
+): ToolDefinition | undefined {
   return tools.find((tool) => tool.name === name)
 }
 

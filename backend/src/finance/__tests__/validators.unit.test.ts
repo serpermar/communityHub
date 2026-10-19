@@ -88,11 +88,17 @@ describe('expenseSchema', () => {
 
   it('acepta las siete categorias y rechaza una inventada', () => {
     for (const category of CATEGORIAS_VALIDAS) {
-      expect(expenseSchema.safeParse({ ...GASTO_VALIDO, category }).success, `con ${category}`).toBe(true)
+      expect(
+        expenseSchema.safeParse({ ...GASTO_VALIDO, category }).success,
+        `con ${category}`,
+      ).toBe(true)
     }
 
     for (const category of ['LIMPIEZA', 'maintenance', 'FOOD', '']) {
-      expect(expenseSchema.safeParse({ ...GASTO_VALIDO, category }).success, `con ${JSON.stringify(category)}`).toBe(false)
+      expect(
+        expenseSchema.safeParse({ ...GASTO_VALIDO, category }).success,
+        `con ${JSON.stringify(category)}`,
+      ).toBe(false)
     }
   })
 
@@ -100,15 +106,21 @@ describe('expenseSchema', () => {
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: '' }).success).toBe(false)
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: '   ' }).success).toBe(false)
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: 'a'.repeat(1) }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: 'a'.repeat(120) }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: 'a'.repeat(121) }).success).toBe(false)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: 'a'.repeat(120) }).success).toBe(
+      true,
+    )
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, concept: 'a'.repeat(121) }).success).toBe(
+      false,
+    )
   })
 
   it('exige amount > 0 y <= 9 999 999 999,99 (FN-9)', () => {
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: 0 }).success).toBe(false)
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: -1 }).success).toBe(false)
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: 0.01 }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: 9_999_999_999.99 }).success).toBe(true)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: 9_999_999_999.99 }).success).toBe(
+      true,
+    )
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, amount: 10_000_000_000 }).success).toBe(false)
   })
 
@@ -117,9 +129,14 @@ describe('expenseSchema', () => {
   })
 
   it('exige una fecha YYYY-MM-DD real', () => {
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, expenseDate: '2026-01-15' }).success).toBe(true)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, expenseDate: '2026-01-15' }).success).toBe(
+      true,
+    )
     for (const malo of ['2026-1-5', '15/01/2026', '2026-02-31', 'ayer', '']) {
-      expect(expenseSchema.safeParse({ ...GASTO_VALIDO, expenseDate: malo }).success, `con ${malo}`).toBe(false)
+      expect(
+        expenseSchema.safeParse({ ...GASTO_VALIDO, expenseDate: malo }).success,
+        `con ${malo}`,
+      ).toBe(false)
     }
   })
 
@@ -134,20 +151,37 @@ describe('expenseSchema', () => {
   })
 
   it('acota supplier a 200 y notes a 1000', () => {
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, supplier: 'a'.repeat(200) }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, supplier: 'a'.repeat(201) }).success).toBe(false)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, supplier: 'a'.repeat(200) }).success).toBe(
+      true,
+    )
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, supplier: 'a'.repeat(201) }).success).toBe(
+      false,
+    )
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, notes: 'a'.repeat(1000) }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, notes: 'a'.repeat(1001) }).success).toBe(false)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, notes: 'a'.repeat(1001) }).success).toBe(
+      false,
+    )
   })
 
   it('acepta invoiceId con forma de UUID y rechaza lo que no lo es', () => {
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, invoiceId: UUID }).success).toBe(true)
     expect(expenseSchema.safeParse({ ...GASTO_VALIDO, invoiceId: null }).success).toBe(true)
-    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, invoiceId: 'no-es-uuid' }).success).toBe(false)
+    expect(expenseSchema.safeParse({ ...GASTO_VALIDO, invoiceId: 'no-es-uuid' }).success).toBe(
+      false,
+    )
   })
 
   it('rechaza claves desconocidas (id, createdBy, status...)', () => {
-    for (const clave of ['id', 'communityId', 'createdBy', 'createdAt', 'updatedAt', 'status', 'paidAt', 'deletedAt']) {
+    for (const clave of [
+      'id',
+      'communityId',
+      'createdBy',
+      'createdAt',
+      'updatedAt',
+      'status',
+      'paidAt',
+      'deletedAt',
+    ]) {
       expect(
         expenseSchema.safeParse({ ...GASTO_VALIDO, [clave]: 'lo-que-sea' }).success,
         `con la clave ${clave}`,
@@ -168,9 +202,15 @@ describe('createInvoiceSchema', () => {
   it('exige number y lo acota a 1-50', () => {
     expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: '' }).success).toBe(false)
     expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: '   ' }).success).toBe(false)
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: 'a'.repeat(50) }).success).toBe(true)
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: 'a'.repeat(51) }).success).toBe(false)
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: undefined }).success).toBe(false)
+    expect(
+      createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: 'a'.repeat(50) }).success,
+    ).toBe(true)
+    expect(
+      createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: 'a'.repeat(51) }).success,
+    ).toBe(false)
+    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, number: undefined }).success).toBe(
+      false,
+    )
   })
 
   it('exige amount > 0', () => {
@@ -179,14 +219,32 @@ describe('createInvoiceSchema', () => {
   })
 
   it('rechaza dueDate anterior a issueDate', () => {
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, issueDate: '2026-02-10', dueDate: '2026-02-09' }).success).toBe(false)
+    expect(
+      createInvoiceSchema.safeParse({
+        ...FACTURA_VALIDA,
+        issueDate: '2026-02-10',
+        dueDate: '2026-02-09',
+      }).success,
+    ).toBe(false)
     // El mismo dia es valido (due >= issue).
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, issueDate: '2026-02-10', dueDate: '2026-02-10' }).success).toBe(true)
-    expect(createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, dueDate: '2026-01-01' }).success).toBe(false)
+    expect(
+      createInvoiceSchema.safeParse({
+        ...FACTURA_VALIDA,
+        issueDate: '2026-02-10',
+        dueDate: '2026-02-10',
+      }).success,
+    ).toBe(true)
+    expect(
+      createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, dueDate: '2026-01-01' }).success,
+    ).toBe(false)
   })
 
   it('hace concept y supplier opcionales, y normaliza el vacio a null', () => {
-    const resultado = createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, concept: '', supplier: '' })
+    const resultado = createInvoiceSchema.safeParse({
+      ...FACTURA_VALIDA,
+      concept: '',
+      supplier: '',
+    })
 
     expect(resultado.success).toBe(true)
     if (resultado.success) {
@@ -196,7 +254,14 @@ describe('createInvoiceSchema', () => {
   })
 
   it('rechaza claves desconocidas (status, paidAt, isGenerated...)', () => {
-    for (const clave of ['status', 'paidAt', 'isGenerated', 'id', 'communityId', 'effectiveStatus']) {
+    for (const clave of [
+      'status',
+      'paidAt',
+      'isGenerated',
+      'id',
+      'communityId',
+      'effectiveStatus',
+    ]) {
       expect(
         createInvoiceSchema.safeParse({ ...FACTURA_VALIDA, [clave]: 'lo-que-sea' }).success,
         `con la clave ${clave}`,
@@ -230,13 +295,20 @@ describe('expensesQuerySchema', () => {
   it('valida category como enum y rechaza una inventada', () => {
     expect(expensesQuerySchema.safeParse({ category: 'CLEANING' }).success).toBe(true)
     for (const category of ['LIMPIEZA', 'cleaning', '']) {
-      expect(expensesQuerySchema.safeParse({ category }).success, `con ${JSON.stringify(category)}`).toBe(false)
+      expect(
+        expensesQuerySchema.safeParse({ category }).success,
+        `con ${JSON.stringify(category)}`,
+      ).toBe(false)
     }
   })
 
   it('exige from <= to', () => {
-    expect(expensesQuerySchema.safeParse({ from: '2026-01-01', to: '2026-12-31' }).success).toBe(true)
-    expect(expensesQuerySchema.safeParse({ from: '2026-12-31', to: '2026-01-01' }).success).toBe(false)
+    expect(expensesQuerySchema.safeParse({ from: '2026-01-01', to: '2026-12-31' }).success).toBe(
+      true,
+    )
+    expect(expensesQuerySchema.safeParse({ from: '2026-12-31', to: '2026-01-01' }).success).toBe(
+      false,
+    )
   })
 
   it('rechaza una clave desconocida (?q=)', () => {
@@ -258,7 +330,10 @@ describe('invoicesQuerySchema', () => {
 
   it('rechaza un estado inventado', () => {
     for (const status of ['PAGADA', 'pending', 'DUE', '']) {
-      expect(invoicesQuerySchema.safeParse({ status }).success, `con ${JSON.stringify(status)}`).toBe(false)
+      expect(
+        invoicesQuerySchema.safeParse({ status }).success,
+        `con ${JSON.stringify(status)}`,
+      ).toBe(false)
     }
   })
 
@@ -285,7 +360,13 @@ describe('uuidSchema', () => {
   })
 
   it('rechaza lo que no es un UUID', () => {
-    for (const malo of ['', 'abc', '1', '11111111-1111-4111-8111-11111111111', '11111111111141118111111111111111']) {
+    for (const malo of [
+      '',
+      'abc',
+      '1',
+      '11111111-1111-4111-8111-11111111111',
+      '11111111111141118111111111111111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, `con ${JSON.stringify(malo)}`).toBe(false)
     }
   })

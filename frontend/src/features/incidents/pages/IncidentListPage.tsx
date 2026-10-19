@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge, Button, Card, DataTable, Pagination, Select, Input, type Column } from '@/components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Pagination,
+  Select,
+  Input,
+  type Column,
+} from '@/components/ui'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
@@ -82,7 +91,9 @@ export function IncidentListPage() {
     {
       key: 'priority',
       header: 'Prioridad',
-      render: (row) => <Badge tone={PRIORITY_TONES[row.priority]}>{PRIORITY_LABELS[row.priority]}</Badge>,
+      render: (row) => (
+        <Badge tone={PRIORITY_TONES[row.priority]}>{PRIORITY_LABELS[row.priority]}</Badge>
+      ),
     },
     {
       key: 'status',
@@ -97,7 +108,9 @@ export function IncidentListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-800">Incidencias</h1>
         {role !== 'PROVIDER' && (
-          <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>Nueva incidencia</Button>
+          <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+            Nueva incidencia
+          </Button>
         )}
       </div>
 

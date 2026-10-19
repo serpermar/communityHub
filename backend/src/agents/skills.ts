@@ -39,7 +39,12 @@ export const SKILLS: SkillDefinition[] = [
     name: 'incident-management',
     title: 'Gestión de incidencias',
     description: 'Registro, triage, escalado y cierre de incidencias.',
-    extraFiles: ['playbooks/triage.md', 'playbooks/escalado.md', 'playbooks/cierre.md', 'examples.md'],
+    extraFiles: [
+      'playbooks/triage.md',
+      'playbooks/escalado.md',
+      'playbooks/cierre.md',
+      'examples.md',
+    ],
   },
   {
     name: 'reservations',

@@ -22,7 +22,11 @@ export const communityTools: ToolDefinition[] = [
     requiresCommunity: true,
     schema: z.object({}).strict(),
     async run(_args, ctx) {
-      const community = await communities.getOne(ctx.userId, ctx.communityId as string, ctx.role as string)
+      const community = await communities.getOne(
+        ctx.userId,
+        ctx.communityId as string,
+        ctx.role as string,
+      )
       return { result: community, citations: [community.id] }
     },
   }),

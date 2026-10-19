@@ -14,7 +14,10 @@ describe('classify', () => {
     expect(classify('shop', 'hardware')).toEqual({ category: 'Ferretería', kind: 'provider' })
     expect(classify('craft', 'plumber')).toEqual({ category: 'Fontanería', kind: 'provider' })
     expect(classify('amenity', 'pharmacy')).toEqual({ category: 'Farmacia', kind: 'provider' })
-    expect(classify('shop', 'car_repair')).toEqual({ category: 'Taller mecánico', kind: 'provider' })
+    expect(classify('shop', 'car_repair')).toEqual({
+      category: 'Taller mecánico',
+      kind: 'provider',
+    })
   })
 
   it('reconoce POIs por key+value', () => {

@@ -23,8 +23,6 @@ import {
   proposalSchema,
 } from '../validators.js'
 
-const UUID = '11111111-1111-4111-8111-111111111111'
-
 const proposal = {
   category: 'PLUMBING',
   priority: 'HIGH',
@@ -91,17 +89,23 @@ describe('chatBodySchema', () => {
 
 describe('classifyBodySchema', () => {
   it('exige comunidad y descripcion', () => {
-    expect(classifyBodySchema.safeParse({ communityId: 'x', description: 'hola' }).success).toBe(false)
+    expect(classifyBodySchema.safeParse({ communityId: 'x', description: 'hola' }).success).toBe(
+      false,
+    )
     expect(
-      classifyBodySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111', description: 'hola' })
-        .success,
+      classifyBodySchema.safeParse({
+        communityId: '11111111-1111-4111-8111-111111111111',
+        description: 'hola',
+      }).success,
     ).toBe(true)
   })
 
   it('rechaza una descripcion de menos de 3 caracteres', () => {
     expect(
-      classifyBodySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111', description: 'ab' })
-        .success,
+      classifyBodySchema.safeParse({
+        communityId: '11111111-1111-4111-8111-111111111111',
+        description: 'ab',
+      }).success,
     ).toBe(false)
   })
 })

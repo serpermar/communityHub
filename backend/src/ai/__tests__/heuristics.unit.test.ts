@@ -63,7 +63,9 @@ describe('classifyByHeuristic', () => {
   })
 
   it('usa la descripcion como titulo si es suficientemente larga', () => {
-    expect(classifyByHeuristic('El ascensor hace un ruido raro').title).toBe('El ascensor hace un ruido raro')
+    expect(classifyByHeuristic('El ascensor hace un ruido raro').title).toBe(
+      'El ascensor hace un ruido raro',
+    )
   })
 
   it('fabrica un titulo cuando la descripcion es demasiado corta', () => {

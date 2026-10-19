@@ -73,7 +73,9 @@ async function nuevaComunidad(nombre = 'Comunidad de prueba'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
@@ -172,11 +174,18 @@ async function makeVoteRow(
   const no = randomUUID()
   const abst = o.allowAbstention ? randomUUID() : null
 
-  const opciones: Array<{ id: string; vote_id: string; label: string; position: number; is_abstention?: boolean }> = [
+  const opciones: Array<{
+    id: string
+    vote_id: string
+    label: string
+    position: number
+    is_abstention?: boolean
+  }> = [
     { id: si, vote_id: id, label: 'Sí', position: 1 },
     { id: no, vote_id: id, label: 'No', position: 2 },
   ]
-  if (abst) opciones.push({ id: abst, vote_id: id, label: 'Abstención', position: 3, is_abstention: true })
+  if (abst)
+    opciones.push({ id: abst, vote_id: id, label: 'Abstención', position: 3, is_abstention: true })
 
   await admin.voteOptions.createMany({ data: opciones })
 
@@ -184,7 +193,9 @@ async function makeVoteRow(
 }
 
 /** Emite votos directamente, saltandose la ventana: para montar recuentos. */
-async function sembrarVotos(entradas: Array<{ voteId: string; optionId: string; userId: string }>): Promise<void> {
+async function sembrarVotos(
+  entradas: Array<{ voteId: string; optionId: string; userId: string }>,
+): Promise<void> {
   await admin.voteResponses.createMany({
     data: entradas.map((e) => ({ vote_id: e.voteId, option_id: e.optionId, user_id: e.userId })),
   })
@@ -202,11 +213,16 @@ const VOTACION_VALIDA = {
 }
 
 function crearVotacion(token: string, comunidad: string, body: object = VOTACION_VALIDA) {
-  return request(app()).post(`${V1}/communities/${comunidad}/votes`).set('Authorization', token).send(body)
+  return request(app())
+    .post(`${V1}/communities/${comunidad}/votes`)
+    .set('Authorization', token)
+    .send(body)
 }
 
 function listarVotaciones(token: string, comunidad: string, query = '') {
-  return request(app()).get(`${V1}/communities/${comunidad}/votes${query}`).set('Authorization', token)
+  return request(app())
+    .get(`${V1}/communities/${comunidad}/votes${query}`)
+    .set('Authorization', token)
 }
 
 function verVotacion(token: string, id: string) {
@@ -228,7 +244,10 @@ function cerrarVotacion(token: string, id: string, body?: object) {
 }
 
 function votar(token: string, id: string, optionId: string) {
-  return request(app()).post(`${V1}/votes/${id}/responses`).set('Authorization', token).send({ optionId })
+  return request(app())
+    .post(`${V1}/votes/${id}/responses`)
+    .set('Authorization', token)
+    .send({ optionId })
 }
 
 function resultados(token: string, id: string) {
@@ -363,7 +382,11 @@ describe('Ciclo de vida (V-6, V-7)', () => {
     expect(votacion.createdByName).toBe('Presidente')
     expect(votacion.myOptionId).toBeNull()
     // V-10: las opciones reales mas la abstencion que anade el sistema.
-    expect(votacion.options.map((o: { label: string }) => o.label)).toEqual(['Sí', 'No', 'Abstención'])
+    expect(votacion.options.map((o: { label: string }) => o.label)).toEqual([
+      'Sí',
+      'No',
+      'Abstención',
+    ])
     expect(votacion.options.at(-1).isAbstention).toBe(true)
 
     const publicado = await publicarVotacion(e.presidente.token, votacion.id)
@@ -407,7 +430,10 @@ describe('Ciclo de vida (V-6, V-7)', () => {
     expect(detalle.body.data.effectiveStatus).toBe('CLOSED')
 
     // La columna sigue siendo OPEN: el estado es derivado (V-6).
-    const fila = await admin.votes.findUnique({ where: { id: vencida.id }, select: { status: true } })
+    const fila = await admin.votes.findUnique({
+      where: { id: vencida.id },
+      select: { status: true },
+    })
     expect(fila?.status).toBe('OPEN')
 
     const enCerradas = await listarVotaciones(e.admin.token, e.comunidad, '?status=CLOSED')
@@ -457,21 +483,34 @@ describe('Ciclo de vida (V-6, V-7)', () => {
 
   it('cambiar allowAbstention en un DRAFT quita o anade la opcion del sistema', async () => {
     const e = await escena()
-    const conAbst = await makeVoteRow(e.comunidad, e.admin.id, { status: 'DRAFT', allowAbstention: true })
-    const sinAbst = await makeVoteRow(e.comunidad, e.admin.id, { status: 'DRAFT', allowAbstention: false })
+    const conAbst = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'DRAFT',
+      allowAbstention: true,
+    })
+    const sinAbst = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'DRAFT',
+      allowAbstention: false,
+    })
 
     const quitada = await editarVotacion(e.admin.token, conAbst.id, { allowAbstention: false })
     expect(quitada.body.data.options.map((o: { label: string }) => o.label)).toEqual(['Sí', 'No'])
 
     const puesta = await editarVotacion(e.admin.token, sinAbst.id, { allowAbstention: true })
-    expect(puesta.body.data.options.map((o: { label: string }) => o.label)).toEqual(['Sí', 'No', 'Abstención'])
+    expect(puesta.body.data.options.map((o: { label: string }) => o.label)).toEqual([
+      'Sí',
+      'No',
+      'Abstención',
+    ])
   })
 })
 
 describe('El voto (V-10, V-11)', () => {
   it('votar y cambiar el voto es un upsert: no aparece un segundo voto y cambia myOptionId', async () => {
     const e = await escena()
-    const v = await makeVoteRow(e.comunidad, e.admin.id, { status: 'OPEN', resultVisibility: 'LIVE' })
+    const v = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'OPEN',
+      resultVisibility: 'LIVE',
+    })
 
     const primero = await votar(e.vecino.token, v.id, v.si)
     expect(primero.status, JSON.stringify(primero.body)).toBe(200)
@@ -487,7 +526,9 @@ describe('El voto (V-10, V-11)', () => {
     const recuento = await resultados(e.admin.token, v.id)
     expect(recuento.body.data.turnout).toBe(1)
 
-    const filas = await admin.voteResponses.findMany({ where: { vote_id: v.id, user_id: e.vecino.id } })
+    const filas = await admin.voteResponses.findMany({
+      where: { vote_id: v.id, user_id: e.vecino.id },
+    })
     expect(filas).toHaveLength(1)
   })
 
@@ -522,11 +563,17 @@ describe('El voto (V-10, V-11)', () => {
   it('crear con una sola opcion, repetidas o "Abstención" a mano es 400', async () => {
     const e = await escena()
 
-    const unaSola = await crearVotacion(e.admin.token, e.comunidad, { ...VOTACION_VALIDA, options: ['Sí'] })
+    const unaSola = await crearVotacion(e.admin.token, e.comunidad, {
+      ...VOTACION_VALIDA,
+      options: ['Sí'],
+    })
     expect(unaSola.status).toBe(400)
     expect(unaSola.body.error.code).toBe('VALIDATION_ERROR')
 
-    const repetidas = await crearVotacion(e.admin.token, e.comunidad, { ...VOTACION_VALIDA, options: ['Sí', 'No', 'sí'] })
+    const repetidas = await crearVotacion(e.admin.token, e.comunidad, {
+      ...VOTACION_VALIDA,
+      options: ['Sí', 'No', 'sí'],
+    })
     expect(repetidas.status).toBe(400)
     expect(repetidas.body.error.code).toBe('VOTE_OPTION_DUPLICATE')
 
@@ -541,7 +588,10 @@ describe('El voto (V-10, V-11)', () => {
 
   it('sin allowAbstention, la votacion no lleva opcion de abstencion', async () => {
     const e = await escena()
-    const res = await crearVotacion(e.admin.token, e.comunidad, { ...VOTACION_VALIDA, allowAbstention: false })
+    const res = await crearVotacion(e.admin.token, e.comunidad, {
+      ...VOTACION_VALIDA,
+      allowAbstention: false,
+    })
     expect(res.status).toBe(201)
     expect(res.body.data.options.map((o: { label: string }) => o.label)).toEqual(['Sí', 'No'])
   })
@@ -573,7 +623,9 @@ describe('Resultados (V-2, V-12) y export (V-13)', () => {
     expect(r.quorumMet).toBeNull()
     expect(r.abstentionCount).toBe(0)
 
-    const porLabel = Object.fromEntries(r.options.map((o: { label: string; votes: number; percent: number }) => [o.label, o]))
+    const porLabel = Object.fromEntries(
+      r.options.map((o: { label: string; votes: number; percent: number }) => [o.label, o]),
+    )
     expect(porLabel['Sí'].votes).toBe(2)
     expect(porLabel['Sí'].percent).toBe(66.67)
     expect(porLabel['No'].votes).toBe(1)
@@ -588,8 +640,14 @@ describe('Resultados (V-2, V-12) y export (V-13)', () => {
 
   it('AFTER_CLOSE abierta da 403 al vecino y 200 tras cerrar; ADMIN_ONLY da 403 siempre', async () => {
     const e = await escena()
-    const despues = await makeVoteRow(e.comunidad, e.admin.id, { status: 'OPEN', resultVisibility: 'AFTER_CLOSE' })
-    const soloAdmin = await makeVoteRow(e.comunidad, e.admin.id, { status: 'OPEN', resultVisibility: 'ADMIN_ONLY' })
+    const despues = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'OPEN',
+      resultVisibility: 'AFTER_CLOSE',
+    })
+    const soloAdmin = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'OPEN',
+      resultVisibility: 'ADMIN_ONLY',
+    })
 
     const antesDeCerrar = await resultados(e.vecino.token, despues.id)
     expect(antesDeCerrar.status).toBe(403)
@@ -638,7 +696,10 @@ describe('Resultados (V-2, V-12) y export (V-13)', () => {
 
   it('el export es text/csv del recuento, con una fila por opcion', async () => {
     const e = await escena()
-    const v = await makeVoteRow(e.comunidad, e.admin.id, { status: 'OPEN', resultVisibility: 'LIVE' })
+    const v = await makeVoteRow(e.comunidad, e.admin.id, {
+      status: 'OPEN',
+      resultVisibility: 'LIVE',
+    })
     await sembrarVotos([
       { voteId: v.id, optionId: v.si, userId: e.admin.id },
       { voteId: v.id, optionId: v.no, userId: e.vecino.id },
@@ -688,7 +749,10 @@ describe('Listado y contrato (§7.3)', () => {
       expect(res.body.error.code, `con ${query}`).toBe('VALIDATION_ERROR')
     }
 
-    const extra = await crearVotacion(e.admin.token, e.comunidad, { ...VOTACION_VALIDA, status: 'OPEN' })
+    const extra = await crearVotacion(e.admin.token, e.comunidad, {
+      ...VOTACION_VALIDA,
+      status: 'OPEN',
+    })
     expect(extra.status).toBe(400)
     expect(extra.body.error.code).toBe('VALIDATION_ERROR')
 

@@ -25,7 +25,14 @@
 // ---------------------------------------------------------------------------
 
 import { Prisma } from '@prisma/client'
-import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../http/errors.js'
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from '../http/errors.js'
 
 /** El `errcode` y el mensaje que PostgreSQL trae al cliente de Prisma. */
 type Origen = { errcode: string; message: string }
@@ -173,7 +180,8 @@ export function translate(error: unknown): AppError | null {
 
   // CHECK de la tabla reventado (23514) o enum/uuid invalido (22P02): 400, un
   // formulario mal rellenado. En una teoria zod los intercepta antes.
-  if (origen.errcode === '23514') return badRequest('Uno de los campos no cumple el formato permitido.')
+  if (origen.errcode === '23514')
+    return badRequest('Uno de los campos no cumple el formato permitido.')
   if (origen.errcode === '22P02') return badRequest('Uno de los valores enviados no es válido.')
 
   // 22023 sin sentinel: los ocho con nombre ya estan arriba, asi que lo que

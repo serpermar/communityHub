@@ -47,7 +47,14 @@ export async function usageToday(tx: Tx, userId: string): Promise<UsageRow> {
 export async function consumeUsage(
   tx: Tx,
   userId: string,
-  input: { requests: number; inputTokens: number; outputTokens: number; cacheHits: number; maxRequests: number; maxTokens: number },
+  input: {
+    requests: number
+    inputTokens: number
+    outputTokens: number
+    cacheHits: number
+    maxRequests: number
+    maxTokens: number
+  },
 ): Promise<UsageRow & { exceeded: string | null }> {
   const rows = await tx.$queryRaw<Array<UsageRow & { exceeded: string | null }>>`
     select requests, input_tokens, output_tokens, cache_hits, exceeded
@@ -61,7 +68,9 @@ export async function consumeUsage(
         ${input.maxTokens}::integer
       )
   `
-  return rows[0] ?? { requests: 0, input_tokens: 0, output_tokens: 0, cache_hits: 0, exceeded: null }
+  return (
+    rows[0] ?? { requests: 0, input_tokens: 0, output_tokens: 0, cache_hits: 0, exceeded: null }
+  )
 }
 
 // --- Cache de clasificaciones (AI-6) -----------------------------------------
@@ -73,7 +82,13 @@ export async function cacheGet(tx: Tx, hash: string): Promise<IncidentProposal |
   return rows[0]?.result ?? null
 }
 
-export async function cachePut(tx: Tx, hash: string, kind: string, result: IncidentProposal, ttlHours: number): Promise<void> {
+export async function cachePut(
+  tx: Tx,
+  hash: string,
+  kind: string,
+  result: IncidentProposal,
+  ttlHours: number,
+): Promise<void> {
   await tx.$executeRaw`
     select app_ai_cache_put(${hash}::text, ${kind}::text, ${JSON.stringify(result)}::jsonb, ${ttlHours}::integer)
   `
@@ -168,7 +183,10 @@ export async function insertMessage(
   },
 ): Promise<MessageRow> {
   const toolCalls = input.toolCalls === undefined ? null : JSON.stringify(input.toolCalls)
-  const citations = input.citations === undefined || input.citations === null ? null : JSON.stringify(input.citations)
+  const citations =
+    input.citations === undefined || input.citations === null
+      ? null
+      : JSON.stringify(input.citations)
 
   const rows = await tx.$queryRaw<MessageRow[]>`
     insert into ai_chat_messages (session_id, role, content, tool_calls, citations, tokens_in, tokens_out)
@@ -218,7 +236,10 @@ export type DraftInsert = {
  * Alta de un borrador. Devuelve el id y la fecha calculados aqui, no leidos de
  * la fila: `app_runtime` no tiene `select` sobre `incident_drafts` a proposito.
  */
-export async function insertDraft(tx: Tx, input: DraftInsert): Promise<{ id: string; expiresAt: Date }> {
+export async function insertDraft(
+  tx: Tx,
+  input: DraftInsert,
+): Promise<{ id: string; expiresAt: Date }> {
   const id = randomUUID()
 
   await tx.$executeRaw`
@@ -239,7 +260,11 @@ export async function insertDraft(tx: Tx, input: DraftInsert): Promise<{ id: str
   return { id, expiresAt: input.expiresAt }
 }
 
-export async function confirmDraft(tx: Tx, draftId: string, patch: Record<string, unknown>): Promise<string> {
+export async function confirmDraft(
+  tx: Tx,
+  draftId: string,
+  patch: Record<string, unknown>,
+): Promise<string> {
   const rows = await tx.$queryRaw<Array<{ incident_id: string }>>`
     select app_confirm_incident_draft(${draftId}::uuid, ${JSON.stringify(patch)}::jsonb) as incident_id
   `

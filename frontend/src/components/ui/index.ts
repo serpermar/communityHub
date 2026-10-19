@@ -1,10 +1,5 @@
 export { Button, type ButtonProps } from './Button'
-export {
-  Field,
-  Input,
-  Select,
-  Textarea,
-} from './Form'
+export { Field, Input, Select, Textarea } from './Form'
 export { Spinner, LoadingState, EmptyState, ErrorState, Alert } from './Feedback'
 export { Badge, Card, Modal } from './Display'
 export { DataTable, Pagination, type Column } from './Table'

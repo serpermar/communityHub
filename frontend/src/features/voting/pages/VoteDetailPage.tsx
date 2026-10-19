@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  ErrorState,
-  LoadingState,
-} from '@/components/ui'
+import { Alert, Badge, Button, Card, ErrorState, LoadingState } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { isManager } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { formatDateTime } from '@/utils/format'
-import { castVote, closeVote, downloadResultsCsv, getVote, getVoteResults, publishVote } from '../api'
+import {
+  castVote,
+  closeVote,
+  downloadResultsCsv,
+  getVote,
+  getVoteResults,
+  publishVote,
+} from '../api'
 import { VOTE_STATUS_LABELS } from '../types'
 
 export function VoteDetailPage() {
@@ -71,9 +71,7 @@ export function VoteDetailPage() {
         {item.description && (
           <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{item.description}</p>
         )}
-        <p className="mt-2 text-xs text-slate-400">
-          Cierra el {formatDateTime(item.endsAt)}
-        </p>
+        <p className="mt-2 text-xs text-slate-400">Cierra el {formatDateTime(item.endsAt)}</p>
 
         {error && (
           <div className="mt-3">
@@ -93,9 +91,7 @@ export function VoteDetailPage() {
                 name="vote-option"
                 value={option.id}
                 disabled={!canVote}
-                checked={
-                  selected ? selected === option.id : item.myOptionId === option.id
-                }
+                checked={selected ? selected === option.id : item.myOptionId === option.id}
                 onChange={() => setSelected(option.id)}
               />
               <span>{option.label}</span>
@@ -123,9 +119,7 @@ export function VoteDetailPage() {
             <Button
               loading={busy}
               disabled={!selected && !item.myOptionId}
-              onClick={() =>
-                void run(() => castVote(item.id, selected ?? item.myOptionId!))
-              }
+              onClick={() => void run(() => castVote(item.id, selected ?? item.myOptionId!))}
             >
               {item.myOptionId ? 'Cambiar voto' : 'Votar'}
             </Button>
@@ -188,9 +182,7 @@ export function VoteDetailPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">
-            Los resultados no están disponibles todavía.
-          </p>
+          <p className="text-sm text-slate-500">Los resultados no están disponibles todavía.</p>
         )}
       </Card>
     </div>

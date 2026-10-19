@@ -35,8 +35,18 @@ describe('inviteSchema', () => {
   })
 
   it('rechaza un correo sin forma de correo', () => {
-    for (const malo of ['', '   ', 'no-es-un-correo', 'a@b', '@ejemplo.test', 'marta@', 'marta @ejemplo.test']) {
-      expect(inviteSchema.safeParse({ email: malo }).success, `con ${JSON.stringify(malo)}`).toBe(false)
+    for (const malo of [
+      '',
+      '   ',
+      'no-es-un-correo',
+      'a@b',
+      '@ejemplo.test',
+      'marta@',
+      'marta @ejemplo.test',
+    ]) {
+      expect(inviteSchema.safeParse({ email: malo }).success, `con ${JSON.stringify(malo)}`).toBe(
+        false,
+      )
     }
   })
 
@@ -105,7 +115,9 @@ describe('patchMemberSchema', () => {
     const resultado = patchMemberSchema.safeParse({})
     expect(resultado.success).toBe(false)
     if (!resultado.success) {
-      expect(resultado.error.issues.some((i) => i.message.includes('No hay nada que actualizar'))).toBe(true)
+      expect(
+        resultado.error.issues.some((i) => i.message.includes('No hay nada que actualizar')),
+      ).toBe(true)
     }
   })
 
@@ -163,9 +175,10 @@ describe('redeemSchema', () => {
 
   it('rechaza que el cliente elija la comunidad (M-10)', () => {
     const codigo = { code: 'abc123' }
-    expect(redeemSchema.safeParse({ ...codigo, communityId: '11111111-1111-4111-8111-111111111111' }).success).toBe(
-      false,
-    )
+    expect(
+      redeemSchema.safeParse({ ...codigo, communityId: '11111111-1111-4111-8111-111111111111' })
+        .success,
+    ).toBe(false)
     expect(redeemSchema.safeParse({ ...codigo, role: 'ADMIN' }).success).toBe(false)
     expect(redeemSchema.safeParse({ ...codigo, email: 'marta@ejemplo.test' }).success).toBe(false)
   })
@@ -180,7 +193,14 @@ describe('uuidSchema', () => {
   it('rechaza lo que no es un UUID', () => {
     // Mismo criterio que `requireUuidParam` del middleware (C-9): un id mal
     // formado es una peticion mal formada, y la respuesta es 400 y no 403.
-    for (const malo of ['', 'no-es-un-uuid', '123', 'abc-def', '1234-5678', '11111111-1111-4111-8111']) {
+    for (const malo of [
+      '',
+      'no-es-un-uuid',
+      '123',
+      'abc-def',
+      '1234-5678',
+      '11111111-1111-4111-8111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, JSON.stringify(malo)).toBe(false)
     }
   })

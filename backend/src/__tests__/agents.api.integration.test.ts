@@ -19,7 +19,16 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { admin } from '../db-admin.js'
 import { FakeLLMClient } from '../ai/llm/fake.js'
 import { resetLLMClient, setLLMClient } from '../ai/llm/router.js'
-import { app, createUser, deleteCommunity, deleteUser, makeAdmin, makeCommunity, makeMember, type TestUser } from './helpers.js'
+import {
+  app,
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeAdmin,
+  makeCommunity,
+  makeMember,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 const AGENTS = `${V1}/ai/agents`
@@ -58,13 +67,11 @@ afterAll(async () => {
 })
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
-}
-
-function respuestaFija(texto: string): FakeLLMClient {
-  return new FakeLLMClient([{ content: texto, toolCalls: [], tokensIn: 3, tokensOut: 4, model: 'fake' }])
 }
 
 describe('GET /ai/agents', () => {
@@ -72,7 +79,9 @@ describe('GET /ai/agents', () => {
     const user = await createUser({ fullName: 'Vecina agentes' })
     usuarios.push(user.id)
 
-    const res = await request(app()).get(AGENTS).set('Authorization', await tokenDe(user))
+    const res = await request(app())
+      .get(AGENTS)
+      .set('Authorization', await tokenDe(user))
     expect(res.status).toBe(200)
 
     const nombres = (res.body.data as Array<{ name: string }>).map((a) => a.name)
@@ -94,7 +103,17 @@ describe('POST /ai/agents/:name/run', () => {
     usuarios.push(user.id)
     await makeMember(user.id, comunidad, 'NEIGHBOR')
 
-    setLLMClient(new FakeLLMClient([{ content: 'La comunidad se llama Comunidad agentes.', toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'fake' }]))
+    setLLMClient(
+      new FakeLLMClient([
+        {
+          content: 'La comunidad se llama Comunidad agentes.',
+          toolCalls: [],
+          tokensIn: 5,
+          tokensOut: 4,
+          model: 'fake',
+        },
+      ]),
+    )
 
     const res = await request(app())
       .post(`${AGENTS}/community/run`)
@@ -120,7 +139,17 @@ describe('POST /ai/agents/:name/run', () => {
     usuarios.push(user.id)
     await makeMember(user.id, comunidad, 'NEIGHBOR')
 
-    setLLMClient(new FakeLLMClient([{ content: 'no deberia llegar aqui', toolCalls: [], tokensIn: 1, tokensOut: 1, model: 'fake' }]))
+    setLLMClient(
+      new FakeLLMClient([
+        {
+          content: 'no deberia llegar aqui',
+          toolCalls: [],
+          tokensIn: 1,
+          tokensOut: 1,
+          model: 'fake',
+        },
+      ]),
+    )
 
     const res = await request(app())
       .post(`${AGENTS}/finance/run`)
@@ -137,7 +166,11 @@ describe('POST /ai/agents/:name/run', () => {
     usuarios.push(user.id)
     await makeAdmin(user.id, comunidad)
 
-    setLLMClient(new FakeLLMClient([{ content: 'El saldo es 0.', toolCalls: [], tokensIn: 3, tokensOut: 4, model: 'fake' }]))
+    setLLMClient(
+      new FakeLLMClient([
+        { content: 'El saldo es 0.', toolCalls: [], tokensIn: 3, tokensOut: 4, model: 'fake' },
+      ]),
+    )
 
     const respuesta = await request(app())
       .post(`${AGENTS}/finance/run`)

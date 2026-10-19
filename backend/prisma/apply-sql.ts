@@ -102,10 +102,7 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined
 }
 
-const url =
-  arg('url') ??
-  process.env.MIGRATION_DATABASE_URL ??
-  process.env.DATABASE_URL
+const url = arg('url') ?? process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL
 
 if (!url) {
   // Se lanza en vez de llamar a process.exit(1), por lo mismo que al final del

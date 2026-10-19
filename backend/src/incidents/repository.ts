@@ -232,7 +232,11 @@ export async function setPriority(tx: Tx, incidentId: string, priority: string):
  * quiere decir "desasignar". Un string vacio no serviria: `''::uuid` revienta con
  * 22P02.
  */
-export async function assign(tx: Tx, incidentId: string, providerUserId: string | null): Promise<void> {
+export async function assign(
+  tx: Tx,
+  incidentId: string,
+  providerUserId: string | null,
+): Promise<void> {
   await tx.$executeRaw`select app_assign_incident(${incidentId}::uuid, ${providerUserId}::uuid)`
 }
 
@@ -273,7 +277,12 @@ export async function softDelete(tx: Tx, incidentId: string): Promise<void> {
  * modulo 02d repite el patron: un permiso que solo existe en el codigo no es un
  * permiso.
  */
-export async function createComment(tx: Tx, incidentId: string, authorId: string, body: string): Promise<string> {
+export async function createComment(
+  tx: Tx,
+  incidentId: string,
+  authorId: string,
+  body: string,
+): Promise<string> {
   const row = await tx.incidentComments.create({
     data: { incident_id: incidentId, author_id: authorId, body },
     select: { id: true },

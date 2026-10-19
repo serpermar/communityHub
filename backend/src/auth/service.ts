@@ -165,7 +165,9 @@ export async function register(input: {
  * de respuesta delata que accounts existen. Es la unica proteccion posible,
  * porque el mensaje de error ya es identico.
  */
-export async function login(input: { email: string; password: string } & ClientInfo): Promise<SessionTokens> {
+export async function login(
+  input: { email: string; password: string } & ClientInfo,
+): Promise<SessionTokens> {
   const email = normalizeEmail(input.email)
 
   // Sin contexto de RLS todavia: es exactamente el punto ciego que cubren las
@@ -240,7 +242,9 @@ export async function login(input: { email: string; password: string } & ClientI
  * `family_id` no cambia al rotar: toda la cadena de un login comparte familia.
  * Solo se genera uno nuevo al hacer login de verdad.
  */
-export async function refresh(input: { refreshToken: string } & ClientInfo): Promise<SessionTokens> {
+export async function refresh(
+  input: { refreshToken: string } & ClientInfo,
+): Promise<SessionTokens> {
   const tokenHash = hashRefreshToken(input.refreshToken)
 
   const existing = await withContext({ userId: null, communityId: null }, (tx) =>
@@ -340,7 +344,10 @@ export async function listSessions(input: { userId: string; currentSessionId: st
  * detalle: afectaria a cero filas y se responde 404, para no confirmar que ese
  * id existe.
  */
-export async function revokeSessionById(input: { userId: string; sessionId: string }): Promise<void> {
+export async function revokeSessionById(input: {
+  userId: string
+  sessionId: string
+}): Promise<void> {
   const revoked = await withContext({ userId: input.userId, communityId: null }, (tx) =>
     repo.revokeSession(tx, input.sessionId),
   )
@@ -362,7 +369,9 @@ export async function revokeSessionById(input: { userId: string; sessionId: stri
  * un 404 en vez de datos de otro, y el fallo es visible.
  */
 export async function getMe(userId: string): Promise<PublicUser> {
-  const row = await withContext({ userId, communityId: null }, (tx) => repo.findUserById(tx, userId))
+  const row = await withContext({ userId, communityId: null }, (tx) =>
+    repo.findUserById(tx, userId),
+  )
 
   if (!row) {
     throw notFound('Usuario no encontrado.')

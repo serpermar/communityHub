@@ -52,7 +52,9 @@ describe('translate', () => {
     // El caso que motiva la regla del par en este bloque: el nombre duplicado
     // es un conflicto y no un 400, porque el dato del formulario es valido, lo
     // que pasa es que ya lo usa otro.
-    const error = translate(errorDePostgres('23505', 'area_name_taken: ya existe una zona con ese nombre'))
+    const error = translate(
+      errorDePostgres('23505', 'area_name_taken: ya existe una zona con ese nombre'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('CONFLICT')
@@ -84,7 +86,10 @@ describe('translate', () => {
     // mirase solo el mensaje, esto seria un 409 y el cliente ofreceria elegir
     // otro nombre cuando en realidad es un CHECK de longitud reventado.
     const error = translate(
-      errorDePostgres('23514', 'area_name_taken: violates check constraint "common_areas_name_length"'),
+      errorDePostgres(
+        '23514',
+        'area_name_taken: violates check constraint "common_areas_name_length"',
+      ),
     )
 
     expect(error?.status).toBe(400)
@@ -94,7 +99,9 @@ describe('translate', () => {
   it('un sentinel con un errcode de otro tipo tampoco se mezcla con otro caso', () => {
     // El sentinel de "no encontrado" con un 23514 sigue siendo un 400 de
     // formato, no un 404.
-    const con23514 = translate(errorDePostgres('23514', 'area_not_found: violates check constraint'))
+    const con23514 = translate(
+      errorDePostgres('23514', 'area_not_found: violates check constraint'),
+    )
     expect(con23514?.status).toBe(400)
 
     // Y con un 42501 NO es un 404: el par no coincide. Cae en el fallback
@@ -109,7 +116,9 @@ describe('translate', () => {
     // El indice del nombre por comunidad se llama hoy `common_areas_name_...`;
     // si un dia cambiara de nombre y el sentinel dejara de viajar, el 409 no
     // deberia degradarse a un 500 que nadie sabe mirar.
-    const error = translate(errorDePostgres('23505', 'duplicate key value violates unique constraint'))
+    const error = translate(
+      errorDePostgres('23505', 'duplicate key value violates unique constraint'),
+    )
 
     expect(error?.status).toBe(409)
   })
@@ -139,7 +148,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })

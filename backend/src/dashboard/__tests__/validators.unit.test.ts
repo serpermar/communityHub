@@ -37,25 +37,37 @@ describe('dashboardQuerySchema', () => {
   })
 
   it('acepta un rango valido', () => {
-    expect(dashboardQuerySchema.safeParse({ from: '2026-01-01', to: '2026-12-31' }).success).toBe(true)
+    expect(dashboardQuerySchema.safeParse({ from: '2026-01-01', to: '2026-12-31' }).success).toBe(
+      true,
+    )
   })
 
   it('rechaza from > to', () => {
-    expect(dashboardQuerySchema.safeParse({ from: '2026-12-31', to: '2026-01-01' }).success).toBe(false)
+    expect(dashboardQuerySchema.safeParse({ from: '2026-12-31', to: '2026-01-01' }).success).toBe(
+      false,
+    )
   })
 
   it('acepta el mismo dia', () => {
-    expect(dashboardQuerySchema.safeParse({ from: '2026-06-15', to: '2026-06-15' }).success).toBe(true)
+    expect(dashboardQuerySchema.safeParse({ from: '2026-06-15', to: '2026-06-15' }).success).toBe(
+      true,
+    )
   })
 
   it('acepta exactamente 24 meses y rechaza 25 (DSH-5)', () => {
-    expect(dashboardQuerySchema.safeParse({ from: '2024-01-01', to: '2026-01-01' }).success).toBe(true)
-    expect(dashboardQuerySchema.safeParse({ from: '2024-01-01', to: '2026-02-01' }).success).toBe(false)
+    expect(dashboardQuerySchema.safeParse({ from: '2024-01-01', to: '2026-01-01' }).success).toBe(
+      true,
+    )
+    expect(dashboardQuerySchema.safeParse({ from: '2024-01-01', to: '2026-02-01' }).success).toBe(
+      false,
+    )
   })
 
   it('cuenta los meses por calendario, no por dias', () => {
     // 2024-01-31 -> 2026-01-30 son menos de 24 meses completos; sigue valiendo.
-    expect(dashboardQuerySchema.safeParse({ from: '2024-01-31', to: '2026-01-30' }).success).toBe(true)
+    expect(dashboardQuerySchema.safeParse({ from: '2024-01-31', to: '2026-01-30' }).success).toBe(
+      true,
+    )
   })
 
   it('rechaza un formato de fecha que no es YYYY-MM-DD', () => {

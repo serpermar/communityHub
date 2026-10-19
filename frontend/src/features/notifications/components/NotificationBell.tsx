@@ -166,7 +166,10 @@ export function NotificationBell() {
                     >
                       <span className="flex items-center gap-2">
                         {!notification.readAt && (
-                          <span className="h-2 w-2 rounded-full bg-brand-600" aria-label="No leída" />
+                          <span
+                            className="h-2 w-2 rounded-full bg-brand-600"
+                            aria-label="No leída"
+                          />
                         )}
                         <span className="text-sm font-medium text-slate-800">
                           {notification.title}

@@ -193,9 +193,23 @@ export const listQuerySchema = z
     status: z.enum(ESTADOS).optional(),
     priority: z.enum(PRIORIDADES).optional(),
     category: z.enum(CATEGORIAS).optional(),
-    q: z.string().trim().min(1).max(100, 'La búsqueda no puede pasar de 100 caracteres.').optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    q: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100, 'La búsqueda no puede pasar de 100 caracteres.')
+      .optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

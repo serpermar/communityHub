@@ -120,7 +120,11 @@ export async function patchMember(req: Request, res: Response, next: NextFunctio
  * ademas lleva la invitacion completa para no obligar al cliente a una segunda
  * peticion.
  */
-export async function createInvitation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createInvitation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId } = actor(req)
     const communityId = uuidParam(req, 'communityId')
@@ -136,7 +140,11 @@ export async function createInvitation(req: Request, res: Response, next: NextFu
 }
 
 /** `GET /communities/:communityId/invitations`, incluidas las ya usadas (M-11). */
-export async function listInvitations(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listInvitations(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId } = actor(req)
     const communityId = uuidParam(req, 'communityId')
@@ -153,7 +161,11 @@ export async function listInvitations(req: Request, res: Response, next: NextFun
  * 204 sin cuerpo, no 200 con `null`: anular no deja recurso que leer, y el
  * envelope prohibe `data: null` para que nadie lo lea como un fallo.
  */
-export async function deleteInvitation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteInvitation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId } = actor(req)
     const communityId = uuidParam(req, 'communityId')
@@ -183,7 +195,11 @@ export async function deleteInvitation(req: Request, res: Response, next: NextFu
  * seria mejor, pero la funcion no los devuelve (siempre `NEIGHBOR` y `ACTIVE`,
  * M-9) y quien quiera verlos tiene `GET /members/:memberId`.
  */
-export async function redeemInvitation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function redeemInvitation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId } = actor(req)
     const input = parse(redeemSchema, req.body)

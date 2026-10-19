@@ -126,8 +126,17 @@ export const listQuerySchema = z
     commonAreaId: z.string().regex(UUID_RE, 'commonAreaId debe ser un UUID.').optional(),
     date: fecha.optional(),
     status: z.enum(ESTADOS).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 
@@ -141,8 +150,17 @@ export const listQuerySchema = z
 export const meQuerySchema = z
   .object({
     status: z.enum(ESTADOS).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

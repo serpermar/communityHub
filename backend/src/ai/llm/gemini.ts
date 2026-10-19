@@ -69,7 +69,9 @@ function toContents(messages: LLMMessage[]): { system: string; contents: GeminiC
     // role === 'tool'
     contents.push({
       role: 'user',
-      parts: [{ functionResponse: { name: message.name ?? '', response: { result: message.content } } }],
+      parts: [
+        { functionResponse: { name: message.name ?? '', response: { result: message.content } } },
+      ],
     })
   }
 
@@ -139,8 +141,13 @@ export class GeminiClient implements LLMClient {
       .join('')
 
     const toolCalls = parts
-      .map((part, index) => ('functionCall' in part ? { id: `gemini_call_${index}`, ...part.functionCall } : null))
-      .filter((call): call is { id: string; name: string; args: Record<string, unknown> } => call !== null)
+      .map((part, index) =>
+        'functionCall' in part ? { id: `gemini_call_${index}`, ...part.functionCall } : null,
+      )
+      .filter(
+        (call): call is { id: string; name: string; args: Record<string, unknown> } =>
+          call !== null,
+      )
 
     return {
       content,

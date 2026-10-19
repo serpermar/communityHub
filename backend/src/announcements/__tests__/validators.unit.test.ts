@@ -83,7 +83,10 @@ describe('createAnnouncementSchema', () => {
 
   it('acepta los cuatro valores de type y los tres de priority', () => {
     for (const type of TIPOS_VALIDOS) {
-      expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, type }).success, `con type ${type}`).toBe(true)
+      expect(
+        createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, type }).success,
+        `con type ${type}`,
+      ).toBe(true)
     }
 
     for (const priority of PRIORIDADES_VALIDAS) {
@@ -96,9 +99,10 @@ describe('createAnnouncementSchema', () => {
 
   it('rechaza un enum inventado', () => {
     for (const type of ['AVISO', 'general', 'NEWS', '']) {
-      expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, type }).success, `con type ${JSON.stringify(type)}`).toBe(
-        false,
-      )
+      expect(
+        createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, type }).success,
+        `con type ${JSON.stringify(type)}`,
+      ).toBe(false)
     }
 
     for (const priority of ['URGENT', 'high', 'CRITICAL', '']) {
@@ -113,15 +117,29 @@ describe('createAnnouncementSchema', () => {
     // 2 y 121 son los lados de `announcements_title_length`; 0 y 5001 los de
     // `announcements_body_length`. Estos numeros estan en los dos sitios, y por
     // eso estan escritos aqui a mano y no calculados.
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(2) }).success).toBe(false)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(3) }).success).toBe(true)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(120) }).success).toBe(true)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(121) }).success).toBe(false)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(2) }).success,
+    ).toBe(false)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(3) }).success,
+    ).toBe(true)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(120) }).success,
+    ).toBe(true)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(121) }).success,
+    ).toBe(false)
 
     expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: '' }).success).toBe(false)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(1) }).success).toBe(true)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(5000) }).success).toBe(true)
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(5001) }).success).toBe(false)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(1) }).success,
+    ).toBe(true)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(5000) }).success,
+    ).toBe(true)
+    expect(
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, body: 'a'.repeat(5001) }).success,
+    ).toBe(false)
   })
 
   it('aplica el trim antes de medir la longitud', () => {
@@ -138,9 +156,12 @@ describe('createAnnouncementSchema', () => {
   })
 
   it('acepta publishAt con Z y con offset, y rechaza texto que no es instante', () => {
-    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: FUTURO }).success).toBe(true)
+    expect(createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: FUTURO }).success).toBe(
+      true,
+    )
     expect(
-      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: '2026-11-01T11:00:00+02:00' }).success,
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: '2026-11-01T11:00:00+02:00' })
+        .success,
     ).toBe(true)
 
     // Sin offset y con espacio en vez de T: Postgres lo rechazaria como 22P02
@@ -168,7 +189,8 @@ describe('createAnnouncementSchema', () => {
     // FUTURO_MAS_TARDI con "Z" son dos horas distintas y no se ordenan bien
     // por texto.
     expect(
-      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: FUTURO, expiresAt: PASADO }).success,
+      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: FUTURO, expiresAt: PASADO })
+        .success,
     ).toBe(false)
     expect(
       createAnnouncementSchema.safeParse({
@@ -178,7 +200,11 @@ describe('createAnnouncementSchema', () => {
       }).success,
     ).toBe(false)
     expect(
-      createAnnouncementSchema.safeParse({ ...ALTA_VALIDA, publishAt: FUTURO, expiresAt: FUTURO_MAS_TARDI }).success,
+      createAnnouncementSchema.safeParse({
+        ...ALTA_VALIDA,
+        publishAt: FUTURO,
+        expiresAt: FUTURO_MAS_TARDI,
+      }).success,
     ).toBe(true)
   })
 
@@ -262,11 +288,13 @@ describe('updateAnnouncementSchema', () => {
 
   it('siempre comprueba la ventana, porque los dos campos van siempre', () => {
     expect(
-      updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, publishAt: FUTURO, expiresAt: PASADO }).success,
+      updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, publishAt: FUTURO, expiresAt: PASADO })
+        .success,
     ).toBe(false)
-    expect(updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, publishAt: FUTURO, expiresAt: FUTURO }).success).toBe(
-      false,
-    )
+    expect(
+      updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, publishAt: FUTURO, expiresAt: FUTURO })
+        .success,
+    ).toBe(false)
   })
 
   it('rechaza id, authorId y communityId', () => {
@@ -284,7 +312,9 @@ describe('updateAnnouncementSchema', () => {
   })
 
   it('rechaza status, porque un aviso no tiene estados', () => {
-    expect(updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, status: 'PUBLISHED' }).success).toBe(false)
+    expect(updateAnnouncementSchema.safeParse({ ...PUT_VALIDO, status: 'PUBLISHED' }).success).toBe(
+      false,
+    )
   })
 })
 
@@ -330,7 +360,9 @@ describe('listQuerySchema', () => {
     // El caso de la spec §7.3: `?type=CUALQUIERA` es un 400 que nombra el
     // campo, no un 22P02 dentro del `::announcement_type`.
     for (const type of ['CUALQUIERA', 'urgent', 'GENERAL ', '']) {
-      expect(listQuerySchema.safeParse({ type }).success, `con type ${JSON.stringify(type)}`).toBe(false)
+      expect(listQuerySchema.safeParse({ type }).success, `con type ${JSON.stringify(type)}`).toBe(
+        false,
+      )
     }
   })
 
@@ -347,7 +379,9 @@ describe('listQuerySchema', () => {
     // `?pinned=true` no es un filtro de la spec §7.3, y `.strict()` lo hace un
     // 400 en vez de un listado que lo ignora en silencio.
     expect(listQuerySchema.safeParse({ pinned: 'true' }).success).toBe(false)
-    expect(listQuerySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111' }).success).toBe(false)
+    expect(
+      listQuerySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(false)
   })
 })
 
@@ -360,7 +394,13 @@ describe('uuidSchema', () => {
   })
 
   it('rechaza lo que no es un UUID', () => {
-    for (const malo of ['', 'abc', '1', '11111111-1111-4111-8111-11111111111', '11111111111141118111111111111111']) {
+    for (const malo of [
+      '',
+      'abc',
+      '1',
+      '11111111-1111-4111-8111-11111111111',
+      '11111111111141118111111111111111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, `con ${JSON.stringify(malo)}`).toBe(false)
     }
   })

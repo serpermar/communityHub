@@ -66,7 +66,9 @@ afterEach(async () => {
   }
 })
 
-async function nuevoUsuario(overrides: { email?: string; fullName?: string } = {}): Promise<TestUser> {
+async function nuevoUsuario(
+  overrides: { email?: string; fullName?: string } = {},
+): Promise<TestUser> {
   const user = await createUser(overrides)
   usuarios.push(user.id)
   return user
@@ -93,7 +95,11 @@ async function nuevoActor(user: TestUser): Promise<Actor> {
   return { ...user, token: await tokenDe(user) }
 }
 
-async function actorEn(user: TestUser, communityId: string, role: 'ADMIN' | 'PRESIDENT' | 'NEIGHBOR' | 'PROVIDER') {
+async function actorEn(
+  user: TestUser,
+  communityId: string,
+  role: 'ADMIN' | 'PRESIDENT' | 'NEIGHBOR' | 'PROVIDER',
+) {
   await makeMember(user.id, communityId, role)
   return { ...user, token: await tokenDe(user) }
 }
@@ -163,7 +169,10 @@ function altaValida(extra: Record<string, unknown> = {}) {
 
 /** Crea una incidencia por la API y devuelve el cuerpo de la respuesta. */
 async function crear(token: string, comunidad: string, extra: Record<string, unknown> = {}) {
-  const res = await request(app()).post(`${COM}/${comunidad}/incidents`).set('Authorization', token).send(altaValida(extra))
+  const res = await request(app())
+    .post(`${COM}/${comunidad}/incidents`)
+    .set('Authorization', token)
+    .send(altaValida(extra))
   expect(res.status, `creando: ${JSON.stringify(res.body)}`).toBe(201)
   return res.body.data
 }
@@ -183,7 +192,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
 
     const incident = await crear(a.vecinoA.token, a.comunidad)
 
-    const res = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', intruso.token)
+    const res = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', intruso.token)
 
     // 404 y no 403: un 403 confirmaria que ese id existe (C-8).
     expect(res.status).toBe(404)
@@ -202,7 +213,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
       .send({ body: 'Comentario privado' })
       .expect(201)
 
-    const listado = await request(app()).get(`${COM}/${a.comunidad}/incidents`).set('Authorization', intruso.token)
+    const listado = await request(app())
+      .get(`${COM}/${a.comunidad}/incidents`)
+      .set('Authorization', intruso.token)
     // Ni siquiera 403: no es miembro, asi que la comunidad entera le es ajena.
     expect(listado.status).toBe(403)
 
@@ -217,7 +230,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
 
     const incident = await crear(e.vecinoA.token, e.comunidad)
 
-    const res = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.proveedor.token)
+    const res = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.proveedor.token)
 
     expect(res.status).toBe(404)
   })
@@ -229,7 +244,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     const asignada = await crear(e.vecinoB.token, e.comunidad)
     await asignarA(e.admin.token, asignada.id, e.proveedor.id)
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.proveedor.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.proveedor.token)
 
     expect(res.status).toBe(200)
     expect(idsDe(res)).toEqual([asignada.id])
@@ -242,7 +259,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     const suya = await crear(e.vecinoA.token, e.comunidad)
     const delOtro = await crear(e.vecinoB.token, e.comunidad)
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.vecinoA.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.vecinoA.token)
 
     expect(idsDe(res)).toEqual([suya.id])
     expect(idsDe(res)).not.toContain(delOtro.id)
@@ -259,10 +278,14 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     // Y el detalle es 404, no 403: al perder la membresia activa, el vecino ya no VE
     // la incidencia, y un 403 confirmaria que ese id existe (C-8). El 403 se reserva
     // para el detalle de una comunidad, que si existe y de la que se sabe el nombre.
-    const detalle = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.vecinoA.token)
+    const detalle = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.vecinoA.token)
     expect(detalle.status).toBe(404)
 
-    const listado = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.vecinoA.token)
+    const listado = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.vecinoA.token)
     expect(listado.status).toBe(403)
   })
 
@@ -300,13 +323,27 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     // existe). El criterio de aceptacion de la spec decia "403 en las ocho rutas" y
     // era incorrecto; se corrige ahi tambien.
     const rutas: Array<[string, number, () => request.Test]> = [
-      ['GET lista', 403, () => request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', staff.token)],
+      [
+        'GET lista',
+        403,
+        () =>
+          request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', staff.token),
+      ],
       [
         'POST crea',
         403,
-        () => request(app()).post(`${COM}/${e.comunidad}/incidents`).set('Authorization', staff.token).send(altaValida()),
+        () =>
+          request(app())
+            .post(`${COM}/${e.comunidad}/incidents`)
+            .set('Authorization', staff.token)
+            .send(altaValida()),
       ],
-      ['GET detalle', 404, () => request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', staff.token)],
+      [
+        'GET detalle',
+        404,
+        () =>
+          request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', staff.token),
+      ],
       [
         'PUT contenido',
         404,
@@ -314,7 +351,11 @@ describe('Seguridad y aislamiento entre comunidades', () => {
           request(app())
             .put(`/api/v1/incidents/${incident.id}`)
             .set('Authorization', staff.token)
-            .send({ title: 'Otro titulo valido', description: 'Otra descripcion valida.', category: 'OTHER' }),
+            .send({
+              title: 'Otro titulo valido',
+              description: 'Otra descripcion valida.',
+              category: 'OTHER',
+            }),
       ],
       [
         'PATCH estado',
@@ -325,11 +366,21 @@ describe('Seguridad y aislamiento entre comunidades', () => {
             .set('Authorization', staff.token)
             .send({ status: 'IN_PROGRESS' }),
       ],
-      ['DELETE', 404, () => request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', staff.token)],
+      [
+        'DELETE',
+        404,
+        () =>
+          request(app())
+            .delete(`/api/v1/incidents/${incident.id}`)
+            .set('Authorization', staff.token),
+      ],
       [
         'GET comentarios',
         404,
-        () => request(app()).get(`/api/v1/incidents/${incident.id}/comments`).set('Authorization', staff.token),
+        () =>
+          request(app())
+            .get(`/api/v1/incidents/${incident.id}/comments`)
+            .set('Authorization', staff.token),
       ],
       [
         'POST comentario',
@@ -362,7 +413,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
   it('un id que no es un UUID es 400, no 403', async () => {
     const e = await escenaCompleto()
 
-    const res = await request(app()).get('/api/v1/incidents/no-es-uuid').set('Authorization', e.vecinoA.token)
+    const res = await request(app())
+      .get('/api/v1/incidents/no-es-uuid')
+      .set('Authorization', e.vecinoA.token)
 
     expect(res.status).toBe(400)
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
@@ -422,7 +475,9 @@ describe('Visibilidad del listado', () => {
     const deA = await crear(e.vecinoA.token, e.comunidad)
     const deB = await crear(e.vecinoB.token, e.comunidad)
 
-    const delAdmin = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.admin.token)
+    const delAdmin = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.admin.token)
     const delPresidente = await request(app())
       .get(`${COM}/${e.comunidad}/incidents`)
       .set('Authorization', e.presidente.token)
@@ -513,7 +568,9 @@ describe('Visibilidad del listado', () => {
   it('un listado vacio da total 0 y totalPages 0', async () => {
     const e = await escenaCompleto()
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.admin.token)
 
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(0)
@@ -523,12 +580,14 @@ describe('Visibilidad del listado', () => {
   it('un limit de mas de 100 es 400 y no una pagina recortada en silencio', async () => {
     const e = await escenaCompleto()
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/incidents?limit=1000`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents?limit=1000`)
+      .set('Authorization', e.admin.token)
 
     expect(res.status).toBe(400)
     expect(res.body.error.code).toBe('VALIDATION_ERROR')
   })
-})// ---------------------------------------------------------------------------
+}) // ---------------------------------------------------------------------------
 
 describe('Transiciones de estado', () => {
   /** Pone la incidencia en `OPEN` y devuelve su cuerpo. */
@@ -756,7 +815,11 @@ describe('Transiciones de estado', () => {
 })
 
 describe('Quien puede hacer que (D-2 y D-3)', () => {
-  const CONTENIDO = { title: 'Titulo valido de cinco', description: 'Descripcion valida de sobra.', category: 'OTHER' }
+  const CONTENIDO = {
+    title: 'Titulo valido de cinco',
+    description: 'Descripcion valida de sobra.',
+    category: 'OTHER',
+  }
 
   it('el PRESIDENT no cambia el estado, ni aunque la transicion sea valida', async () => {
     const e = await escenaCompleto()
@@ -783,7 +846,9 @@ describe('Quien puede hacer que (D-2 y D-3)', () => {
 
     // Y la prioridad sigue siendo la que era. El 403 tiene que llegar ANTES de
     // escribir el contenido, o el PUT habria aplicado el texto y luego habria fallado.
-    const despues = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const despues = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
     expect(despues.body.data.priority).toBe(incident.priority)
     expect(despues.body.data.title).toBe(incident.title)
   })
@@ -824,7 +889,9 @@ describe('Quien puede hacer que (D-2 y D-3)', () => {
     const e = await escenaCompleto()
     const incident = await crear(e.vecinoA.token, e.comunidad)
 
-    const res = await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', e.presidente.token)
+    const res = await request(app())
+      .delete(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.presidente.token)
 
     expect(res.status).toBe(403)
   })
@@ -881,8 +948,10 @@ describe('Quien puede hacer que (D-2 y D-3)', () => {
     // la API le rechaza. Se comprueba para que quede escrito que la diferencia es
     // intencionada y no un descuido: si alguien alineara la funcion con el guard, este
     // test falla y hay que decidir de nuevo cual de los dos manda.
-    const id = await withContext({ userId: e.proveedor.id, communityId: e.comunidad }, async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    const id = await withContext(
+      { userId: e.proveedor.id, communityId: e.comunidad },
+      async (tx) => {
+        const rows = await tx.$queryRaw<Array<{ id: string }>>`
         select app_create_incident(
           ${e.comunidad}::uuid,
           ${'Titulo desde la capa SQL'},
@@ -892,17 +961,24 @@ describe('Quien puede hacer que (D-2 y D-3)', () => {
           ${null}
         ) as id
       `
-      return rows[0]!.id
-    })
+        return rows[0]!.id
+      },
+    )
 
-    const res = await request(app()).get(`/api/v1/incidents/${id}`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .get(`/api/v1/incidents/${id}`)
+      .set('Authorization', e.admin.token)
     expect(res.status).toBe(200)
     expect(res.body.data.reporterId).toBe(e.proveedor.id)
   })
 })
 
 describe('Asignacion', () => {
-  const CONTENIDO = { title: 'Titulo que se mantiene', description: 'Descripcion que se mantiene.', category: 'OTHER' }
+  const CONTENIDO = {
+    title: 'Titulo que se mantiene',
+    description: 'Descripcion que se mantiene.',
+    category: 'OTHER',
+  }
 
   it('solo el ADMIN asigna; PRESIDENT, NEIGHBOR y PROVIDER reciben 403', async () => {
     const e = await escenaCompleto()
@@ -978,7 +1054,9 @@ describe('Asignacion', () => {
     // diria que el usuario no existe, que es informacion que el ADMIN ya tiene.
     expect(res.status).toBe(400)
 
-    const despues = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const despues = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
     expect(despues.body.data.assignedToId).toBeNull()
   })
 
@@ -1035,7 +1113,9 @@ describe('Asignacion', () => {
 
     expect(res.status).toBe(403)
 
-    const despues = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const despues = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
     expect(despues.body.data.priority).toBe('LOW')
   })
 })
@@ -1135,7 +1215,12 @@ describe('Creacion y contenido', () => {
     const res = await request(app())
       .put(`/api/v1/incidents/${incident.id}`)
       .set('Authorization', e.admin.token)
-      .send({ title: 'Titulo valido', description: 'Descripcion valida de sobra.', category: 'OTHER', location: null })
+      .send({
+        title: 'Titulo valido',
+        description: 'Descripcion valida de sobra.',
+        category: 'OTHER',
+        location: null,
+      })
 
     expect(res.status).toBe(200)
     expect(res.body.data.location).toBeNull()
@@ -1148,7 +1233,9 @@ describe('Borrado', () => {
     const incident = await crear(e.vecinoA.token, e.comunidad)
     await asignarA(e.admin.token, incident.id, e.proveedor.id)
 
-    const res = await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .delete(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
     expect(res.status).toBe(204)
     expect(res.body).toEqual({})
 
@@ -1171,9 +1258,14 @@ describe('Borrado', () => {
     const e = await escenaCompleto()
     const incident = await crear(e.vecinoA.token, e.comunidad)
 
-    await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token).expect(204)
+    await request(app())
+      .delete(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
+      .expect(204)
 
-    const segunda = await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const segunda = await request(app())
+      .delete(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
 
     // 404 y no 204: un 204 repetido diria que el recurso se puede borrar sin limite.
     expect(segunda.status).toBe(404)
@@ -1199,7 +1291,9 @@ describe('Borrado', () => {
     // El segundo vecino y el proveedor no la ven siquiera, asi que para ellos es 404 y
     // no llega ni a la guarda de rol.
     for (const actor of [e.vecinoB, e.proveedor]) {
-      const res = await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', actor.token)
+      const res = await request(app())
+        .delete(`/api/v1/incidents/${incident.id}`)
+        .set('Authorization', actor.token)
       expect(res.status, `borrando como ${actor.email}`).toBe(404)
     }
   })
@@ -1214,7 +1308,10 @@ describe('Borrado', () => {
       .send({ body: 'Comentario previo al borrado' })
       .expect(201)
 
-    await request(app()).delete(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token).expect(204)
+    await request(app())
+      .delete(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
+      .expect(204)
 
     const listar = await request(app())
       .get(`/api/v1/incidents/${incident.id}/comments`)
@@ -1243,7 +1340,9 @@ describe('Comentarios', () => {
     expect(res.body.data.body).toBe('Ya he llamado al portero')
     expect(res.body.data.authorId).toBe(e.vecinoA.id)
     expect(res.body.data.authorName).toBe('Vecina Primera')
-    expect(res.headers['location']).toBe(`/api/v1/incidents/${incident.id}/comments/${res.body.data.id}`)
+    expect(res.headers['location']).toBe(
+      `/api/v1/incidents/${incident.id}/comments/${res.body.data.id}`,
+    )
   })
 
   it('un PROVIDER asignado comenta; uno no asignado recibe 404', async () => {
@@ -1328,12 +1427,16 @@ describe('Contrato', () => {
   it('el sobre es { data } en exito y { error: { code, message } } en fallo', async () => {
     const e = await escenaCompleto()
 
-    const ok = await request(app()).get(`${COM}/${e.comunidad}/incidents`).set('Authorization', e.admin.token)
+    const ok = await request(app())
+      .get(`${COM}/${e.comunidad}/incidents`)
+      .set('Authorization', e.admin.token)
     expect(ok.body).toHaveProperty('data')
     expect(ok.body).toHaveProperty('meta')
     expect(ok.body.error).toBeUndefined()
 
-    const ko = await request(app()).get(`/api/v1/incidents/${randomUUID()}`).set('Authorization', e.admin.token)
+    const ko = await request(app())
+      .get(`/api/v1/incidents/${randomUUID()}`)
+      .set('Authorization', e.admin.token)
     expect(ko.status).toBe(404)
     expect(ko.body.data).toBeUndefined()
     expect(ko.body.error.code).toBe('NOT_FOUND')
@@ -1345,7 +1448,9 @@ describe('Contrato', () => {
     const incident = await crear(e.vecinoA.token, e.comunidad)
     await asignarA(e.admin.token, incident.id, e.proveedor.id)
 
-    const res = await request(app()).get(`/api/v1/incidents/${incident.id}`).set('Authorization', e.admin.token)
+    const res = await request(app())
+      .get(`/api/v1/incidents/${incident.id}`)
+      .set('Authorization', e.admin.token)
 
     // Los nombres si, los correos no: `app_list_community_members()` ya es la excepcion
     // acotada que expone correos, y duplicarla aqui seria una segunda sin motivo.

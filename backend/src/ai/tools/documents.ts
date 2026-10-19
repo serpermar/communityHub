@@ -14,7 +14,8 @@ import { ALL_ROLES, defineTool, type ToolDefinition } from './registry.js'
 export const documentTools: ToolDefinition[] = [
   defineTool({
     name: 'get_documents',
-    description: 'Lista los documentos de la comunidad (nombre, categoría, fecha), sin el contenido.',
+    description:
+      'Lista los documentos de la comunidad (nombre, categoría, fecha), sin el contenido.',
     roles: ALL_ROLES,
     requiresCommunity: true,
     schema: listQuerySchema,

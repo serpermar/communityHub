@@ -45,7 +45,9 @@ const ALTA_VALIDA = {
   category: 'MINUTES',
   minRole: 'PRESIDENT',
   isPublic: 'true',
-  acl: JSON.stringify([{ userId: '22222222-2222-4222-8222-222222222222', canView: true, canDownload: false }]),
+  acl: JSON.stringify([
+    { userId: '22222222-2222-4222-8222-222222222222', canView: true, canDownload: false },
+  ]),
 }
 
 describe('createDocumentSchema', () => {
@@ -79,11 +81,17 @@ describe('createDocumentSchema', () => {
 
   it('acepta las seis categorias y los cuatro roles', () => {
     for (const category of CATEGORIAS_VALIDAS) {
-      expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, category }).success, `con category ${category}`).toBe(true)
+      expect(
+        createDocumentSchema.safeParse({ ...ALTA_VALIDA, category }).success,
+        `con category ${category}`,
+      ).toBe(true)
     }
 
     for (const minRole of MIN_ROLES_VALIDOS) {
-      expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, minRole }).success, `con minRole ${minRole}`).toBe(true)
+      expect(
+        createDocumentSchema.safeParse({ ...ALTA_VALIDA, minRole }).success,
+        `con minRole ${minRole}`,
+      ).toBe(true)
     }
   })
 
@@ -106,21 +114,35 @@ describe('createDocumentSchema', () => {
   it('aplica los mismos limites que los CHECK de la tabla', () => {
     // 1 y 120 son `documents_title_length`; 1 y 1000 `documents_description_length`.
     expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: '' }).success).toBe(false)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(1) }).success).toBe(true)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(120) }).success).toBe(true)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(121) }).success).toBe(false)
+    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(1) }).success).toBe(
+      true,
+    )
+    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(120) }).success).toBe(
+      true,
+    )
+    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(121) }).success).toBe(
+      false,
+    )
 
     // La descripcion es opcional: 0 es el minimo admitido (como null). 1001 no.
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1) }).success).toBe(true)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1000) }).success).toBe(true)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1001) }).success).toBe(false)
+    expect(
+      createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1) }).success,
+    ).toBe(true)
+    expect(
+      createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1000) }).success,
+    ).toBe(true)
+    expect(
+      createDocumentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(1001) }).success,
+    ).toBe(false)
   })
 
   it('aplica el trim antes de medir la longitud', () => {
     // Sin trim, un titulo de tres espacios pasaria el minimo de 1 aqui y
     // revienta el CHECK de la tabla.
     expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: '   ' }).success).toBe(false)
-    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: '   junta   ' }).success).toBe(true)
+    expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, title: '   junta   ' }).success).toBe(
+      true,
+    )
   })
 
   it('aplica el trim y su resultado a la descripcion', () => {
@@ -163,9 +185,10 @@ describe('createDocumentSchema', () => {
     // distinguen de "lo mandó mal": la funcion recibe un boolean y el default
     // (false) lo pone la funcion, no un texto medio vacio.
     for (const malo of ['yes', '1', 'TRUE', 'true ', '']) {
-      expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, isPublic: malo }).success, `con isPublic ${JSON.stringify(malo)}`).toBe(
-        false,
-      )
+      expect(
+        createDocumentSchema.safeParse({ ...ALTA_VALIDA, isPublic: malo }).success,
+        `con isPublic ${JSON.stringify(malo)}`,
+      ).toBe(false)
     }
   })
 
@@ -210,7 +233,10 @@ describe('createDocumentSchema', () => {
       '["un texto"]',
       'null',
     ]) {
-      expect(createDocumentSchema.safeParse({ ...ALTA_VALIDA, acl: malo }).success, `con acl ${malo}`).toBe(false)
+      expect(
+        createDocumentSchema.safeParse({ ...ALTA_VALIDA, acl: malo }).success,
+        `con acl ${malo}`,
+      ).toBe(false)
     }
   })
 
@@ -235,9 +261,19 @@ describe('createDocumentSchema', () => {
   it('no acepta los campos que escribe la funcion o el backend (DN-8/DN-9)', () => {
     // La autoria sale de app_current_user_id(); la ruta, el mime, el peso y el
     // hash, del archivo y de este backend. Mandarlos es un 400.
-    for (const clave of ['uploadedBy', 'communityId', 'storagePath', 'mimeType', 'sizeBytes', 'checksum']) {
+    for (const clave of [
+      'uploadedBy',
+      'communityId',
+      'storagePath',
+      'mimeType',
+      'sizeBytes',
+      'checksum',
+    ]) {
       expect(
-        createDocumentSchema.safeParse({ ...ALTA_VALIDA, [clave]: clave === 'sizeBytes' ? 12 : 'valor' }).success,
+        createDocumentSchema.safeParse({
+          ...ALTA_VALIDA,
+          [clave]: clave === 'sizeBytes' ? 12 : 'valor',
+        }).success,
         `con la clave ${clave}`,
       ).toBe(false)
     }
@@ -295,7 +331,10 @@ describe('listQuerySchema', () => {
 
   it('rechaza un filtro de enum que no existe', () => {
     for (const category of ['AGENDA', 'minutes', 'GENERAL', '']) {
-      expect(listQuerySchema.safeParse({ category }).success, `con category ${JSON.stringify(category)}`).toBe(false)
+      expect(
+        listQuerySchema.safeParse({ category }).success,
+        `con category ${JSON.stringify(category)}`,
+      ).toBe(false)
     }
   })
 

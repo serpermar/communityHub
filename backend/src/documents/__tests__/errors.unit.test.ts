@@ -26,7 +26,9 @@ function errorDePostgres(errcode: string, message: string): unknown {
 
 describe('translate', () => {
   it('mapea el par (P0002, document_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'document_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'document_not_found: no existe o no es visible'),
+    )
 
     expect(error).not.toBeNull()
     expect(error?.status).toBe(404)
@@ -34,14 +36,18 @@ describe('translate', () => {
   })
 
   it('mapea (42501, forbidden_role) a un 403 generico de rol', () => {
-    const error = translate(errorDePostgres('42501', 'forbidden_role: no es miembro de la comunidad'))
+    const error = translate(
+      errorDePostgres('42501', 'forbidden_role: no es miembro de la comunidad'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
   })
 
   it('mapea (42501, document_requires_admin) a un 403 de borrado', () => {
-    const error = translate(errorDePostgres('42501', 'document_requires_admin: solo un ADMIN puede borrar'))
+    const error = translate(
+      errorDePostgres('42501', 'document_requires_admin: solo un ADMIN puede borrar'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.message).toBe('Solo un administrador puede borrar documentos.')
@@ -51,20 +57,26 @@ describe('translate', () => {
     // La novedad del bloque: esta ruta del bucket ya esta tomada por el indice
     // unico documents_storage_path_uidx. Es el unico 409 de la API. El par se
     // exige igualmente: un U0001 sin el sentinel no es el caso de negocio.
-    const error = translate(errorDePostgres('U0001', 'document_path_taken: esa ruta ya esta ocupada en el bucket'))
+    const error = translate(
+      errorDePostgres('U0001', 'document_path_taken: esa ruta ya esta ocupada en el bucket'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('CONFLICT')
   })
 
   it('mapea (22023, document_content_required) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'document_content_required: título y archivo obligatorios'))
+    const error = translate(
+      errorDePostgres('22023', 'document_content_required: título y archivo obligatorios'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('mapea (22023, document_size_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'document_size_invalid: el archivo debe pesar más de 0 bytes'))
+    const error = translate(
+      errorDePostgres('22023', 'document_size_invalid: el archivo debe pesar más de 0 bytes'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -79,14 +91,21 @@ describe('translate', () => {
   it('un sentinel SIN su errcode no se convierte en el error de negocio', () => {
     // 23514 con el texto del sentinel de documento inexistente: si la
     // traduccion mirara solo el mensaje, seria un 404 cuando es un CHECK.
-    const error = translate(errorDePostgres('23514', 'document_not_found: violates check constraint "documents_title_length"'))
+    const error = translate(
+      errorDePostgres(
+        '23514',
+        'document_not_found: violates check constraint "documents_title_length"',
+      ),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
   })
 
   it('un sentinel con un errcode de otro tipo no se mezcla con otro caso', () => {
-    const con23514 = translate(errorDePostgres('23514', 'document_requires_admin: violates check constraint'))
+    const con23514 = translate(
+      errorDePostgres('23514', 'document_requires_admin: violates check constraint'),
+    )
     expect(con23514?.status).toBe(400)
 
     // document_path_taken con 22023 no es un 409: el par no coincide.
@@ -103,7 +122,9 @@ describe('translate', () => {
     // mensaje no lleva el sentinel. Eso no es un conflicto previsto — es un
     // bug del esquema (un uuid v4 no colisiona), y como los demas erricodes
     // desconocidos se deja pasar como 500.
-    const error = translate(errorDePostgres('23505', 'duplicate key value violates unique constraint "documents_pkey"'))
+    const error = translate(
+      errorDePostgres('23505', 'duplicate key value violates unique constraint "documents_pkey"'),
+    )
 
     expect(error).toBeNull()
   })
@@ -115,13 +136,17 @@ describe('translate', () => {
   })
 
   it('un 23514 sin sentinel es un 400', () => {
-    const error = translate(errorDePostgres('23514', 'violates check constraint "documents_title_length"'))
+    const error = translate(
+      errorDePostgres('23514', 'violates check constraint "documents_title_length"'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('un 22P02 es un 400, no un 500', () => {
-    const error = translate(errorDePostgres('22P02', 'invalid input syntax for type document_category'))
+    const error = translate(
+      errorDePostgres('22P02', 'invalid input syntax for type document_category'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -139,7 +164,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })

@@ -17,7 +17,12 @@ import { requireAuth } from '../auth/middleware.js'
 import { env } from '../config/env.js'
 import { roleInCommunity } from '../ai/service.js'
 import { buildMcpServer } from './server.js'
-import { signMcpSessionToken, verifyMcpSessionToken, mcpSessionTtlSeconds, type McpSessionPayload } from './session.js'
+import {
+  signMcpSessionToken,
+  verifyMcpSessionToken,
+  mcpSessionTtlSeconds,
+  type McpSessionPayload,
+} from './session.js'
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -96,7 +101,11 @@ export async function handleMcp(req: Request, res: Response, next: NextFunction)
  * El usuario debe ser miembro de la comunidad; el rol sale de la base de datos,
  * nunca del cuerpo.
  */
-export async function createSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createSession(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = req.auth?.userId
     if (!userId) throw unauthorized()

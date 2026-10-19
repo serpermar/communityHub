@@ -49,7 +49,11 @@ export const incidentTools: ToolDefinition[] = [
     requiresCommunity: true,
     schema: z.object({ incidentId: z.string().uuid() }).strict(),
     async run(args: { incidentId: string }, ctx) {
-      const incident = await incidents.getIncident(ctx.userId, ctx.communityId as string, args.incidentId)
+      const incident = await incidents.getIncident(
+        ctx.userId,
+        ctx.communityId as string,
+        args.incidentId,
+      )
       return { result: incident, citations: [incident.id] }
     },
   }),

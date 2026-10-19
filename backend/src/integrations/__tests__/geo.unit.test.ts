@@ -20,7 +20,9 @@ describe('haversineMeters', () => {
   })
 
   it('la distancia de un punto a si mismo es 0', () => {
-    expect(haversineMeters({ latitude: 40.4, longitude: -3.7 }, { latitude: 40.4, longitude: -3.7 })).toBe(0)
+    expect(
+      haversineMeters({ latitude: 40.4, longitude: -3.7 }, { latitude: 40.4, longitude: -3.7 }),
+    ).toBe(0)
   })
 })
 
@@ -33,12 +35,22 @@ describe('buildPlaceViews', () => {
 
   it('descarta lo que supera el radio', () => {
     // ~111 m y ~2.3 km desde el origen.
-    const places = buildPlaceViews([place('cerca', 40.001), place('lejos', 40.02)], origin, 1_500, 25)
+    const places = buildPlaceViews(
+      [place('cerca', 40.001), place('lejos', 40.02)],
+      origin,
+      1_500,
+      25,
+    )
     expect(places.map((p) => p.name)).toEqual(['cerca'])
   })
 
   it('ordena por distancia ascendente aunque la entrada venga desordenada', () => {
-    const places = buildPlaceViews([place('lejos', 40.01), place('cerca', 40.001)], origin, 1_500, 25)
+    const places = buildPlaceViews(
+      [place('lejos', 40.01), place('cerca', 40.001)],
+      origin,
+      1_500,
+      25,
+    )
     expect(places.map((p) => p.name)).toEqual(['cerca', 'lejos'])
   })
 

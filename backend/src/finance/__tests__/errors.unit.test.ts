@@ -31,21 +31,27 @@ function errorDePostgres(errcode: string, message: string): unknown {
 
 describe('translate', () => {
   it('mapea (P0002, expense_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'expense_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'expense_not_found: no existe o no es visible'),
+    )
 
     expect(error?.status).toBe(404)
     expect(error?.code).toBe('NOT_FOUND')
   })
 
   it('mapea (P0002, invoice_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'invoice_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'invoice_not_found: no existe o no es visible'),
+    )
 
     expect(error?.status).toBe(404)
     expect(error?.code).toBe('NOT_FOUND')
   })
 
   it('mapea (42501, forbidden_role) a un 403 generico de rol', () => {
-    const error = translate(errorDePostgres('42501', 'forbidden_role: no es miembro de la comunidad'))
+    const error = translate(
+      errorDePostgres('42501', 'forbidden_role: no es miembro de la comunidad'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
@@ -66,13 +72,17 @@ describe('translate', () => {
   })
 
   it('mapea (22023, expense_content_required) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'expense_content_required: el concepto es obligatorio'))
+    const error = translate(
+      errorDePostgres('22023', 'expense_content_required: el concepto es obligatorio'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('mapea (22023, expense_amount_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'expense_amount_invalid: el importe debe ser mayor que 0'))
+    const error = translate(
+      errorDePostgres('22023', 'expense_amount_invalid: el importe debe ser mayor que 0'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
@@ -81,26 +91,34 @@ describe('translate', () => {
   it('mapea (22023, expense_invoice_mismatch) a un 400 con codigo propio (FN-10)', () => {
     // Un 400, pero NO con VALIDATION_ERROR: el cliente distingue "factura de
     // otra comunidad" de "body mal formado".
-    const error = translate(errorDePostgres('22023', 'expense_invoice_mismatch: la factura no es de esta comunidad'))
+    const error = translate(
+      errorDePostgres('22023', 'expense_invoice_mismatch: la factura no es de esta comunidad'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('EXPENSE_INVOICE_MISMATCH')
   })
 
   it('mapea (22023, invoice_content_required) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'invoice_content_required: el número es obligatorio'))
+    const error = translate(
+      errorDePostgres('22023', 'invoice_content_required: el número es obligatorio'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('mapea (22023, invoice_amount_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'invoice_amount_invalid: el importe debe ser mayor que 0'))
+    const error = translate(
+      errorDePostgres('22023', 'invoice_amount_invalid: el importe debe ser mayor que 0'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('mapea (22023, invoice_dates_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'invoice_dates_invalid: el vencimiento no puede ser anterior'))
+    const error = translate(
+      errorDePostgres('22023', 'invoice_dates_invalid: el vencimiento no puede ser anterior'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -113,14 +131,18 @@ describe('translate', () => {
   })
 
   it('mapea (U0001, invoice_already_paid) a un 409 INVOICE_ALREADY_PAID', () => {
-    const error = translate(errorDePostgres('U0001', 'invoice_already_paid: esa factura ya está pagada'))
+    const error = translate(
+      errorDePostgres('U0001', 'invoice_already_paid: esa factura ya está pagada'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('INVOICE_ALREADY_PAID')
   })
 
   it('mapea (U0001, invoice_cancelled) a un 409 INVOICE_CANCELLED', () => {
-    const error = translate(errorDePostgres('U0001', 'invoice_cancelled: una factura cancelada no se paga'))
+    const error = translate(
+      errorDePostgres('U0001', 'invoice_cancelled: una factura cancelada no se paga'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('INVOICE_CANCELLED')
@@ -133,7 +155,9 @@ describe('translate', () => {
       translate(errorDePostgres('U0001', 'invoice_cancelled'))?.code,
     ])
 
-    expect(numeros).toEqual(new Set(['INVOICE_NUMBER_TAKEN', 'INVOICE_ALREADY_PAID', 'INVOICE_CANCELLED']))
+    expect(numeros).toEqual(
+      new Set(['INVOICE_NUMBER_TAKEN', 'INVOICE_ALREADY_PAID', 'INVOICE_CANCELLED']),
+    )
   })
 
   it('mapea la falta de contexto de usuario a un 401', () => {
@@ -146,7 +170,12 @@ describe('translate', () => {
   it('un sentinel SIN su errcode no se convierte en el error de negocio', () => {
     // 23514 con el texto del sentinel de gasto inexistente: si la traduccion
     // mirara solo el mensaje, seria un 404 cuando es un CHECK.
-    const error = translate(errorDePostgres('23514', 'expense_not_found: violates check constraint "expenses_concept_length"'))
+    const error = translate(
+      errorDePostgres(
+        '23514',
+        'expense_not_found: violates check constraint "expenses_concept_length"',
+      ),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
@@ -181,13 +210,17 @@ describe('translate', () => {
   })
 
   it('un 23514 sin sentinel es un 400', () => {
-    const error = translate(errorDePostgres('23514', 'violates check constraint "invoices_amount_positive"'))
+    const error = translate(
+      errorDePostgres('23514', 'violates check constraint "invoices_amount_positive"'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('un 22P02 es un 400, no un 500', () => {
-    const error = translate(errorDePostgres('22P02', 'invalid input syntax for type expense_category'))
+    const error = translate(
+      errorDePostgres('22P02', 'invalid input syntax for type expense_category'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -205,7 +238,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })
@@ -230,7 +266,11 @@ describe('ejecuta', () => {
   })
 
   it('deja intacto un AppError que ya es del dominio', async () => {
-    const propio = new AppError(400, 'EXPENSE_INVOICE_MISMATCH', 'La factura debe pertenecer a la misma comunidad.')
+    const propio = new AppError(
+      400,
+      'EXPENSE_INVOICE_MISMATCH',
+      'La factura debe pertenecer a la misma comunidad.',
+    )
 
     await expect(
       ejecuta(async () => {

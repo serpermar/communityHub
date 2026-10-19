@@ -67,7 +67,11 @@ function normalizeHash(text: string): string {
 }
 
 function extractJson(content: string): unknown {
-  const trimmed = content.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+  const trimmed = content
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/, '')
+    .trim()
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
   if (start === -1 || end === -1 || end < start) return null
@@ -80,7 +84,8 @@ function extractJson(content: string): unknown {
 
 function buildTitle(title: string, description: string, category: IncidentCategory): string {
   const candidate = (title || description).trim().replace(/\s+/g, ' ')
-  if (candidate.length >= 5) return candidate.length > 120 ? `${candidate.slice(0, 117)}...` : candidate
+  if (candidate.length >= 5)
+    return candidate.length > 120 ? `${candidate.slice(0, 117)}...` : candidate
   return `Incidencia: ${category}`
 }
 
@@ -137,14 +142,14 @@ export async function classifyIncident(
     const raw = extractJson(result.content)
     const parsed = RESPONSE_SCHEMA.safeParse(raw)
 
-    proposal = parsed.success
-      ? normalizeProposal(parsed.data)
-      : classifyByHeuristic(description)
+    proposal = parsed.success ? normalizeProposal(parsed.data) : classifyByHeuristic(description)
   } else {
     proposal = classifyByHeuristic(description)
   }
 
-  await withContext({ userId, communityId: null }, (tx) => repo.cachePut(tx, hash, CACHE_KIND, proposal, env.AI_CACHE_TTL_HOURS))
+  await withContext({ userId, communityId: null }, (tx) =>
+    repo.cachePut(tx, hash, CACHE_KIND, proposal, env.AI_CACHE_TTL_HOURS),
+  )
 
   return { proposal, tokensIn, tokensOut, cacheHit: false }
 }

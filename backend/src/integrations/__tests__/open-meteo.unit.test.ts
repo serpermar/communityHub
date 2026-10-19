@@ -76,7 +76,10 @@ describe('normalizeWeather', () => {
   })
 
   it('un codigo WMO desconocido da UNKNOWN', () => {
-    const reading = normalizeWeather({ ...SAMPLE, current: { ...SAMPLE.current, weather_code: 9999 } })
+    const reading = normalizeWeather({
+      ...SAMPLE,
+      current: { ...SAMPLE.current, weather_code: 9999 },
+    })
     expect(reading.current.condition).toBe('UNKNOWN')
   })
 
@@ -86,7 +89,9 @@ describe('normalizeWeather', () => {
   })
 
   it('sin temperatura o codigo lanza ExternalProviderError', () => {
-    expect(() => normalizeWeather({ ...SAMPLE, current: { is_day: 1 } })).toThrow(ExternalProviderError)
+    expect(() => normalizeWeather({ ...SAMPLE, current: { is_day: 1 } })).toThrow(
+      ExternalProviderError,
+    )
   })
 })
 
@@ -103,10 +108,16 @@ describe('buildWeatherUrl', () => {
 
 describe('OpenMeteoProvider', () => {
   it('fetchWeather pide la URL y normaliza la respuesta', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => SAMPLE }) as unknown as Response)
+    const fetchMock = vi.fn(
+      async () => ({ ok: true, status: 200, json: async () => SAMPLE }) as unknown as Response,
+    )
     vi.stubGlobal('fetch', fetchMock)
 
-    const reading = await new OpenMeteoProvider().fetchWeather({ latitude: 40.4, longitude: -3.7, timezone: 'Europe/Madrid' })
+    const reading = await new OpenMeteoProvider().fetchWeather({
+      latitude: 40.4,
+      longitude: -3.7,
+      timezone: 'Europe/Madrid',
+    })
 
     expect(reading.current.temperatureC).toBe(21.3)
     expect(fetchMock).toHaveBeenCalledOnce()

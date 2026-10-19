@@ -39,13 +39,22 @@ export function roundCoordinate(value: number): number {
   return Math.round(value * 10_000) / 10_000
 }
 
-export function weatherCacheKey(input: { latitude: number; longitude: number; timezone: string }): string {
+export function weatherCacheKey(input: {
+  latitude: number
+  longitude: number
+  timezone: string
+}): string {
   const lat = roundCoordinate(input.latitude)
   const lon = roundCoordinate(input.longitude)
   return sha256(`weather:${lat},${lon}:${input.timezone}`)
 }
 
-export function mapCacheKey(input: { latitude: number; longitude: number; radiusM: number; limit: number }): string {
+export function mapCacheKey(input: {
+  latitude: number
+  longitude: number
+  radiusM: number
+  limit: number
+}): string {
   const lat = roundCoordinate(input.latitude)
   const lon = roundCoordinate(input.longitude)
   return sha256(`map:${lat},${lon}:${input.radiusM}:${input.limit}`)

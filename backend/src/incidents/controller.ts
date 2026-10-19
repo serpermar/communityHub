@@ -75,7 +75,11 @@ function actor(req: Request): { userId: string; communityId: string; role: strin
     throw badRequest('Petición sin contexto de comunidad.')
   }
 
-  return { userId: req.auth.userId, communityId: req.community.communityId, role: req.community.role }
+  return {
+    userId: req.auth.userId,
+    communityId: req.community.communityId,
+    role: req.community.role,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +93,11 @@ function actor(req: Request): { userId: string; communityId: string; role: strin
  * alcance de la lista. Es la unica forma de que un NEIGHBOR y un ADMIN puedan pedir la
  * MISMA ruta y obtener cosas distintas, que es justo el caso de uso de la app.
  */
-export async function listIncidents(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listIncidents(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const query = parse(listQuerySchema, req.query)
@@ -110,7 +118,11 @@ export async function listIncidents(req: Request, res: Response, next: NextFunct
  * respuesta, que ademas lleva la incidencia completa para no obligar al cliente a una
  * segunda peticion.
  */
-export async function createIncident(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createIncident(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const input = parse(createIncidentSchema, req.body)
@@ -148,7 +160,11 @@ export async function getIncident(req: Request, res: Response, next: NextFunctio
  * `assignedToId` (ver `service.updateIncident()`). Lo lee de `req.community`, que
  * `requireIncident()` resolvio contra la fila.
  */
-export async function updateIncident(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateIncident(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId, role } = actor(req)
     const incidentId = uuidParam(req, 'id')
@@ -161,7 +177,11 @@ export async function updateIncident(req: Request, res: Response, next: NextFunc
 }
 
 /** `PATCH /incidents/:id/status`. El 409 del grafo sale de la funcion, no de aqui. */
-export async function transitionIncident(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function transitionIncident(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const incidentId = uuidParam(req, 'id')
@@ -179,7 +199,11 @@ export async function transitionIncident(req: Request, res: Response, next: Next
  * 204 sin cuerpo. No se devuelve la incidencia con `deleted_at` puesto: una vez
  * borrada, para el cliente no existe, y su GET daria 404.
  */
-export async function deleteIncident(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteIncident(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const incidentId = uuidParam(req, 'id')
@@ -205,7 +229,11 @@ export async function listComments(req: Request, res: Response, next: NextFuncti
 }
 
 /** `POST /incidents/:id/comments`. El autor es el actor y no se manda en el cuerpo. */
-export async function createComment(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createComment(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const incidentId = uuidParam(req, 'id')

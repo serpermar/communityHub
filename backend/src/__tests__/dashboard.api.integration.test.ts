@@ -33,7 +33,15 @@ import type {
   vote_status,
 } from '@prisma/client'
 import { admin } from '../db-admin.js'
-import { app, createUser, deleteCommunity, deleteUser, makeCommunity, makeMember, type TestUser } from './helpers.js'
+import {
+  app,
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeCommunity,
+  makeMember,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 
@@ -91,14 +99,19 @@ async function nuevaComunidad(nombre = 'Comunidad Dashboard'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
 
 type Actor = TestUser & { token: string }
 
-async function miembro(comunidad: string, role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT'): Promise<Actor> {
+async function miembro(
+  comunidad: string,
+  role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT',
+): Promise<Actor> {
   const user = await nuevoUsuario(`Actor ${role}`)
   await makeMember(user.id, comunidad, role)
   return { ...user, token: await tokenDe(user) }
@@ -180,7 +193,13 @@ async function seedReservation(
 async function seedAnnouncement(
   communityId: string,
   authorId: string,
-  data: { title?: string; publishAt?: Date; expiresAt?: Date | null; deletedAt?: Date | null; isPinned?: boolean } = {},
+  data: {
+    title?: string
+    publishAt?: Date
+    expiresAt?: Date | null
+    deletedAt?: Date | null
+    isPinned?: boolean
+  } = {},
 ): Promise<string> {
   const id = randomUUID()
   await admin.announcements.create({
@@ -202,7 +221,13 @@ async function seedAnnouncement(
 async function seedVote(
   communityId: string,
   createdById: string,
-  data: { title?: string; status?: vote_status; startsAt?: Date; endsAt: Date; deletedAt?: Date | null },
+  data: {
+    title?: string
+    status?: vote_status
+    startsAt?: Date
+    endsAt: Date
+    deletedAt?: Date | null
+  },
 ): Promise<string> {
   const id = randomUUID()
   await admin.votes.create({
@@ -221,7 +246,12 @@ async function seedVote(
   return id
 }
 
-async function seedExpense(communityId: string, createdBy: string, amount: string, expenseDate: Date): Promise<string> {
+async function seedExpense(
+  communityId: string,
+  createdBy: string,
+  amount: string,
+  expenseDate: Date,
+): Promise<string> {
   const id = randomUUID()
   await admin.expenses.create({
     data: {
@@ -312,7 +342,11 @@ describe('incidencias', () => {
 
     await seedIncident(c, admin_.id, { status: 'OPEN', priority: 'HIGH' })
     await seedIncident(c, admin_.id, { status: 'OPEN', priority: 'LOW', assignedToId: admin_.id })
-    await seedIncident(c, admin_.id, { status: 'IN_PROGRESS', priority: 'MEDIUM', assignedToId: admin_.id })
+    await seedIncident(c, admin_.id, {
+      status: 'IN_PROGRESS',
+      priority: 'MEDIUM',
+      assignedToId: admin_.id,
+    })
     await seedIncident(c, admin_.id, { status: 'RESOLVED', priority: 'HIGH' })
     await seedIncident(c, admin_.id, { status: 'CANCELLED', priority: 'LOW' })
     await seedIncident(c, admin_.id, { status: 'OPEN', priority: 'CRITICAL' })
@@ -322,7 +356,12 @@ describe('incidencias', () => {
     const res = await dashboard(c, admin_)
 
     expect(res.status).toBe(200)
-    expect(res.body.data.incidents).toMatchObject({ open: 3, inProgress: 1, pending: 2, critical: 1 })
+    expect(res.body.data.incidents).toMatchObject({
+      open: 3,
+      inProgress: 1,
+      pending: 2,
+      critical: 1,
+    })
   })
 
   it('un NEIGHBOR ve los recuentos de TODA la comunidad (DSH-2: contar no es leer)', async () => {
@@ -383,7 +422,11 @@ describe('avisos', () => {
     const admin_ = await miembro(c, 'ADMIN')
 
     const vigente = await seedAnnouncement(c, admin_.id, { title: 'Vigente' })
-    await seedAnnouncement(c, admin_.id, { title: 'Caducado', publishAt: dias(-10), expiresAt: dias(-1) })
+    await seedAnnouncement(c, admin_.id, {
+      title: 'Caducado',
+      publishAt: dias(-10),
+      expiresAt: dias(-1),
+    })
     await seedAnnouncement(c, admin_.id, { title: 'Borrado', deletedAt: dias(-1) })
 
     const res = await dashboard(c, admin_)
@@ -470,7 +513,10 @@ describe('series y ventana', () => {
     // Dos incidencias recientes y una historica (2020).
     await seedIncident(c, admin_.id, { status: 'OPEN' })
     await seedIncident(c, admin_.id, { status: 'RESOLVED' })
-    await seedIncident(c, admin_.id, { status: 'OPEN', createdAt: new Date('2020-06-15T10:00:00Z') })
+    await seedIncident(c, admin_.id, {
+      status: 'OPEN',
+      createdAt: new Date('2020-06-15T10:00:00Z'),
+    })
 
     const ventana2020 = await dashboard(c, admin_, '?from=2020-01-01&to=2020-12-31')
     const porEstado2020 = ventana2020.body.data.incidents.byStatus

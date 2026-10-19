@@ -107,10 +107,7 @@ if (mapeo.size === 0) {
 // ---------------------------------------------------------------------------
 
 for (const { tabla, modeloNuevo } of porRenombrar) {
-  text = text.replace(
-    new RegExp(`^model\\s+${tabla}\\s*\\{`, 'm'),
-    `model ${modeloNuevo} {`,
-  )
+  text = text.replace(new RegExp(`^model\\s+${tabla}\\s*\\{`, 'm'), `model ${modeloNuevo} {`)
 }
 
 // ---------------------------------------------------------------------------

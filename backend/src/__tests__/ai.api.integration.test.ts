@@ -25,7 +25,15 @@ import { env } from '../config/env.js'
 import { admin } from '../db-admin.js'
 import { FakeLLMClient } from '../ai/llm/fake.js'
 import { resetLLMClient, setLLMClient } from '../ai/llm/router.js'
-import { app, createUser, deleteCommunity, deleteUser, makeCommunity, makeMember, type TestUser } from './helpers.js'
+import {
+  app,
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeCommunity,
+  makeMember,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 const AI = `${V1}/ai`
@@ -73,7 +81,10 @@ afterAll(async () => {
   }
 })
 
-async function nuevoUsuario(fullName: string, globalRole: 'NEIGHBOR' | 'ADMIN_SA' = 'NEIGHBOR'): Promise<TestUser> {
+async function nuevoUsuario(
+  fullName: string,
+  globalRole: 'NEIGHBOR' | 'ADMIN_SA' = 'NEIGHBOR',
+): Promise<TestUser> {
   const user = await createUser({ fullName, globalRole })
   usuarios.push(user.id)
   return user
@@ -86,7 +97,9 @@ async function nuevaComunidad(nombre = 'Comunidad IA'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
@@ -94,7 +107,10 @@ async function tokenDe(user: TestUser): Promise<string> {
 type Actor = TestUser & { token: string }
 
 /** Un miembro de la comunidad con el rol pedido. */
-async function miembro(comunidad: string, role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT'): Promise<Actor> {
+async function miembro(
+  comunidad: string,
+  role: 'NEIGHBOR' | 'PROVIDER' | 'ADMIN' | 'PRESIDENT',
+): Promise<Actor> {
   const user = await nuevoUsuario(`Actor ${role}`)
   await makeMember(user.id, comunidad, role)
   return { ...user, token: await tokenDe(user) }
@@ -171,7 +187,11 @@ describe('POST /ai/chat (SSE)', () => {
   it('emite meta y done, y persiste la sesion y sus dos mensajes', async () => {
     const comunidad = await nuevaComunidad()
     const vecino = await miembro(comunidad, 'NEIGHBOR')
-    setLLMClient(new FakeLLMClient([{ content: 'Hola, vecino.', toolCalls: [], tokensIn: 3, tokensOut: 2, model: 'fake' }]))
+    setLLMClient(
+      new FakeLLMClient([
+        { content: 'Hola, vecino.', toolCalls: [], tokensIn: 3, tokensOut: 2, model: 'fake' },
+      ]),
+    )
 
     const res = await chat(vecino, { communityId: comunidad })
     expect(res.status).toBe(200)
@@ -184,7 +204,9 @@ describe('POST /ai/chat (SSE)', () => {
 
     const sessionId = sessionIdOf(eventos)
 
-    const sesiones = await request(app()).get(`${AI}/chat/sessions`).set('Authorization', vecino.token)
+    const sesiones = await request(app())
+      .get(`${AI}/chat/sessions`)
+      .set('Authorization', vecino.token)
     expect(sesiones.status).toBe(200)
     expect(sesiones.body.data.map((s: { id: string }) => s.id)).toContain(sessionId)
 
@@ -208,7 +230,13 @@ describe('POST /ai/chat (SSE)', () => {
           tokensOut: 1,
           model: 'fake',
         },
-        { content: 'La comunidad se llama Comunidad con tools.', toolCalls: [], tokensIn: 3, tokensOut: 5, model: 'fake' },
+        {
+          content: 'La comunidad se llama Comunidad con tools.',
+          toolCalls: [],
+          tokensIn: 3,
+          tokensOut: 5,
+          model: 'fake',
+        },
       ]),
     )
 
@@ -216,8 +244,12 @@ describe('POST /ai/chat (SSE)', () => {
     expect(res.status).toBe(200)
 
     const eventos = sseEvents(res.text)
-    expect(eventos.find((e) => e.event === 'tool_call')?.data).toMatchObject({ name: 'get_community' })
-    expect(eventos.find((e) => e.event === 'citation')?.data).toMatchObject({ tool: 'get_community' })
+    expect(eventos.find((e) => e.event === 'tool_call')?.data).toMatchObject({
+      name: 'get_community',
+    })
+    expect(eventos.find((e) => e.event === 'citation')?.data).toMatchObject({
+      tool: 'get_community',
+    })
     expect(eventos.at(-1)?.event).toBe('done')
   })
 
@@ -314,7 +346,11 @@ describe('POST /ai/incidents/classify', () => {
       .send({ communityId: comunidad, description: `Fuga de agua ${randomUUID()}` })
 
     expect(res.status).toBe(200)
-    expect(res.body.data).toMatchObject({ category: 'PLUMBING', priority: 'HIGH', needsHumanReview: false })
+    expect(res.body.data).toMatchObject({
+      category: 'PLUMBING',
+      priority: 'HIGH',
+      needsHumanReview: false,
+    })
 
     const despues = await admin.incidents.count({ where: { community_id: comunidad } })
     expect(despues).toBe(antes)
@@ -352,7 +388,11 @@ describe('POST /ai/incidents/classify', () => {
 // Borradores y confirmacion (AI-2, AI-14)
 // ---------------------------------------------------------------------------
 
-async function crearBorrador(a: Actor, comunidad: string, description: string): Promise<request.Response> {
+async function crearBorrador(
+  a: Actor,
+  comunidad: string,
+  description: string,
+): Promise<request.Response> {
   return request(app())
     .post(`${AI}/incidents/drafts`)
     .set('Authorization', a.token)
@@ -414,7 +454,9 @@ describe('borradores de incidencia y confirmacion', () => {
     const draft = await crearBorrador(vecino, comunidad, 'Fuga de agua en el cuarto de contadores')
     const url = `${AI}/incidents/drafts/${draft.body.data.id}/confirm`
 
-    expect((await request(app()).post(url).set('Authorization', vecino.token).send({})).status).toBe(201)
+    expect(
+      (await request(app()).post(url).set('Authorization', vecino.token).send({})).status,
+    ).toBe(201)
 
     const segunda = await request(app()).post(url).set('Authorization', vecino.token).send({})
     expect(segunda.status).toBe(409)

@@ -6,13 +6,7 @@
 // ---------------------------------------------------------------------------
 
 export type IncidentCategory =
-  | 'ELEVATOR'
-  | 'ELECTRICITY'
-  | 'PLUMBING'
-  | 'CLEANING'
-  | 'SECURITY'
-  | 'HEATING'
-  | 'OTHER'
+  'ELEVATOR' | 'ELECTRICITY' | 'PLUMBING' | 'CLEANING' | 'SECURITY' | 'HEATING' | 'OTHER'
 
 export type IncidentPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 

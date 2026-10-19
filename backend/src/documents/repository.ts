@@ -28,7 +28,14 @@ type Tx = Prisma.TransactionClient
  * La API los expone tal cual (DN-7: `category` / `minRole` son codigos del
  * contrato, no etiquetas traducidas).
  */
-export const DOCUMENT_CATEGORIES = ['MINUTES', 'STATUTES', 'INVOICE', 'BUDGET', 'MAINTENANCE', 'OTHER'] as const
+export const DOCUMENT_CATEGORIES = [
+  'MINUTES',
+  'STATUTES',
+  'INVOICE',
+  'BUDGET',
+  'MAINTENANCE',
+  'OTHER',
+] as const
 export const MIN_ROLES = ['NEIGHBOR', 'PRESIDENT', 'ADMIN', 'PROVIDER'] as const
 
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number]
@@ -83,7 +90,9 @@ export type DocumentoConcreto = DocumentRow & {
 function revalida(filas: DocumentListRow[]): DocumentListRow[] {
   for (const fila of filas) {
     if (!esCategoria(fila.category) || !esMinRole(fila.min_role)) {
-      throw new Error('La base de datos devolvió un valor de enum desconocido: categoría o min_role.')
+      throw new Error(
+        'La base de datos devolvió un valor de enum desconocido: categoría o min_role.',
+      )
     }
   }
   return filas
@@ -151,7 +160,11 @@ export async function findDocument(tx: Tx, documentId: string): Promise<Document
 
   if (!fila) return null
 
-  return { ...fila, category: fila.category as DocumentCategory, min_role: fila.min_role as MinRole }
+  return {
+    ...fila,
+    category: fila.category as DocumentCategory,
+    min_role: fila.min_role as MinRole,
+  }
 }
 
 export interface DatosAlta {

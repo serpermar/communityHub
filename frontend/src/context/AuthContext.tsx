@@ -8,11 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { api } from '@/services/http'
-import {
-  refreshSession,
-  setAccessToken,
-  subscribeAccessToken,
-} from '@/services/session'
+import { refreshSession, setAccessToken, subscribeAccessToken } from '@/services/session'
 import type { AuthUser } from '@/types/auth'
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous'

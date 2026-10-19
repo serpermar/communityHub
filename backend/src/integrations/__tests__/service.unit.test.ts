@@ -12,11 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExternalProviderError } from '../errors.js'
 import { FakeGeocodingProvider } from '../map/fake.js'
 import { FakeWeatherProvider, defaultReading } from '../weather/fake.js'
-import {
-  resetProviders,
-  setGeocodingProvider,
-  setWeatherProvider,
-} from '../providers.js'
+import { resetProviders, setGeocodingProvider, setWeatherProvider } from '../providers.js'
 import type { GeocodeResult, WeatherReading } from '../types.js'
 import * as service from '../service.js'
 
@@ -103,7 +99,11 @@ describe('getWeather', () => {
   })
 
   it('proveedor cae sin cache: degrada con PROVIDER_ERROR', async () => {
-    setWeatherProvider(new FakeWeatherProvider(() => { throw new ExternalProviderError('boom') }))
+    setWeatherProvider(
+      new FakeWeatherProvider(() => {
+        throw new ExternalProviderError('boom')
+      }),
+    )
     mocks.cacheGet.mockResolvedValue(null)
 
     const result = await service.getWeather('user-1', 'community-1')
@@ -114,7 +114,11 @@ describe('getWeather', () => {
   })
 
   it('proveedor cae con cache caducada: sirve la cache marcada stale', async () => {
-    setWeatherProvider(new FakeWeatherProvider(() => { throw new ExternalProviderError('boom') }))
+    setWeatherProvider(
+      new FakeWeatherProvider(() => {
+        throw new ExternalProviderError('boom')
+      }),
+    )
     mocks.cacheGet.mockResolvedValue({ payload: reading(), expiresAt: new Date(0), isFresh: false })
 
     const result = await service.getWeather('user-1', 'community-1')
@@ -167,7 +171,13 @@ describe('getMap', () => {
   })
 
   it('proveedor cae: location presente, listas vacias y degraded', async () => {
-    setGeocodingProvider(new FakeGeocodingProvider({ searchNearby: () => { throw new ExternalProviderError('boom') } }))
+    setGeocodingProvider(
+      new FakeGeocodingProvider({
+        searchNearby: () => {
+          throw new ExternalProviderError('boom')
+        },
+      }),
+    )
     mocks.cacheGet.mockResolvedValue(null)
 
     const result = await service.getMap('user-1', 'community-1')
@@ -209,7 +219,13 @@ describe('geocode', () => {
   })
 
   it('proveedor cae: 502 EXTERNAL_PROVIDER_ERROR', async () => {
-    setGeocodingProvider(new FakeGeocodingProvider({ geocode: () => { throw new ExternalProviderError('boom') } }))
+    setGeocodingProvider(
+      new FakeGeocodingProvider({
+        geocode: () => {
+          throw new ExternalProviderError('boom')
+        },
+      }),
+    )
     mocks.cacheGet.mockResolvedValue(null)
 
     await expect(service.geocode('user-1', 'community-1', 'ADMIN')).rejects.toMatchObject({
@@ -219,7 +235,12 @@ describe('geocode', () => {
   })
 
   it('resuelve: escribe coordenadas y audita community.geocode', async () => {
-    const result: GeocodeResult = { latitude: 40.4, longitude: -3.7, formattedAddress: 'Madrid', source: 'fake' }
+    const result: GeocodeResult = {
+      latitude: 40.4,
+      longitude: -3.7,
+      formattedAddress: 'Madrid',
+      source: 'fake',
+    }
     setGeocodingProvider(new FakeGeocodingProvider({ geocode: () => result }))
     mocks.cacheGet.mockResolvedValue(null)
 

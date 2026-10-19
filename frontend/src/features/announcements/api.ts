@@ -42,6 +42,8 @@ export function updateAnnouncement(
   return api.put<Announcement>(`/announcements/${announcementId}`, input)
 }
 
-export function deleteAnnouncement(announcementId: string): Promise<{ id: string; deleted: boolean }> {
+export function deleteAnnouncement(
+  announcementId: string,
+): Promise<{ id: string; deleted: boolean }> {
   return api.delete<{ id: string; deleted: boolean }>(`/announcements/${announcementId}`)
 }

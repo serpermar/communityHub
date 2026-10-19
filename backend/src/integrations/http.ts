@@ -35,7 +35,8 @@ export type FetchJsonOptions = {
  * peticiones (EXT-7): Photon/OSM lo piden en su politica de uso.
  */
 export async function fetchJson(url: string, options: FetchJsonOptions = {}): Promise<unknown> {
-  const signal = options.signal ?? AbortSignal.timeout(options.timeoutMs ?? env.EXTERNAL_HTTP_TIMEOUT_MS)
+  const signal =
+    options.signal ?? AbortSignal.timeout(options.timeoutMs ?? env.EXTERNAL_HTTP_TIMEOUT_MS)
 
   let response: Response
   try {
@@ -50,7 +51,9 @@ export async function fetchJson(url: string, options: FetchJsonOptions = {}): Pr
     // Aqui caen timeout (AbortError) y fallos de red. Se unifican a proposito:
     // desde el punto de vista del service, "tardo demasiado" y "no hay
     // conexion" son el mismo caso (degradar / 502).
-    throw new ExternalProviderError('No se ha podido contactar con el proveedor externo.', { cause })
+    throw new ExternalProviderError('No se ha podido contactar con el proveedor externo.', {
+      cause,
+    })
   }
 
   if (!response.ok) {
@@ -60,6 +63,9 @@ export async function fetchJson(url: string, options: FetchJsonOptions = {}): Pr
   try {
     return (await response.json()) as unknown
   } catch (cause) {
-    throw new ExternalProviderError('El proveedor externo ha devuelto una respuesta que no es JSON.', { cause })
+    throw new ExternalProviderError(
+      'El proveedor externo ha devuelto una respuesta que no es JSON.',
+      { cause },
+    )
   }
 }

@@ -165,7 +165,9 @@ describe('runTool', () => {
 
   it('rechaza un rol nulo con 403', async () => {
     const tool = makeTool({ name: 'x' })
-    await expect(runTool([tool], 'x', {}, { ...ctx, role: null })).rejects.toMatchObject({ status: 403 })
+    await expect(runTool([tool], 'x', {}, { ...ctx, role: null })).rejects.toMatchObject({
+      status: 403,
+    })
   })
 
   it('rechaza argumentos invalidos con 400 y no llega a ejecutar la tool', async () => {
@@ -191,6 +193,8 @@ describe('runTool', () => {
 
   it('rechaza una clave de mas en los argumentos', async () => {
     const tool = makeTool({ name: 'cerrada' })
-    await expect(runTool([tool], 'cerrada', { n: 1, extra: true }, ctx)).rejects.toBeInstanceOf(AppError)
+    await expect(runTool([tool], 'cerrada', { n: 1, extra: true }, ctx)).rejects.toBeInstanceOf(
+      AppError,
+    )
   })
 })

@@ -34,7 +34,11 @@ declare global {
 
 /** Exige que `:id` sea una sesion de chat del actor. */
 export function requireChatSession(param = 'id') {
-  return async function chatSessionGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return async function chatSessionGuard(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     if (!req.auth) throw badRequest('Petición sin sesión.')
 
     const sessionId = routeParam(req, param)

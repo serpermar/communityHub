@@ -51,9 +51,14 @@ export async function withContext<T>(
 
 export async function whoami() {
   return withContext(
-    { userId: '00000000-0000-0000-0000-000000000000', communityId: '00000000-0000-0000-0000-000000000000' },
+    {
+      userId: '00000000-0000-0000-0000-000000000000',
+      communityId: '00000000-0000-0000-0000-000000000000',
+    },
     (tx) =>
-      tx.$queryRaw<Array<{ user_id: string | null; community_id: string | null; role: string | null }>>`
+      tx.$queryRaw<
+        Array<{ user_id: string | null; community_id: string | null; role: string | null }>
+      >`
         select
           app_current_user_id()      as user_id,
           app_current_community_id() as community_id,

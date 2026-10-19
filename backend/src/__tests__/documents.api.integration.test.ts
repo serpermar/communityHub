@@ -88,7 +88,9 @@ async function nuevaComunidad(nombre = 'Comunidad de prueba'): Promise<string> {
 }
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
@@ -157,7 +159,9 @@ type OpcionesSubida = {
 }
 
 /** El archivo por defecto de los tests: un PDF pequeno y valido. */
-function pdfPrueba(overrides: Partial<{ content: Buffer; contentType: string; filename: string }> = {}) {
+function pdfPrueba(
+  overrides: Partial<{ content: Buffer; contentType: string; filename: string }> = {},
+) {
   return {
     content: overrides.content ?? Buffer.from('contenido del acta de prueba'),
     contentType: overrides.contentType ?? 'application/pdf',
@@ -178,7 +182,10 @@ function subida(token: string, comunidad: string, opciones: OpcionesSubida = {})
     req = req.field(clave, valor)
   }
 
-  return req.attach('file', archivo.content, { filename: archivo.filename, contentType: archivo.contentType })
+  return req.attach('file', archivo.content, {
+    filename: archivo.filename,
+    contentType: archivo.contentType,
+  })
 }
 
 /** Sube con el archivo por defecto y exige 201. Devuelve el documento y la cabecera Location. */
@@ -203,7 +210,10 @@ function idsDe(res: { body: { data: Array<{ id: string }> } }): string[] {
 
 /** El `storage_path` de la fila, leido con privilegio. Es el unico camino a la ruta del bucket. */
 async function storagePathDe(documentId: string): Promise<string> {
-  const fila = await admin.documents.findUnique({ where: { id: documentId }, select: { storage_path: true } })
+  const fila = await admin.documents.findUnique({
+    where: { id: documentId },
+    select: { storage_path: true },
+  })
   if (!fila?.storage_path) throw new Error('Fila sin storage_path')
   return fila.storage_path
 }
@@ -253,7 +263,10 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     // Las tres rutas por id resuelven la existencia con el predicado de la
     // funcion, que exige membresia activa: NULL -> 404 en todas (C-8, no
     // confirmar que el id existe).
-    for (const ruta of [`${V1}/documents/${documento.id}`, `${V1}/documents/${documento.id}/download`]) {
+    for (const ruta of [
+      `${V1}/documents/${documento.id}`,
+      `${V1}/documents/${documento.id}/download`,
+    ]) {
       const res = await request(app()).get(ruta).set('Authorization', ajeno.token)
       expect(res.status, `con ${ruta}`).toBe(404)
     }
@@ -366,14 +379,18 @@ describe('Visibilidad por rol y ACL (DN-5, DN-6, DN-9)', () => {
       ['PRESIDENT', e.presidente],
       ['NEIGHBOR', e.vecino],
     ] as const) {
-      const res = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', actor_.token)
+      const res = await request(app())
+        .get(`${V1}/documents/${documento.id}`)
+        .set('Authorization', actor_.token)
       expect(res.status, `con rol ${nombre}`).toBe(200)
 
       const lista = await listar(actor_.token, e.comunidad)
       expect(idsDe(lista), `con rol ${nombre}`).toContain(documento.id)
     }
 
-    const delProveedor = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.proveedor.token)
+    const delProveedor = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.proveedor.token)
     expect(delProveedor.status).toBe(404)
 
     const listaProveedor = await listar(e.proveedor.token, e.comunidad)
@@ -388,13 +405,19 @@ describe('Visibilidad por rol y ACL (DN-5, DN-6, DN-9)', () => {
       fields: { minRole: 'PRESIDENT', isPublic: 'false' },
     })
 
-    const delAdmin = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.admin.token)
+    const delAdmin = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.admin.token)
     expect(delAdmin.status).toBe(200)
 
-    const delPresidente = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.presidente.token)
+    const delPresidente = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.presidente.token)
     expect(delPresidente.status).toBe(200)
 
-    const delVecino = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.vecino.token)
+    const delVecino = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.vecino.token)
     expect(delVecino.status).toBe(404)
   })
 
@@ -412,7 +435,9 @@ describe('Visibilidad por rol y ACL (DN-5, DN-6, DN-9)', () => {
       },
     })
 
-    const delProveedor = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.proveedor.token)
+    const delProveedor = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.proveedor.token)
     expect(delProveedor.status).toBe(200)
 
     const lista = await listar(e.proveedor.token, e.comunidad)
@@ -437,7 +462,9 @@ describe('Visibilidad por rol y ACL (DN-5, DN-6, DN-9)', () => {
       },
     })
 
-    const detalle = await request(app()).get(`${V1}/documents/${documento.id}`).set('Authorization', e.vecino.token)
+    const detalle = await request(app())
+      .get(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.vecino.token)
     expect(detalle.status).toBe(200)
 
     const descarga = await request(app())
@@ -539,14 +566,14 @@ describe('Alta (DN-1, DN-8, DN-9, DN-13)', () => {
       ['minRole inventado', { fields: { minRole: 'OWNER' } }],
       ['isPublic que no es true/false', { fields: { isPublic: 'yes' } }],
       ['acl que no es JSON', { fields: { acl: '{no es json' } }],
-      [
-        'acl fuera de forma',
-        { fields: { acl: JSON.stringify([{ userId: 'no-es-uuid' }]) } },
-      ],
+      ['acl fuera de forma', { fields: { acl: JSON.stringify([{ userId: 'no-es-uuid' }]) } }],
       ['uploadedBy en el cuerpo (DN-8)', { fields: { uploadedBy: e.admin.id } }],
       ['storagePath en el cuerpo', { fields: { storagePath: 'comm/ruta' } }],
       ['checksum en el cuerpo', { fields: { checksum: 'aaa' } }],
-      ['mime_type fuera de la lista de 03_storage.sql', { file: { ...pdfPrueba(), contentType: 'application/octet-stream' } }],
+      [
+        'mime_type fuera de la lista de 03_storage.sql',
+        { file: { ...pdfPrueba(), contentType: 'application/octet-stream' } },
+      ],
     ]
 
     for (const [nombre, opciones] of casos) {
@@ -565,7 +592,11 @@ describe('Alta (DN-1, DN-8, DN-9, DN-13)', () => {
     const e = await escena()
 
     const res = await subida(e.admin.token, e.comunidad, {
-      file: { content: Buffer.alloc(MAX_FILE_BYTES + 1), contentType: 'application/pdf', filename: 'gigante.pdf' },
+      file: {
+        content: Buffer.alloc(MAX_FILE_BYTES + 1),
+        contentType: 'application/pdf',
+        filename: 'gigante.pdf',
+      },
     })
 
     expect(res.status).toBe(400)
@@ -605,8 +636,10 @@ describe('Alta (DN-1, DN-8, DN-9, DN-13)', () => {
     // el 409 — el mismo 23505 que el indice documents_storage_path_uidx.
     let lanzado = false
     try {
-      await withContext({ userId: e.admin.id, communityId: e.comunidad }, (tx) =>
-        tx.$queryRaw`select app_create_document(
+      await withContext(
+        { userId: e.admin.id, communityId: e.comunidad },
+        (tx) =>
+          tx.$queryRaw`select app_create_document(
           ${e.comunidad}::uuid,
           'Colision',
           null,
@@ -685,7 +718,9 @@ describe('Descarga (DN-10, spec §5.5)', () => {
 describe('Borrado (DN-1, DN-11)', () => {
   it('el PRESIDENT no borra: 403 con mensaje propio y el objeto sigue en Storage', async () => {
     const e = await escena()
-    const { documento } = await crear(e.admin.token, e.comunidad, { file: pdfPrueba({ content: Buffer.from('acta de la junta') }) })
+    const { documento } = await crear(e.admin.token, e.comunidad, {
+      file: pdfPrueba({ content: Buffer.from('acta de la junta') }),
+    })
     const ruta = await storagePathDe(documento.id)
 
     const res = await request(app())
@@ -703,7 +738,9 @@ describe('Borrado (DN-1, DN-11)', () => {
   it('el ADMIN borra: 200, soft delete en la fila, el objeto desaparece y el segundo DELETE es 404', async () => {
     const e = await escena()
     const contenido = Buffer.from('acta que se va a borrar')
-    const { documento } = await crear(e.admin.token, e.comunidad, { file: pdfPrueba({ content: contenido }) })
+    const { documento } = await crear(e.admin.token, e.comunidad, {
+      file: pdfPrueba({ content: contenido }),
+    })
     const ruta = await storagePathDe(documento.id)
 
     const borrado = await request(app())
@@ -745,7 +782,9 @@ describe('Borrado (DN-1, DN-11)', () => {
     const e = await escena()
     const { documento } = await crear(e.admin.token, e.comunidad)
 
-    await request(app()).delete(`${V1}/documents/${documento.id}`).set('Authorization', e.admin.token)
+    await request(app())
+      .delete(`${V1}/documents/${documento.id}`)
+      .set('Authorization', e.admin.token)
 
     const porProveedor = await request(app())
       .get(`${V1}/documents/${documento.id}`)
@@ -788,11 +827,22 @@ describe('Listado (DN-4, DN-6, §7.3)', () => {
   it('?category filtra y ?q busca en titulo y descripcion sin distinguir mayusculas', async () => {
     const e = await escena()
 
-    const minutas = (await crear(e.admin.token, e.comunidad, {
-      fields: { title: 'Reunión extraordinaria de la escalera', category: 'MINUTES', minRole: 'NEIGHBOR' },
-    })).documento
+    const minutas = (
+      await crear(e.admin.token, e.comunidad, {
+        fields: {
+          title: 'Reunión extraordinaria de la escalera',
+          category: 'MINUTES',
+          minRole: 'NEIGHBOR',
+        },
+      })
+    ).documento
     await crear(e.admin.token, e.comunidad, {
-      fields: { title: 'Factura del ascensor', category: 'INVOICE', description: 'La factura de marzo por la revisión.', minRole: 'NEIGHBOR' },
+      fields: {
+        title: 'Factura del ascensor',
+        category: 'INVOICE',
+        description: 'La factura de marzo por la revisión.',
+        minRole: 'NEIGHBOR',
+      },
     })
 
     const porCategoria = await listar(e.vecino.token, e.comunidad, '?category=MINUTES')

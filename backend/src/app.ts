@@ -24,7 +24,11 @@ import { logger } from './config/logger.js'
 import { env } from './config/env.js'
 import { createAuthRouter } from './auth/routes.js'
 import { createCommunitiesRouter } from './communities/routes.js'
-import { createInvitationRedeemRouter, createInvitationsRouter, createMembersRouter } from './members/routes.js'
+import {
+  createInvitationRedeemRouter,
+  createInvitationsRouter,
+  createMembersRouter,
+} from './members/routes.js'
 import { createIncidentRouter, createIncidentsRouter } from './incidents/routes.js'
 import { createCommonAreaRouter, createCommonAreasRouter } from './common-areas/routes.js'
 import { createReservationRouter, createReservationsRouter } from './reservations/routes.js'
@@ -98,16 +102,17 @@ export function createApp(): Express {
   app.use(cookieParser())
 
   if (!env.isTest) {
-    app.use(
-      (req, res, next) => {
-        const started = process.hrtime.bigint()
-        res.on('finish', () => {
-          const ms = Number(process.hrtime.bigint() - started) / 1e6
-          logger.info({ method: req.method, path: req.path, status: res.statusCode, ms: Math.round(ms) }, 'petición')
-        })
-        next()
-      },
-    )
+    app.use((req, res, next) => {
+      const started = process.hrtime.bigint()
+      res.on('finish', () => {
+        const ms = Number(process.hrtime.bigint() - started) / 1e6
+        logger.info(
+          { method: req.method, path: req.path, status: res.statusCode, ms: Math.round(ms) },
+          'petición',
+        )
+      })
+      next()
+    })
   }
 
   // El limite global NO se monta en los tests de integracion.

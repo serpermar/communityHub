@@ -53,8 +53,12 @@ describe('translate', () => {
   })
 
   it('no confunde draft_not_found con session_not_found', () => {
-    expect(translate(errorDePostgres('P0002', 'draft_not_found'))?.code).toBe('INCIDENT_DRAFT_NOT_FOUND')
-    expect(translate(errorDePostgres('P0002', 'session_not_found'))?.code).toBe('CHAT_SESSION_NOT_FOUND')
+    expect(translate(errorDePostgres('P0002', 'draft_not_found'))?.code).toBe(
+      'INCIDENT_DRAFT_NOT_FOUND',
+    )
+    expect(translate(errorDePostgres('P0002', 'session_not_found'))?.code).toBe(
+      'CHAT_SESSION_NOT_FOUND',
+    )
   })
 
   it('mapea (42501, forbidden_role) a un 403', () => {
@@ -70,8 +74,12 @@ describe('translate', () => {
   })
 
   it('mapea (U0001, draft_not_pending) y (U0001, draft_expired) al mismo 409', () => {
-    expect(translate(errorDePostgres('U0001', 'draft_not_pending'))?.code).toBe('INCIDENT_DRAFT_NOT_PENDING')
-    expect(translate(errorDePostgres('U0001', 'draft_expired'))?.code).toBe('INCIDENT_DRAFT_NOT_PENDING')
+    expect(translate(errorDePostgres('U0001', 'draft_not_pending'))?.code).toBe(
+      'INCIDENT_DRAFT_NOT_PENDING',
+    )
+    expect(translate(errorDePostgres('U0001', 'draft_expired'))?.code).toBe(
+      'INCIDENT_DRAFT_NOT_PENDING',
+    )
   })
 
   it('mapea (22023, draft_content_invalid) a un 400', () => {
@@ -99,7 +107,9 @@ describe('translate', () => {
   })
 
   it('un 22P02 es un 400 y no un 500', () => {
-    expect(translate(errorDePostgres('22P02', 'invalid input syntax for type uuid'))?.status).toBe(400)
+    expect(translate(errorDePostgres('22P02', 'invalid input syntax for type uuid'))?.status).toBe(
+      400,
+    )
   })
 
   it('devuelve null si el error no viene de PostgreSQL', () => {

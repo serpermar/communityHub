@@ -46,7 +46,9 @@ function errorDePostgres(errcode: string, message: string): unknown {
 
 describe('translate', () => {
   it('mapea el par (P0002, incident_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'incident_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'incident_not_found: no existe o no es visible'),
+    )
 
     expect(error).not.toBeNull()
     expect(error?.status).toBe(404)
@@ -54,7 +56,9 @@ describe('translate', () => {
   })
 
   it('mapea el par (22023, incident_invalid_transition) a un 409', () => {
-    const error = translate(errorDePostgres('22023', 'incident_invalid_transition: de OPEN a RESOLVED no se puede'))
+    const error = translate(
+      errorDePostgres('22023', 'incident_invalid_transition: de OPEN a RESOLVED no se puede'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('CONFLICT')
@@ -62,7 +66,10 @@ describe('translate', () => {
 
   it('mapea el par (22023, incident_assignee_not_provider) a un 400', () => {
     const error = translate(
-      errorDePostgres('22023', 'incident_assignee_not_provider: el usuario indicado no es un proveedor activo'),
+      errorDePostgres(
+        '22023',
+        'incident_assignee_not_provider: el usuario indicado no es un proveedor activo',
+      ),
     )
 
     expect(error?.status).toBe(400)
@@ -88,7 +95,10 @@ describe('translate', () => {
     // mensaje, esto seria un 409 y el cliente ofreceria cambiar el estado de algo que en
     // realidad es un campo mal rellenado.
     const error = translate(
-      errorDePostgres('23514', 'incident_invalid_transition: new row for relation "incidents" violates check'),
+      errorDePostgres(
+        '23514',
+        'incident_invalid_transition: new row for relation "incidents" violates check',
+      ),
     )
 
     expect(error?.status).toBe(400)
@@ -97,7 +107,9 @@ describe('translate', () => {
 
   it('un sentinel con un errcode de otro tipo tampoco se mezcla con otro caso', () => {
     // El sentinel de "no encontrado" con un 23514 sigue siendo un 400 de longitud.
-    const con23514 = translate(errorDePostgres('23514', 'incident_not_found: violates check constraint'))
+    const con23514 = translate(
+      errorDePostgres('23514', 'incident_not_found: violates check constraint'),
+    )
     expect(con23514?.status).toBe(400)
 
     // Y el de "no encontrado" con un 22023 NO es un 409: el par no coincide con ninguno
@@ -129,7 +141,10 @@ describe('translate', () => {
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
     // Un P2002 (unique violation) de una llamada normal del cliente no lleva `meta.code`
     // de Postgres, y traducirlo aqui seria inventarse una categoria.
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })

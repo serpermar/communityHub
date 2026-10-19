@@ -44,7 +44,12 @@ export function createMembersRouter(): Router {
   const router = Router()
 
   router.get('/:communityId/members', requireAuth, requireCommunity(), controller.listMembers)
-  router.get('/:communityId/members/:memberId', requireAuth, requireCommunity(), controller.getMember)
+  router.get(
+    '/:communityId/members/:memberId',
+    requireAuth,
+    requireCommunity(),
+    controller.getMember,
+  )
 
   // `requireCommunity()` antes que `requireCommunityRole('ADMIN')`: el guard de rol
   // lee `req.community`, que escribe el primero.

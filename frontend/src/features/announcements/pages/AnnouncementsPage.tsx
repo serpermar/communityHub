@@ -22,7 +22,12 @@ import { isManager } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { formatDateTime } from '@/utils/format'
-import { createAnnouncement, deleteAnnouncement, listAnnouncements, updateAnnouncement } from '../api'
+import {
+  createAnnouncement,
+  deleteAnnouncement,
+  listAnnouncements,
+  updateAnnouncement,
+} from '../api'
 import {
   ANNOUNCEMENT_PRIORITIES,
   ANNOUNCEMENT_PRIORITY_LABELS,
@@ -75,7 +80,14 @@ export function AnnouncementsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ title: '', body: '', type: 'GENERAL', priority: 'MEDIUM', isPinned: false, expiresAt: '' })
+    reset({
+      title: '',
+      body: '',
+      type: 'GENERAL',
+      priority: 'MEDIUM',
+      isPinned: false,
+      expiresAt: '',
+    })
     setServerError(null)
     setOpen(true)
   }
@@ -179,7 +191,11 @@ export function AnnouncementsPage() {
                         Editar
                       </Button>
                       {role === 'ADMIN' && (
-                        <Button size="sm" variant="danger" onClick={() => void onDelete(announcement)}>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => void onDelete(announcement)}
+                        >
                           Eliminar
                         </Button>
                       )}
@@ -189,7 +205,8 @@ export function AnnouncementsPage() {
               >
                 <p className="whitespace-pre-wrap text-sm text-slate-700">{announcement.body}</p>
                 <p className="mt-3 text-xs text-slate-400">
-                  {announcement.authorName ?? 'Comunidad'} · {formatDateTime(announcement.publishAt)}
+                  {announcement.authorName ?? 'Comunidad'} ·{' '}
+                  {formatDateTime(announcement.publishAt)}
                 </p>
               </Card>
             ))}

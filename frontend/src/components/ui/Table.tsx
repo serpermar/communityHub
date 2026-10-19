@@ -71,12 +71,7 @@ export function Pagination({
         {typeof total === 'number' && <span className="text-slate-400"> · {total} en total</span>}
       </span>
       <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-        >
+        <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           Anterior
         </Button>
         <Button

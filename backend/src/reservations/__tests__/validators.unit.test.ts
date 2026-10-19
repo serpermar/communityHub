@@ -112,13 +112,21 @@ describe('createReservationSchema', () => {
     expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: 1 }).success).toBe(true)
     expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: 0 }).success).toBe(false)
     expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: -1 }).success).toBe(false)
-    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: 2.5 }).success).toBe(false)
-    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: '4' }).success).toBe(false)
+    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: 2.5 }).success).toBe(
+      false,
+    )
+    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, attendees: '4' }).success).toBe(
+      false,
+    )
   })
 
   it('acota notes a 1000 y convierte vacio y null en null (R-11)', () => {
-    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: 'a'.repeat(1000) }).success).toBe(true)
-    expect(createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: 'a'.repeat(1001) }).success).toBe(false)
+    expect(
+      createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: 'a'.repeat(1000) }).success,
+    ).toBe(true)
+    expect(
+      createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: 'a'.repeat(1001) }).success,
+    ).toBe(false)
 
     const vacia = createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: '   ' })
     const nula = createReservationSchema.safeParse({ ...ALTA_VALIDA, notes: null })
@@ -252,21 +260,27 @@ describe('listQuerySchema', () => {
   })
 
   it('rechaza una clave desconocida', () => {
-    expect(listQuerySchema.safeParse({ userId: '11111111-1111-4111-8111-111111111111' }).success).toBe(false)
+    expect(
+      listQuerySchema.safeParse({ userId: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(false)
   })
 })
 
 describe('meQuerySchema', () => {
   it('acepta solo status y paginacion', () => {
     expect(meQuerySchema.safeParse({}).success).toBe(true)
-    expect(meQuerySchema.safeParse({ status: 'CONFIRMED', page: '3', limit: '10' }).success).toBe(true)
+    expect(meQuerySchema.safeParse({ status: 'CONFIRMED', page: '3', limit: '10' }).success).toBe(
+      true,
+    )
   })
 
   it('no acepta los filtros de comunidad', () => {
     // El ambito es el usuario y la agenda propia cruza comunidades: filtrar por
     // una zona de una comunidad concreta no tendria sentido sin comunidad en la
     // ruta.
-    expect(meQuerySchema.safeParse({ commonAreaId: '11111111-1111-4111-8111-111111111111' }).success).toBe(false)
+    expect(
+      meQuerySchema.safeParse({ commonAreaId: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(false)
     expect(meQuerySchema.safeParse({ date: '2026-10-06' }).success).toBe(false)
   })
 
@@ -284,7 +298,13 @@ describe('uuidSchema', () => {
   })
 
   it('rechaza lo que no es un UUID', () => {
-    for (const malo of ['', 'abc', '1', '11111111-1111-4111-8111-11111111111', '11111111111141118111111111111111']) {
+    for (const malo of [
+      '',
+      'abc',
+      '1',
+      '11111111-1111-4111-8111-11111111111',
+      '11111111111141118111111111111111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, `con ${JSON.stringify(malo)}`).toBe(false)
     }
   })

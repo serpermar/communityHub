@@ -47,7 +47,9 @@ function propsOf(feature: Record<string, unknown>): Record<string, unknown> {
   return isRecord(feature.properties) ? feature.properties : {}
 }
 
-function coordinatesOf(feature: Record<string, unknown>): { latitude: number; longitude: number } | null {
+function coordinatesOf(
+  feature: Record<string, unknown>,
+): { latitude: number; longitude: number } | null {
   const geometry = feature.geometry
   if (!isRecord(geometry) || !Array.isArray(geometry.coordinates)) return null
 
@@ -77,7 +79,8 @@ function toRawPlace(feature: Record<string, unknown>): RawPlace | null {
   if (!coordinates) return null
 
   const props = propsOf(feature)
-  const name = str(props.name) ?? [str(props.street), str(props.housenumber)].filter(Boolean).join(' ')
+  const name =
+    str(props.name) ?? [str(props.street), str(props.housenumber)].filter(Boolean).join(' ')
   if (!name) return null
 
   return {
@@ -97,7 +100,9 @@ export class PhotonProvider implements GeocodingProvider {
 
   async geocode(input: { address: string; signal?: AbortSignal }): Promise<GeocodeResult | null> {
     const params = new URLSearchParams({ q: input.address, limit: '1', lang: 'es' })
-    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, { signal: input.signal })
+    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, {
+      signal: input.signal,
+    })
 
     const first = featuresOf(payload)[0]
     if (!first) return null
@@ -127,7 +132,9 @@ export class PhotonProvider implements GeocodingProvider {
       lang: 'es',
     })
 
-    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, { signal: input.signal })
+    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, {
+      signal: input.signal,
+    })
 
     const raw = featuresOf(payload)
       .map(toRawPlace)

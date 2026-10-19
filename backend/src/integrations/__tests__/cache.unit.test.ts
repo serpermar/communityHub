@@ -9,17 +9,12 @@
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest'
-import {
-  geocodeCacheKey,
-  mapCacheKey,
-  roundCoordinate,
-  weatherCacheKey,
-} from '../cache.js'
+import { geocodeCacheKey, mapCacheKey, roundCoordinate, weatherCacheKey } from '../cache.js'
 
 describe('roundCoordinate', () => {
   it('redondea a 4 decimales (~11 m)', () => {
     expect(roundCoordinate(40.416775)).toBe(40.4168)
-    expect(roundCoordinate(-3.703790)).toBe(-3.7038)
+    expect(roundCoordinate(-3.70379)).toBe(-3.7038)
   })
 })
 
@@ -32,8 +27,16 @@ describe('weatherCacheKey', () => {
   })
 
   it('agrupa coordenadas que solo difieren a partir de la 5ª cifra', () => {
-    const a = weatherCacheKey({ latitude: 40.416775, longitude: -3.70379, timezone: 'Europe/Madrid' })
-    const b = weatherCacheKey({ latitude: 40.416774, longitude: -3.70379, timezone: 'Europe/Madrid' })
+    const a = weatherCacheKey({
+      latitude: 40.416775,
+      longitude: -3.70379,
+      timezone: 'Europe/Madrid',
+    })
+    const b = weatherCacheKey({
+      latitude: 40.416774,
+      longitude: -3.70379,
+      timezone: 'Europe/Madrid',
+    })
     expect(a).toBe(b)
   })
 

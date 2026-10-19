@@ -73,7 +73,11 @@ async function comunidadDe(reservationId: string, userId: string): Promise<strin
  * DECIDE la consulta, no el contexto.
  */
 export function requireReservation(paramName = 'id') {
-  return async function reservationGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return async function reservationGuard(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     if (!req.auth) {
       throw unauthorized()
     }
@@ -96,8 +100,10 @@ export function requireReservation(paramName = 'id') {
     // ventana despues de haber sido degradado. Aqui no se usa para autorizar
     // nada —eso lo hacen las funciones— pero deja `req.community` completo para
     // que el servicio funcione como en el resto del proyecto.
-    const rows = await withContext({ userId: req.auth.userId, communityId }, (tx) =>
-      tx.$queryRaw<Array<{ role: string | null }>>`
+    const rows = await withContext(
+      { userId: req.auth.userId, communityId },
+      (tx) =>
+        tx.$queryRaw<Array<{ role: string | null }>>`
         select app_role_in(${communityId}::uuid) as role
       `,
     )

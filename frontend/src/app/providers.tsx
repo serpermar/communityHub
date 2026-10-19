@@ -7,9 +7,7 @@ import { router } from '@/routes/router'
 export function AppProviders({ children }: { children?: ReactNode }) {
   return (
     <AuthProvider>
-      <ToastProvider>
-        {children ?? <RouterProvider router={router} />}
-      </ToastProvider>
+      <ToastProvider>{children ?? <RouterProvider router={router} />}</ToastProvider>
     </AuthProvider>
   )
 }

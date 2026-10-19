@@ -209,7 +209,11 @@ export async function getResults(req: Request, res: Response, next: NextFunction
  * `text/csv`, no JSON: rompe el sobre `{ data }` a proposito (como la descarga
  * de documentos, bloque 08). El BOM inicial es para que Excel reconozca el UTF-8.
  */
-export async function exportResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function exportResults(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const voteId = uuidParam(req, 'id')

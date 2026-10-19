@@ -142,7 +142,10 @@ export async function listUserReservations(
  * deberia: `requireReservation()` ya ha puesto 404 solo si es visible— recibira
  * la fila con `notes` en null.
  */
-export async function findReservation(tx: Tx, reservationId: string): Promise<ReservationRow | null> {
+export async function findReservation(
+  tx: Tx,
+  reservationId: string,
+): Promise<ReservationRow | null> {
   const rows = await tx.$queryRaw<ReservationRow[]>`
     select
       id, community_id, community_name, common_area_id, common_area_name,

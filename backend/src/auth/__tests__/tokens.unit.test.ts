@@ -44,11 +44,15 @@ describe('signAccessToken / verifyAccessToken', () => {
   it('rechaza una firma inválida', () => {
     // Criterio 3. Se firma con otra clave: la estructura es correcta y solo la
     // firma no cuadra.
-    const forged = jwt.sign({ role: 'ADMIN', ver: SESSION_ID }, 'otra-clave-de-32-caracteres-minimo', {
-      algorithm: 'HS256',
-      subject: USER_ID,
-      expiresIn: 900,
-    })
+    const forged = jwt.sign(
+      { role: 'ADMIN', ver: SESSION_ID },
+      'otra-clave-de-32-caracteres-minimo',
+      {
+        algorithm: 'HS256',
+        subject: USER_ID,
+        expiresIn: 900,
+      },
+    )
 
     expect(() => verifyAccessToken(forged)).toThrow()
   })

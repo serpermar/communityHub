@@ -67,12 +67,17 @@ function withOffset(value: unknown, offsetSeconds: number | null): string | null
 
 // --- URL ---------------------------------------------------------------------
 
-export function buildWeatherUrl(input: { latitude: number; longitude: number; timezone: string }): string {
+export function buildWeatherUrl(input: {
+  latitude: number
+  longitude: number
+  timezone: string
+}): string {
   const params = new URLSearchParams({
     latitude: String(input.latitude),
     longitude: String(input.longitude),
     current: 'temperature_2m,apparent_temperature,is_day,weather_code',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
+    daily:
+      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
     timezone: input.timezone,
     forecast_days: '1',
   })
@@ -101,7 +106,9 @@ export function normalizeWeather(payload: unknown, source = 'open-meteo'): Weath
   const max = num(list(daily.temperature_2m_max)[0])
 
   if (temperature === null || weatherCode === null || min === null || max === null) {
-    throw new ExternalProviderError('Open-Meteo no ha devuelto la temperatura o el codigo esperados.')
+    throw new ExternalProviderError(
+      'Open-Meteo no ha devuelto la temperatura o el codigo esperados.',
+    )
   }
 
   const offset = num(payload.utc_offset_seconds)

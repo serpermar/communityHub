@@ -24,7 +24,14 @@ import { created, ok } from '../http/envelope.js'
 import { formatIssues } from '../auth/validators.js'
 import type { ZodType } from 'zod'
 import * as service from './service.js'
-import { createDocumentSchema, listQuerySchema, MAX_FILE_BYTES, MAX_FILE_MESSAGE, mimePermitido, uuidSchema } from './validators.js'
+import {
+  createDocumentSchema,
+  listQuerySchema,
+  MAX_FILE_BYTES,
+  MAX_FILE_MESSAGE,
+  mimePermitido,
+  uuidSchema,
+} from './validators.js'
 import { routeParam } from '../auth/middleware.js'
 
 function parse<T>(schema: ZodType<T>, payload: unknown): T {
@@ -75,7 +82,11 @@ function actor(req: Request): string {
  * quien ve qué lo decide `app_list_documents()` (DN-6). Los filtros van por
  * query param, como en el resto de la API.
  */
-export async function listDocuments(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listDocuments(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = comunidadDeRuta(req)
     const query = parse(listQuerySchema, req.query)
@@ -102,7 +113,11 @@ export async function listDocuments(req: Request, res: Response, next: NextFunct
  * El 201 lleva `Location` con el documento recien creado, porque la API si
  * expone `GET /documents/:id`.
  */
-export async function createDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createDocument(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = comunidadDeRuta(req)
     const input = parse(createDocumentSchema, req.body)
@@ -164,7 +179,11 @@ export async function getDocument(req: Request, res: Response, next: NextFunctio
  * `DOCUMENTS_SIGNED_URL_EXPIRES_IN`. El flujo 404/403 de los dos pasos (spec
  * §5.5) esta en el servicio: aqui solo se pide.
  */
-export async function downloadDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function downloadDocument(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const documentId = uuidParam(req, 'id')
@@ -183,7 +202,11 @@ export async function downloadDocument(req: Request, res: Response, next: NextFu
  * `document_requires_admin`; aqui no hay `requireCommunityRole` — el segundo
  * borrado es 404, no 200 idempotente.
  */
-export async function deleteDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteDocument(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const documentId = uuidParam(req, 'id')

@@ -23,7 +23,14 @@
 // ---------------------------------------------------------------------------
 
 import { Prisma } from '@prisma/client'
-import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../http/errors.js'
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from '../http/errors.js'
 
 /** El `errcode` y el mensaje que PostgreSQL trae al cliente de Prisma. */
 type Origen = { errcode: string; message: string }

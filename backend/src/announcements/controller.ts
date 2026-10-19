@@ -32,7 +32,12 @@ import { created, ok } from '../http/envelope.js'
 import { formatIssues } from '../auth/validators.js'
 import type { ZodType } from 'zod'
 import * as service from './service.js'
-import { createAnnouncementSchema, listQuerySchema, updateAnnouncementSchema, uuidSchema } from './validators.js'
+import {
+  createAnnouncementSchema,
+  listQuerySchema,
+  updateAnnouncementSchema,
+  uuidSchema,
+} from './validators.js'
 import { routeParam } from '../auth/middleware.js'
 
 function parse<T>(schema: ZodType<T>, payload: unknown): T {
@@ -88,7 +93,11 @@ function actor(req: Request): { userId: string; communityId: string } {
  * cliente normal. Ademas `?type=URGENT` es la forma en que la documentacion
  * de la spec §7.3 los escribe.
  */
-export async function listAnnouncements(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listAnnouncements(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const query = parse(listQuerySchema, req.query)
@@ -112,7 +121,11 @@ export async function listAnnouncements(req: Request, res: Response, next: NextF
  * peor que no ponerlo. La respuesta lleva el aviso entero con su `authorName`,
  * que es lo que el cliente necesita para pintarlo.
  */
-export async function createAnnouncement(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createAnnouncement(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const input = parse(createAnnouncementSchema, req.body)
@@ -128,7 +141,11 @@ export async function createAnnouncement(req: Request, res: Response, next: Next
 // ---------------------------------------------------------------------------
 
 /** `PUT /announcements/:id`. Reemplazo completo (AN-6): no hay PATCH. */
-export async function updateAnnouncement(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateAnnouncement(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const announcementId = uuidParam(req, 'id')
@@ -153,7 +170,11 @@ export async function updateAnnouncement(req: Request, res: Response, next: Next
  * El rol (solo ADMIN, AN-5) lo decide `app_delete_announcement()`. El
  * segundo borrado es 404, no 200 idempotente ni 409 (AN-11).
  */
-export async function deleteAnnouncement(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteAnnouncement(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { userId, communityId } = actor(req)
     const announcementId = uuidParam(req, 'id')

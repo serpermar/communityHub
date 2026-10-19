@@ -44,7 +44,9 @@ function errorDePostgres(errcode: string, message: string): unknown {
 
 describe('translate', () => {
   it('mapea el par (P0002, announcement_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'announcement_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'announcement_not_found: no existe o no es visible'),
+    )
 
     expect(error).not.toBeNull()
     expect(error?.status).toBe(404)
@@ -53,7 +55,9 @@ describe('translate', () => {
 
   it('mapea (42501, forbidden_role) a un 403 generico de rol', () => {
     // El POST o el PUT por un NEIGHBOR o un PROVIDER.
-    const error = translate(errorDePostgres('42501', 'forbidden_role: su rol no puede gestionar avisos'))
+    const error = translate(
+      errorDePostgres('42501', 'forbidden_role: su rol no puede gestionar avisos'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
@@ -62,7 +66,9 @@ describe('translate', () => {
   it('mapea (42501, announcement_requires_admin) a un 403 con mensaje de borrado', () => {
     // El caso de AN-1: el PRESIDENT puede fijar y editar, pero no borrar. Los
     // dos pares llevan 42501 y por eso solo se distinguen por el sentinel.
-    const error = translate(errorDePostgres('42501', 'announcement_requires_admin: solo un ADMIN puede borrar'))
+    const error = translate(
+      errorDePostgres('42501', 'announcement_requires_admin: solo un ADMIN puede borrar'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.message).toBe('Solo un administrador puede borrar avisos.')
@@ -70,7 +76,9 @@ describe('translate', () => {
 
   it('mapea (22023, announcement_content_required) a un 400', () => {
     // Guarda interna de `app_create_announcement()`, inalcanzable desde la API.
-    const error = translate(errorDePostgres('22023', 'announcement_content_required: título y cuerpo obligatorios'))
+    const error = translate(
+      errorDePostgres('22023', 'announcement_content_required: título y cuerpo obligatorios'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -87,7 +95,10 @@ describe('translate', () => {
     // mirase solo el mensaje, esto seria un 404 cuando en realidad es un CHECK
     // de longitud reventado.
     const error = translate(
-      errorDePostgres('23514', 'announcement_not_found: violates check constraint "announcements_title_length"'),
+      errorDePostgres(
+        '23514',
+        'announcement_not_found: violates check constraint "announcements_title_length"',
+      ),
     )
 
     expect(error?.status).toBe(400)
@@ -97,7 +108,9 @@ describe('translate', () => {
   it('un sentinel con un errcode de otro tipo tampoco se mezcla con otro caso', () => {
     // El sentinel de "requiere admin" con un 23514 sigue siendo un 400 de
     // formato, no un 403.
-    const con23514 = translate(errorDePostgres('23514', 'announcement_requires_admin: violates check constraint'))
+    const con23514 = translate(
+      errorDePostgres('23514', 'announcement_requires_admin: violates check constraint'),
+    )
     expect(con23514?.status).toBe(400)
 
     // Y con un P0002 NO es un 403: el par no coincide. Un P0002 sin su
@@ -112,7 +125,9 @@ describe('translate', () => {
     // primaria, asi que un 23505 solo puede venir de un bug del esquema. Un
     // 409 lo disfrazaria de comportamiento previsto ("ya existe ese aviso"),
     // cuando en realidad no hay nada que el cliente pueda corregir.
-    const error = translate(errorDePostgres('23505', 'duplicate key value violates unique constraint'))
+    const error = translate(
+      errorDePostgres('23505', 'duplicate key value violates unique constraint'),
+    )
 
     expect(error).toBeNull()
   })
@@ -124,13 +139,17 @@ describe('translate', () => {
   })
 
   it('un 23514 sin sentinel es un 400', () => {
-    const error = translate(errorDePostgres('23514', 'violates check constraint "announcements_body_length"'))
+    const error = translate(
+      errorDePostgres('23514', 'violates check constraint "announcements_body_length"'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('un 22P02 es un 400, no un 500', () => {
-    const error = translate(errorDePostgres('22P02', 'invalid input syntax for type announcement_type'))
+    const error = translate(
+      errorDePostgres('22P02', 'invalid input syntax for type announcement_type'),
+    )
 
     expect(error?.status).toBe(400)
   })
@@ -148,7 +167,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })

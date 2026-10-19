@@ -145,8 +145,17 @@ export const previewBodySchema = z
 /** Paginacion de sesiones y mensajes, igual que en el resto del proyecto. */
 export const paginationQuerySchema = z
   .object({
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

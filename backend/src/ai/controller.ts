@@ -115,7 +115,11 @@ export async function listMessages(req: Request, res: Response, next: NextFuncti
   }
 }
 
-export async function deleteSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function deleteSession(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const id = parse(uuidSchema, routeParam(req, 'id'))
@@ -143,7 +147,12 @@ export async function createDraft(req: Request, res: Response, next: NextFunctio
   try {
     const userId = actor(req)
     const body = parse(draftBodySchema, req.body)
-    const draft = await service.createDraft(userId, body.communityId, body.description, body.proposal)
+    const draft = await service.createDraft(
+      userId,
+      body.communityId,
+      body.description,
+      body.proposal,
+    )
     res.location(`/api/v1/ai/incidents/drafts/${draft.id}`)
     created(res, draft)
   } catch (error) {

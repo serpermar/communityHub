@@ -8,10 +8,7 @@ export interface VoteListQuery {
   limit?: number
 }
 
-export function listVotes(
-  communityId: string,
-  query: VoteListQuery,
-): Promise<ListResult<Vote>> {
+export function listVotes(communityId: string, query: VoteListQuery): Promise<ListResult<Vote>> {
   return api.list<Vote>(`/communities/${communityId}/votes`, {
     params: cleanParams({ ...query }),
   })

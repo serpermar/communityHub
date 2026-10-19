@@ -64,7 +64,7 @@ const ID = {
   proveedorManolo: '11111111-1111-4555-8555-555555555555',
   // Staff de la plataforma. Unico usuario con `global_role = 'ADMIN_SA'` y el
   // unico que puede dar de alta una comunidad por la API.
- //
+  //
   // No es un ADMIN de la comunidad A como ana, y la confusion es facil: `ADMIN`
   // es un rol DENTRO de una comunidad y no puede crear comunidades; `ADMIN_SA` es
   // un rol de plataforma. Ana no puede usar POST /api/v1/communities aunque sea
@@ -179,7 +179,11 @@ function miniPdf(lineas: string[]): Buffer {
       })
       .join('')
 
-  const stream = ['BT /F1 14 Tf 72 720 Td 18 TL', ...lineas.map((l) => `(${escape(l)}) Tj T*`), 'ET'].join('\n')
+  const stream = [
+    'BT /F1 14 Tf 72 720 Td 18 TL',
+    ...lineas.map((l) => `(${escape(l)}) Tj T*`),
+    'ET',
+  ].join('\n')
   const cuerpos = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -212,7 +216,9 @@ function miniPdf(lineas: string[]): Buffer {
 // que no importa src/auth/password.ts). `upsert` porque las rutas son
 // deterministicas: re-siembrar con --reset vuelve a subir a la misma clave sin
 // chocar con lo anterior.
-async function subirObjetosSeed(objetos: { path: string; mime: string; contenido: Buffer }[]): Promise<void> {
+async function subirObjetosSeed(
+  objetos: { path: string; mime: string; contenido: Buffer }[],
+): Promise<void> {
   const url = process.env.SUPABASE_URL
   const clave = process.env.SUPABASE_SERVICE_ROLE_KEY
   const bucket = process.env.DOCUMENTS_BUCKET ?? 'community-documents'
@@ -222,13 +228,17 @@ async function subirObjetosSeed(objetos: { path: string; mime: string; contenido
     return
   }
   if (!url || !clave || clave === 'PENDING') {
-    console.log('  (aviso: sin SUPABASE_SERVICE_ROLE_KEY; las filas quedan sin objeto y su descarga fallaria)')
+    console.log(
+      '  (aviso: sin SUPABASE_SERVICE_ROLE_KEY; las filas quedan sin objeto y su descarga fallaria)',
+    )
     return
   }
 
   const storage = createClient(url, clave, { auth: { persistSession: false } }).storage
   for (const { path, mime, contenido } of objetos) {
-    const { error } = await storage.from(bucket).upload(path, contenido, { contentType: mime, upsert: true })
+    const { error } = await storage
+      .from(bucket)
+      .upload(path, contenido, { contentType: mime, upsert: true })
     if (error) {
       // Fallo ruidoso: una fila sin objeto es exactamente el bug que este
       // paso existe para evitar (con el driver supabase, su descarga da 500).
@@ -251,7 +261,7 @@ async function main() {
   // Usuarios
   // -------------------------------------------------------------------------
   // Contraseña de los datos de prueba: `CommunityHub2026` para todos los usuarios.
-// Son datos de prueba generados por este script, no credenciales reales.
+  // Son datos de prueba generados por este script, no credenciales reales.
   //
   // Reparto pensado para que cada prueba de aislamiento tenga un caso:
   //   anaAdmin        ADMIN de A. Debe ver gastos de A.
@@ -335,8 +345,8 @@ async function main() {
         city: 'Zaragoza',
         province: 'Zaragoza',
         postal_code: '50001',
-        latitude: 41.648800,
-        longitude: -0.889100,
+        latitude: 41.6488,
+        longitude: -0.8891,
         timezone: 'Europe/Madrid',
         registration_number: 'Z-1998-00482',
         created_by: ID.anaAdmin,
@@ -350,8 +360,8 @@ async function main() {
         city: 'Barcelona',
         province: 'Barcelona',
         postal_code: '08019',
-        latitude: 41.392400,
-        longitude: 2.130000,
+        latitude: 41.3924,
+        longitude: 2.13,
         timezone: 'Europe/Madrid',
         registration_number: 'B-2004-11877',
         created_by: ID.carlosVecino,
@@ -856,7 +866,8 @@ async function main() {
         id: ID.docReglamentoA,
         community_id: ID.comunidadA,
         title: 'Reglamento de régimen interior',
-        description: 'Normas de uso de las zonas comunes y horarios de silencio, aprobadas en la asamblea de 2024.',
+        description:
+          'Normas de uso de las zonas comunes y horarios de silencio, aprobadas en la asamblea de 2024.',
         category: 'STATUTES',
         storage_path: `${ID.comunidadA}/${ID.docReglamentoA}`,
         mime_type: 'application/pdf',
@@ -902,9 +913,21 @@ async function main() {
   // la fila. Va despues del createMany a proposito: un objeto sin fila es
   // basura recuperable, una fila sin objeto es un documento que no se baja.
   await subirObjetosSeed([
-    { path: `${ID.comunidadA}/${ID.docActasA}`, mime: 'application/pdf', contenido: contenidoActas },
-    { path: `${ID.comunidadA}/${ID.docReglamentoA}`, mime: 'application/pdf', contenido: contenidoReglamento },
-    { path: `${ID.comunidadB}/${ID.docFacturaB}`, mime: 'application/pdf', contenido: contenidoFactura },
+    {
+      path: `${ID.comunidadA}/${ID.docActasA}`,
+      mime: 'application/pdf',
+      contenido: contenidoActas,
+    },
+    {
+      path: `${ID.comunidadA}/${ID.docReglamentoA}`,
+      mime: 'application/pdf',
+      contenido: contenidoReglamento,
+    },
+    {
+      path: `${ID.comunidadB}/${ID.docFacturaB}`,
+      mime: 'application/pdf',
+      contenido: contenidoFactura,
+    },
   ])
 
   // -------------------------------------------------------------------------
@@ -942,7 +965,8 @@ async function main() {
         community_id: ID.comunidadA,
         title: '¿Instalar cámaras en el parking?',
         question: '¿Estás de acuerdo con instalar cámaras de vigilancia en el parking comunitario?',
-        description: 'La instalación correría a cargo del fondo de reserva. Presupuesto estimado: 1.200 €.',
+        description:
+          'La instalación correría a cargo del fondo de reserva. Presupuesto estimado: 1.200 €.',
         type: 'SINGLE',
         status: 'OPEN',
         starts_at: new Date('2026-10-01T08:00:00.000Z'),
@@ -989,7 +1013,13 @@ async function main() {
     data: [
       { id: ID.optParkingSi, vote_id: ID.voteParkingA, label: 'Sí', position: 1 },
       { id: ID.optParkingNo, vote_id: ID.voteParkingA, label: 'No', position: 2 },
-      { id: ID.optParkingAbstencion, vote_id: ID.voteParkingA, label: 'Abstención', position: 3, is_abstention: true },
+      {
+        id: ID.optParkingAbstencion,
+        vote_id: ID.voteParkingA,
+        label: 'Abstención',
+        position: 3,
+        is_abstention: true,
+      },
       { id: ID.optPiscinaSi, vote_id: ID.votePiscinaA, label: 'Sí', position: 1 },
       { id: ID.optPiscinaNo, vote_id: ID.votePiscinaA, label: 'No', position: 2 },
       { id: ID.optRuidoSi, vote_id: ID.voteRuidoA, label: 'Sí', position: 1 },
@@ -1034,8 +1064,12 @@ async function main() {
   console.log(`    PRESIDENT  luis@comunidad-a.test    · ${TEST_PASSWORD}`)
   console.log(`    NEIGHBOR   marta@comunidad-a.test   · ${TEST_PASSWORD}   (miembro de A y B)`)
   console.log(`    NEIGHBOR   carlos@comunidad-b.test  · ${TEST_PASSWORD}`)
-  console.log(`    PROVIDER   manolo@proveedor.test    · ${TEST_PASSWORD}   (solo 1 incidencia asignada)`)
-  console.log(`    ADMIN_SA   elena@staff.test         · ${TEST_PASSWORD}   (staff de plataforma; puede crear comunidades)`)
+  console.log(
+    `    PROVIDER   manolo@proveedor.test    · ${TEST_PASSWORD}   (solo 1 incidencia asignada)`,
+  )
+  console.log(
+    `    ADMIN_SA   elena@staff.test         · ${TEST_PASSWORD}   (staff de plataforma; puede crear comunidades)`,
+  )
   console.log(`\n  Elena no es miembro de A ni de B. Su poder es dar de alta comunidades, no`)
   console.log(`  leer las que ya hay: si pide la comunidad de Ana recibe un 403. Al crear una`)
   console.log(`  desde la API entra en ella como ADMIN.\n`)

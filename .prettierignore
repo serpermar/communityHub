@@ -1,0 +1,15 @@
+# Prettier no toca lo que no lee.
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Los lockfiles los mantiene npm.
+package-lock.json
+
+# SQL: lo formatea el motor de base de datos, no Prettier (no hay parser).
+supabase/
+
+# Markdown: specs y docs son prosa revisada a mano; Prettier los reflowaria.
+*.md

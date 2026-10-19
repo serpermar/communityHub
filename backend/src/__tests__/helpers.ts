@@ -25,7 +25,12 @@
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from 'node:crypto'
-import type { expense_category, incident_category, incident_priority, member_role } from '@prisma/client'
+import type {
+  expense_category,
+  incident_category,
+  incident_priority,
+  member_role,
+} from '@prisma/client'
 import { createApp } from '../app.js'
 import { admin } from '../db-admin.js'
 
@@ -103,7 +108,9 @@ export async function createUser(
  * Este usuario NO es miembro de ninguna comunidad, y eso es parte de lo que se
  * prueba: el staff crea comunidades pero no lee las que ya hay (C-12).
  */
-export async function makeAdminSa(overrides: { email?: string; fullName?: string } = {}): Promise<TestUser> {
+export async function makeAdminSa(
+  overrides: { email?: string; fullName?: string } = {},
+): Promise<TestUser> {
   return createUser({ ...overrides, globalRole: 'ADMIN_SA' })
 }
 
@@ -140,7 +147,11 @@ export async function makeCommunity(name: string): Promise<string> {
   return id
 }
 
-export async function makeMember(userId: string, communityId: string, role: member_role = 'NEIGHBOR'): Promise<void> {
+export async function makeMember(
+  userId: string,
+  communityId: string,
+  role: member_role = 'NEIGHBOR',
+): Promise<void> {
   await admin.communityMembers.create({
     data: { community_id: communityId, user_id: userId, role },
   })
@@ -242,7 +253,14 @@ export async function readSessions(userId: string) {
 export async function readUserSafe(userId: string) {
   return admin.users.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, full_name: true, global_role: true, status: true, deleted_at: true },
+    select: {
+      id: true,
+      email: true,
+      full_name: true,
+      global_role: true,
+      status: true,
+      deleted_at: true,
+    },
   })
 }
 

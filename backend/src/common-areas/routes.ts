@@ -55,7 +55,12 @@ import { requireCommonArea } from './middleware.js'
 export function createCommonAreasRouter(): Router {
   const router = Router()
 
-  router.get('/:communityId/common-areas', requireAuth, requireCommunity(), controller.listCommonAreas)
+  router.get(
+    '/:communityId/common-areas',
+    requireAuth,
+    requireCommunity(),
+    controller.listCommonAreas,
+  )
 
   router.post(
     '/:communityId/common-areas',
@@ -85,7 +90,12 @@ export function createCommonAreaRouter(): Router {
   const router = Router()
 
   router.put('/common-areas/:id', requireAuth, requireCommonArea(), controller.updateCommonArea)
-  router.get('/common-areas/:id/availability', requireAuth, requireCommonArea(), controller.getAvailability)
+  router.get(
+    '/common-areas/:id/availability',
+    requireAuth,
+    requireCommonArea(),
+    controller.getAvailability,
+  )
 
   return router
 }

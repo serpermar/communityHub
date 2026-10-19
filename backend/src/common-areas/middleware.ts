@@ -73,7 +73,11 @@ async function comunidadDe(areaId: string, userId: string): Promise<string | nul
  * poder descubrirla, que es lo contrario del problema que resuelve este guard.
  */
 export function requireCommonArea(paramName = 'id') {
-  return async function commonAreaGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return async function commonAreaGuard(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     if (!req.auth) {
       throw unauthorized()
     }
@@ -94,8 +98,10 @@ export function requireCommonArea(paramName = 'id') {
     // sesion, por el mismo motivo que en `requireCommunity`: el token dura 15
     // minutos, y leer el rol de ahi permitiria seguir siendo ADMIN durante la
     // ventana despues de haber sido degradado.
-    const rows = await withContext({ userId: req.auth.userId, communityId }, (tx) =>
-      tx.$queryRaw<Array<{ role: string | null }>>`
+    const rows = await withContext(
+      { userId: req.auth.userId, communityId },
+      (tx) =>
+        tx.$queryRaw<Array<{ role: string | null }>>`
         select app_role_in(${communityId}::uuid) as role
       `,
     )

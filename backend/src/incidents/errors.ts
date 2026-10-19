@@ -32,7 +32,14 @@
 // ---------------------------------------------------------------------------
 
 import { Prisma } from '@prisma/client'
-import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../http/errors.js'
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from '../http/errors.js'
 
 /** El `errcode` y el mensaje que PostgreSQL trae al cliente de Prisma. */
 type Origen = { errcode: string; message: string }
@@ -79,7 +86,8 @@ const NEGOCIO: ReadonlyArray<{ sentinel: string; errcode: string; error: () => A
     // sin accion posible, cuando lo que tiene que hacer es elegir otro estado.
     sentinel: 'incident_invalid_transition',
     errcode: '22023',
-    error: () => conflict('CONFLICT', 'Ese cambio de estado no está permitido desde el estado actual.'),
+    error: () =>
+      conflict('CONFLICT', 'Ese cambio de estado no está permitido desde el estado actual.'),
   },
   {
     // `assignedToId` que no es un PROVIDER activo de la MISMA comunidad. 400 y no

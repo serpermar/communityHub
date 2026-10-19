@@ -18,7 +18,11 @@
 
 import { withContext } from '../context.js'
 import { notFound } from '../http/errors.js'
-import type { AvailabilityQueryInput, CreateCommonAreaInput, UpdateCommonAreaInput } from './validators.js'
+import type {
+  AvailabilityQueryInput,
+  CreateCommonAreaInput,
+  UpdateCommonAreaInput,
+} from './validators.js'
 import * as repo from './repository.js'
 import { ejecuta } from './errors.js'
 
@@ -107,7 +111,10 @@ function toCommonAreaView(row: repo.CommonAreaRow): CommonAreaView {
  * que la sala cerro. Quien decide que reservas admite una zona dada de baja es
  * la spec 06 (R-7), no este listado.
  */
-export async function listCommonAreas(userId: string, communityId: string): Promise<CommonAreaView[]> {
+export async function listCommonAreas(
+  userId: string,
+  communityId: string,
+): Promise<CommonAreaView[]> {
   return ejecuta(() =>
     withContext({ userId, communityId }, async (tx) => {
       const rows = await repo.listCommonAreas(tx, communityId)

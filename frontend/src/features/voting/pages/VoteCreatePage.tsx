@@ -81,7 +81,11 @@ export function VoteCreatePage() {
             <Input id="vote-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="Pregunta" htmlFor="vote-question" required>
-            <Input id="vote-question" value={question} onChange={(e) => setQuestion(e.target.value)} />
+            <Input
+              id="vote-question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
           </Field>
           <Field label="Descripción" htmlFor="vote-description">
             <Textarea

@@ -14,7 +14,12 @@ function feature(properties: Record<string, unknown>, coordinates: unknown = [-3
 }
 
 function stubFetch(payload: unknown): void {
-  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => payload }) as unknown as Response))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () => ({ ok: true, status: 200, json: async () => payload }) as unknown as Response,
+    ),
+  )
 }
 
 afterEach(() => vi.unstubAllGlobals())
@@ -53,7 +58,10 @@ describe('PhotonProvider.geocode', () => {
   })
 
   it('una feature sin geometria devuelve null en vez de romper', async () => {
-    stubFetch({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { name: 'x' } }] })
+    stubFetch({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: { name: 'x' } }],
+    })
     await expect(new PhotonProvider().geocode({ address: 'xxx' })).resolves.toBeNull()
   })
 })
@@ -67,11 +75,19 @@ describe('PhotonProvider.searchNearby', () => {
         feature({ name: 'Parque', osm_key: 'leisure', osm_value: 'park' }, [-3, 40.002]), // ~222 m, POI
         feature({ name: 'Lejísimos', osm_key: 'leisure', osm_value: 'park' }, [-3, 40.5]), // fuera de radio
         feature({ osm_key: 'shop', osm_value: 'hardware' }, [-3, 40.0015]), // sin nombre -> fuera
-        { type: 'Feature', properties: { name: 'sin geom', osm_key: 'leisure', osm_value: 'park' } }, // sin geometria
+        {
+          type: 'Feature',
+          properties: { name: 'sin geom', osm_key: 'leisure', osm_value: 'park' },
+        }, // sin geometria
       ],
     })
 
-    const places = await new PhotonProvider().searchNearby({ latitude: 40, longitude: -3, radiusM: 1_500, limit: 25 })
+    const places = await new PhotonProvider().searchNearby({
+      latitude: 40,
+      longitude: -3,
+      radiusM: 1_500,
+      limit: 25,
+    })
 
     expect(places.map((p) => p.name)).toEqual(['Ferretería', 'Parque'])
     expect(places.map((p) => p.category)).toEqual(['Ferretería', 'Parque'])

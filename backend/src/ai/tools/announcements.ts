@@ -13,12 +13,17 @@ import { ALL_ROLES, defineTool, type ToolDefinition } from './registry.js'
 export const announcementTools: ToolDefinition[] = [
   defineTool({
     name: 'get_announcements',
-    description: 'Lista los avisos publicados de la comunidad, con filtro opcional por tipo y texto.',
+    description:
+      'Lista los avisos publicados de la comunidad, con filtro opcional por tipo y texto.',
     roles: ALL_ROLES,
     requiresCommunity: true,
     schema: listQuerySchema,
     async run(args: z.infer<typeof listQuerySchema>, ctx) {
-      const page = await announcements.listAnnouncements(ctx.userId, ctx.communityId as string, args)
+      const page = await announcements.listAnnouncements(
+        ctx.userId,
+        ctx.communityId as string,
+        args,
+      )
       return { result: page.items, citations: page.items.map((announcement) => announcement.id) }
     },
   }),

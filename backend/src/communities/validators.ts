@@ -73,15 +73,15 @@ const optionalText = (max: number, label: string) =>
  * la cadena vacia en NULL lo hace despues el servicio.
  */
 const textoEditable = (max: number, label: string) =>
-  z
-    .string()
-    .trim()
-    .max(max, `${label} es demasiado largo.`)
-    .nullish()
+  z.string().trim().max(max, `${label} es demasiado largo.`).nullish()
 
 export const createCommunitySchema = z
   .object({
-    name: z.string().trim().min(1, 'El nombre es obligatorio.').max(120, 'El nombre es demasiado largo.'),
+    name: z
+      .string()
+      .trim()
+      .min(1, 'El nombre es obligatorio.')
+      .max(120, 'El nombre es demasiado largo.'),
     slug,
     addressLine1: z
       .string()
@@ -133,7 +133,12 @@ export const updateCommunitySchema = z
     description: textoEditable(2000, 'La descripción'),
     addressLine1: z.string().trim().min(1, 'La dirección es obligatoria.').max(200).optional(),
     city: z.string().trim().min(1, 'La ciudad es obligatoria.').max(80).optional(),
-    country: z.string().trim().length(2, 'El país se escribe con dos letras, como ES.').toUpperCase().optional(),
+    country: z
+      .string()
+      .trim()
+      .length(2, 'El país se escribe con dos letras, como ES.')
+      .toUpperCase()
+      .optional(),
     province: textoEditable(80, 'La provincia'),
     postalCode: textoEditable(20, 'El código postal'),
     registrationNumber: textoEditable(64, 'El número de registro'),
@@ -155,16 +160,19 @@ export const updateCommunitySchema = z
     message: 'No hay nada que actualizar.',
     path: [],
   })
-  .refine((v) => {
-    // Solo se exige el emparejamiento si el PATCH toca alguna de las dos. Poner
-    // `latitude: null` sin decir nada de `longitude` es una peticion valida: se
-    // esta diciendo "ya no la localizamos".
-    if (v.latitude === undefined && v.longitude === undefined) return true
-    return (v.latitude == null) === (v.longitude == null)
-  }, {
-    message: 'La latitud y la longitud van juntas: si envías una, envía la otra.',
-    path: ['latitude'],
-  })
+  .refine(
+    (v) => {
+      // Solo se exige el emparejamiento si el PATCH toca alguna de las dos. Poner
+      // `latitude: null` sin decir nada de `longitude` es una peticion valida: se
+      // esta diciendo "ya no la localizamos".
+      if (v.latitude === undefined && v.longitude === undefined) return true
+      return (v.latitude == null) === (v.longitude == null)
+    },
+    {
+      message: 'La latitud y la longitud van juntas: si envías una, envía la otra.',
+      path: ['latitude'],
+    },
+  )
 
 export type CreateCommunityInput = z.infer<typeof createCommunitySchema>
 export type UpdateCommunityInput = z.infer<typeof updateCommunitySchema>

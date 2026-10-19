@@ -26,7 +26,14 @@ import { env } from '../config/env.js'
 import { aiQuotaExceeded } from './errors.js'
 import type { LLMClient, LLMMessage } from './llm/client.js'
 import * as repo from './repository.js'
-import { ALL_TOOLS, runTool, toolSpecs, toolsForRole, type ToolDefinition, type ToolContext } from './tools/index.js'
+import {
+  ALL_TOOLS,
+  runTool,
+  toolSpecs,
+  toolsForRole,
+  type ToolDefinition,
+  type ToolContext,
+} from './tools/index.js'
 import type { Citation, CommunityRole } from './types.js'
 
 export type ChatEvent =

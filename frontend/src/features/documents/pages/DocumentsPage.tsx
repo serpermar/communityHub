@@ -198,7 +198,11 @@ export function DocumentsPage() {
             />
           </Field>
           <Field label="Título" htmlFor="doc-title" required>
-            <Input id="doc-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <Input
+              id="doc-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Categoría" htmlFor="doc-category">

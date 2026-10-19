@@ -97,14 +97,28 @@ describe('createIncidentSchema', () => {
     // 4 y 201 son los lados de `incidents_title_length`; 9 y 4001 los de
     // `incidents_description_length`. Estos numeros estan en los dos sitios, y por eso
     // estan escritos aqui a mano y no calculados.
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(4) }).success).toBe(false)
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(5) }).success).toBe(true)
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(200) }).success).toBe(true)
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(201) }).success).toBe(false)
+    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(4) }).success).toBe(
+      false,
+    )
+    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(5) }).success).toBe(
+      true,
+    )
+    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(200) }).success).toBe(
+      true,
+    )
+    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, title: 'a'.repeat(201) }).success).toBe(
+      false,
+    )
 
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(9) }).success).toBe(false)
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(10) }).success).toBe(true)
-    expect(createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(4001) }).success).toBe(false)
+    expect(
+      createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(9) }).success,
+    ).toBe(false)
+    expect(
+      createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(10) }).success,
+    ).toBe(true)
+    expect(
+      createIncidentSchema.safeParse({ ...ALTA_VALIDA, description: 'a'.repeat(4001) }).success,
+    ).toBe(false)
   })
 
   it('aplica el trim antes de medir la longitud', () => {
@@ -218,15 +232,21 @@ describe('updateIncidentSchema', () => {
   })
 
   it('rechaza status, porque el estado tiene su propia ruta', () => {
-    expect(updateIncidentSchema.safeParse({ ...PUT_VALIDO, status: 'RESOLVED' }).success).toBe(false)
+    expect(updateIncidentSchema.safeParse({ ...PUT_VALIDO, status: 'RESOLVED' }).success).toBe(
+      false,
+    )
   })
 
   it('no acepta reporterId ni needsReview', () => {
     expect(
-      updateIncidentSchema.safeParse({ ...PUT_VALIDO, reporterId: '11111111-1111-4111-8111-111111111111' })
-        .success,
+      updateIncidentSchema.safeParse({
+        ...PUT_VALIDO,
+        reporterId: '11111111-1111-4111-8111-111111111111',
+      }).success,
     ).toBe(false)
-    expect(updateIncidentSchema.safeParse({ ...PUT_VALIDO, needsReview: false }).success).toBe(false)
+    expect(updateIncidentSchema.safeParse({ ...PUT_VALIDO, needsReview: false }).success).toBe(
+      false,
+    )
   })
 })
 
@@ -244,7 +264,9 @@ describe('transitionIncidentSchema', () => {
   })
 
   it('rechaza un segundo campo, que seria un cambio de otra cosa', () => {
-    expect(transitionIncidentSchema.safeParse({ status: 'OPEN', priority: 'HIGH' }).success).toBe(false)
+    expect(transitionIncidentSchema.safeParse({ status: 'OPEN', priority: 'HIGH' }).success).toBe(
+      false,
+    )
     expect(transitionIncidentSchema.safeParse({ priority: 'HIGH' }).success).toBe(false)
     expect(transitionIncidentSchema.safeParse({}).success).toBe(false)
   })
@@ -267,8 +289,10 @@ describe('createCommentSchema', () => {
 
   it('no acepta authorId, porque el autor es el actor', () => {
     expect(
-      createCommentSchema.safeParse({ body: 'hola', authorId: '11111111-1111-4111-8111-111111111111' })
-        .success,
+      createCommentSchema.safeParse({
+        body: 'hola',
+        authorId: '11111111-1111-4111-8111-111111111111',
+      }).success,
     ).toBe(false)
   })
 })
@@ -327,7 +351,9 @@ describe('listQuerySchema', () => {
   })
 
   it('rechaza una clave desconocida', () => {
-    expect(listQuerySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111' }).success).toBe(false)
+    expect(
+      listQuerySchema.safeParse({ communityId: '11111111-1111-4111-8111-111111111111' }).success,
+    ).toBe(false)
   })
 })
 
@@ -340,7 +366,13 @@ describe('uuidSchema', () => {
   })
 
   it('rechaza lo que no es un UUID', () => {
-    for (const malo of ['', 'abc', '1', '11111111-1111-4111-8111-11111111111', '11111111111141118111111111111111']) {
+    for (const malo of [
+      '',
+      'abc',
+      '1',
+      '11111111-1111-4111-8111-11111111111',
+      '11111111111141118111111111111111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, `con ${JSON.stringify(malo)}`).toBe(false)
     }
   })

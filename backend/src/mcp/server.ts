@@ -75,7 +75,9 @@ export function buildMcpServer(session: McpSessionPayload): McpServer {
             },
           )
 
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ result: outcome.result }) }] }
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ result: outcome.result }) }],
+          }
         } catch (error) {
           const message = error instanceof AppError ? error.message : 'La herramienta falló.'
           return {

@@ -81,13 +81,19 @@ describe('createCommonAreaSchema', () => {
 
   it('acepta los ocho valores de type', () => {
     for (const type of TIPOS_VALIDOS) {
-      expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, type }).success, `con type ${type}`).toBe(true)
+      expect(
+        createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, type }).success,
+        `con type ${type}`,
+      ).toBe(true)
     }
   })
 
   it('rechaza un type inventado', () => {
     for (const type of ['PISCINA', 'pool', 'Paddle', '']) {
-      expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, type }).success, `con ${type}`).toBe(false)
+      expect(
+        createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, type }).success,
+        `con ${type}`,
+      ).toBe(false)
     }
   })
 
@@ -104,10 +110,16 @@ describe('createCommonAreaSchema', () => {
     // 45 es el caso que mas importa: no es un capricho de formato, es que el
     // CHECK `common_areas_slot_valid` solo admite 30, 60, 90 y 120, y un valor
     // intermedio produciria una rejilla que no encaja con el generate_series.
-    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: 45 }).success).toBe(false)
-    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: 60.5 }).success).toBe(false)
+    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: 45 }).success).toBe(
+      false,
+    )
+    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: 60.5 }).success).toBe(
+      false,
+    )
     expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: 0 }).success).toBe(false)
-    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: '60' }).success).toBe(false)
+    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, slotMinutes: '60' }).success).toBe(
+      false,
+    )
   })
 
   it('aplica los mismos limites que common_areas_name_length', () => {
@@ -176,21 +188,28 @@ describe('createCommonAreaSchema', () => {
   it('rechaza closeTime <= openTime con el mismo criterio que el CHECK', () => {
     // 22:00 > 08:00 es valido; 08:00 == 08:00 y 07:00 < 08:00 no.
     expect(
-      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '22:00' }).success,
+      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '22:00' })
+        .success,
     ).toBe(true)
     expect(
-      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '08:00' }).success,
+      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '08:00' })
+        .success,
     ).toBe(false)
     expect(
-      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '07:00' }).success,
+      createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00', closeTime: '07:00' })
+        .success,
     ).toBe(false)
   })
 
   it('no comprueba el horario si falta uno de los dos', () => {
     // Solo cuando los DOS estan presentes: en el POST un campo ausente usa el
     // default de la columna, y el default ya cuadra.
-    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00' }).success).toBe(true)
-    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, closeTime: '22:00' }).success).toBe(true)
+    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, openTime: '08:00' }).success).toBe(
+      true,
+    )
+    expect(createCommonAreaSchema.safeParse({ ...ALTA_VALIDA, closeTime: '22:00' }).success).toBe(
+      true,
+    )
   })
 
   it('rechaza horas fuera del formato HH:MM estricto', () => {
@@ -231,9 +250,13 @@ describe('updateCommonAreaSchema', () => {
     }
 
     expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, name: null }).success).toBe(false)
-    expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, slotMinutes: null }).success).toBe(false)
+    expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, slotMinutes: null }).success).toBe(
+      false,
+    )
     expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, openTime: null }).success).toBe(false)
-    expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, requiresApproval: null }).success).toBe(false)
+    expect(
+      updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, requiresApproval: null }).success,
+    ).toBe(false)
   })
 
   it('distingue description ausente de description null', () => {
@@ -242,12 +265,15 @@ describe('updateCommonAreaSchema', () => {
     const { description: _omitida, ...sinDescription } = PUT_VALIDO
 
     expect(updateCommonAreaSchema.safeParse(sinDescription).success).toBe(false)
-    expect(updateCommonAreaSchema.safeParse({ ...sinDescription, description: null }).success).toBe(true)
+    expect(updateCommonAreaSchema.safeParse({ ...sinDescription, description: null }).success).toBe(
+      true,
+    )
   })
 
   it('rechaza updated_at, porque lo pone el servidor', () => {
     expect(
-      updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, updatedAt: '2026-10-06T10:00:00.000Z' }).success,
+      updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, updatedAt: '2026-10-06T10:00:00.000Z' })
+        .success,
     ).toBe(false)
   })
 
@@ -257,9 +283,10 @@ describe('updateCommonAreaSchema', () => {
   })
 
   it('rechaza closeTime <= openTime', () => {
-    expect(updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, openTime: '22:00', closeTime: '08:00' }).success).toBe(
-      false,
-    )
+    expect(
+      updateCommonAreaSchema.safeParse({ ...PUT_VALIDO, openTime: '22:00', closeTime: '08:00' })
+        .success,
+    ).toBe(false)
   })
 })
 
@@ -278,7 +305,10 @@ describe('availabilityQuerySchema', () => {
     // haria que dos clientes pidieran "el mismo dia" y el backend resolviera
     // dias distintos.
     for (const date of ['2026-2-5', '06/10/2026', '20261006', '2026-10-06T00:00:00Z', '']) {
-      expect(availabilityQuerySchema.safeParse({ date }).success, `con ${JSON.stringify(date)}`).toBe(false)
+      expect(
+        availabilityQuerySchema.safeParse({ date }).success,
+        `con ${JSON.stringify(date)}`,
+      ).toBe(false)
     }
   })
 
@@ -295,7 +325,9 @@ describe('availabilityQuerySchema', () => {
   })
 
   it('rechaza claves desconocidas', () => {
-    expect(availabilityQuerySchema.safeParse({ date: '2026-10-06', status: 'FREE' }).success).toBe(false)
+    expect(availabilityQuerySchema.safeParse({ date: '2026-10-06', status: 'FREE' }).success).toBe(
+      false,
+    )
   })
 })
 
@@ -308,7 +340,13 @@ describe('uuidSchema', () => {
   })
 
   it('rechaza lo que no es un UUID', () => {
-    for (const malo of ['', 'abc', '1', '11111111-1111-4111-8111-11111111111', '11111111111141118111111111111111']) {
+    for (const malo of [
+      '',
+      'abc',
+      '1',
+      '11111111-1111-4111-8111-11111111111',
+      '11111111111141118111111111111111',
+    ]) {
       expect(uuidSchema.safeParse(malo).success, `con ${JSON.stringify(malo)}`).toBe(false)
     }
   })

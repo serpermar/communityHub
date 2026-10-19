@@ -50,10 +50,7 @@ export function RedeemInvitationPage() {
         )}
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
           <Field label="Código de invitación" htmlFor="code" error={errors.code?.message} required>
-            <Input
-              id="code"
-              {...register('code', { required: 'El código es obligatorio.' })}
-            />
+            <Input id="code" {...register('code', { required: 'El código es obligatorio.' })} />
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>

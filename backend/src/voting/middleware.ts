@@ -99,8 +99,10 @@ export function requireVote(paramName = 'id') {
     // sesion, por el mismo motivo que en `requireCommunity`: el token dura 15
     // minutos, y leer el rol de ahi permitiria seguir siendo ADMIN durante la
     // ventana despues de haber sido degradado.
-    const rows = await withContext({ userId: req.auth.userId, communityId }, (tx) =>
-      tx.$queryRaw<Array<{ role: string | null }>>`
+    const rows = await withContext(
+      { userId: req.auth.userId, communityId },
+      (tx) =>
+        tx.$queryRaw<Array<{ role: string | null }>>`
         select app_role_in(${communityId}::uuid) as role
       `,
     )

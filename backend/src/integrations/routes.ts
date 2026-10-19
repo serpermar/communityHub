@@ -25,7 +25,13 @@ export function createExternalRouter(): Router {
 
   router.get('/:communityId/weather', requireAuth, requireCommunity(), controller.weather)
   router.get('/:communityId/map', requireAuth, requireCommunity(), controller.map)
-  router.post('/:communityId/geocode', requireAuth, requireCommunity(), requireCommunityRole('ADMIN'), controller.geocode)
+  router.post(
+    '/:communityId/geocode',
+    requireAuth,
+    requireCommunity(),
+    requireCommunityRole('ADMIN'),
+    controller.geocode,
+  )
 
   return router
 }

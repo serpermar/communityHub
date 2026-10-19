@@ -34,9 +34,7 @@ http.interceptors.response.use(
     const status = axiosError.response?.status
     const url = original?.url ?? ''
     const isAuthCall =
-      url.includes('/auth/refresh') ||
-      url.includes('/auth/login') ||
-      url.includes('/auth/register')
+      url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/register')
 
     if (status === 401 && original && !isAuthCall && !original._retried) {
       original._retried = true

@@ -25,7 +25,10 @@ afterEach(() => {
 
 describe('fetchJson', () => {
   it('devuelve el JSON cuando la respuesta es correcta', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ ok: true })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ ok: true })),
+    )
     await expect(fetchJson('https://proveedor.test/x')).resolves.toEqual({ ok: true })
   })
 
@@ -42,21 +45,44 @@ describe('fetchJson', () => {
   })
 
   it('un !ok es ExternalProviderError', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, 503)))
-    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(ExternalProviderError)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({}, 503)),
+    )
+    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(
+      ExternalProviderError,
+    )
   })
 
   it('un cuerpo que no es JSON es ExternalProviderError', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: true, status: 200, json: async () => { throw new Error('boom') } }) as unknown as Response),
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => {
+              throw new Error('boom')
+            },
+          }) as unknown as Response,
+      ),
     )
-    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(ExternalProviderError)
+    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(
+      ExternalProviderError,
+    )
   })
 
   it('un fallo de red es ExternalProviderError', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('ECONNREFUSED') }))
-    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(ExternalProviderError)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('ECONNREFUSED')
+      }),
+    )
+    await expect(fetchJson('https://proveedor.test/x')).rejects.toBeInstanceOf(
+      ExternalProviderError,
+    )
   })
 
   it('un timeout aborta y es ExternalProviderError', async () => {
@@ -72,6 +98,8 @@ describe('fetchJson', () => {
       ),
     )
 
-    await expect(fetchJson('https://proveedor.test/x', { timeoutMs: 10 })).rejects.toBeInstanceOf(ExternalProviderError)
+    await expect(fetchJson('https://proveedor.test/x', { timeoutMs: 10 })).rejects.toBeInstanceOf(
+      ExternalProviderError,
+    )
   })
 })

@@ -21,7 +21,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
-import { tokenExpired, tokenRevoked, unauthorized } from '../http/errors.js'
+import { tokenExpired, unauthorized } from '../http/errors.js'
 
 const ALGORITHM = 'HS256' as const
 
@@ -34,7 +34,11 @@ export type AccessTokenPayload = {
   ver: string
 }
 
-export function signAccessToken(input: { userId: string; role: string; sessionId: string }): string {
+export function signAccessToken(input: {
+  userId: string
+  role: string
+  sessionId: string
+}): string {
   return jwt.sign({ role: input.role, ver: input.sessionId }, env.JWT_SECRET, {
     algorithm: ALGORITHM,
     subject: input.userId,

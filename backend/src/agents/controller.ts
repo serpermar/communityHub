@@ -38,7 +38,11 @@ export async function listAgents(req: Request, res: Response, next: NextFunction
   }
 }
 
-export async function runAgentHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function runAgentHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const userId = actor(req)
     const name = routeParam(req, 'name')

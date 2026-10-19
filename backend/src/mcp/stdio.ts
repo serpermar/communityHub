@@ -48,6 +48,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`El servidor MCP no pudo arrancar: ${error instanceof Error ? error.message : String(error)}\n`)
+  process.stderr.write(
+    `El servidor MCP no pudo arrancar: ${error instanceof Error ? error.message : String(error)}\n`,
+  )
   process.exit(1)
 })

@@ -41,7 +41,9 @@ describe('translate', () => {
   })
 
   it('mapea (42501, forbidden_role) a un 403 generico de rol', () => {
-    const error = translate(errorDePostgres('42501', 'forbidden_role: no puedes ver las votaciones'))
+    const error = translate(
+      errorDePostgres('42501', 'forbidden_role: no puedes ver las votaciones'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
@@ -49,15 +51,21 @@ describe('translate', () => {
   })
 
   it('mapea (42501, vote_requires_leadership) a un 403 de gestion', () => {
-    const error = translate(errorDePostgres('42501', 'vote_requires_leadership: solo la presidencia o un administrador'))
+    const error = translate(
+      errorDePostgres('42501', 'vote_requires_leadership: solo la presidencia o un administrador'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
-    expect(error?.message).toBe('Solo la presidencia o un administrador puede gestionar votaciones.')
+    expect(error?.message).toBe(
+      'Solo la presidencia o un administrador puede gestionar votaciones.',
+    )
   })
 
   it('mapea (42501, vote_results_forbidden) a un 403 de resultados', () => {
-    const error = translate(errorDePostgres('42501', 'vote_results_forbidden: los resultados no son visibles'))
+    const error = translate(
+      errorDePostgres('42501', 'vote_results_forbidden: los resultados no son visibles'),
+    )
 
     expect(error?.status).toBe(403)
     expect(error?.code).toBe('FORBIDDEN')
@@ -65,41 +73,53 @@ describe('translate', () => {
   })
 
   it('mapea (22023, vote_content_required) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'vote_content_required: el título es obligatorio'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_content_required: el título es obligatorio'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
   })
 
   it('mapea (22023, vote_dates_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'vote_dates_invalid: la fecha de cierre debe ser posterior'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_dates_invalid: la fecha de cierre debe ser posterior'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
   })
 
   it('mapea (22023, vote_quorum_invalid) a un 400', () => {
-    const error = translate(errorDePostgres('22023', 'vote_quorum_invalid: el quórum debe estar entre 1 y 100'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_quorum_invalid: el quórum debe estar entre 1 y 100'),
+    )
 
     expect(error?.status).toBe(400)
   })
 
   it('mapea (22023, vote_options_invalid) a un 400 VALIDATION_ERROR', () => {
-    const error = translate(errorDePostgres('22023', 'vote_options_invalid: se necesitan al menos dos opciones'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_options_invalid: se necesitan al menos dos opciones'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
   })
 
   it('mapea (22023, vote_option_invalid) a un 400 VOTE_OPTION_INVALID', () => {
-    const error = translate(errorDePostgres('22023', 'vote_option_invalid: esa opción no es de esta votación'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_option_invalid: esa opción no es de esta votación'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VOTE_OPTION_INVALID')
   })
 
   it('mapea (22023, vote_option_duplicate) a un 400 VOTE_OPTION_DUPLICATE', () => {
-    const error = translate(errorDePostgres('22023', 'vote_option_duplicate: hay opciones repetidas'))
+    const error = translate(
+      errorDePostgres('22023', 'vote_option_duplicate: hay opciones repetidas'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VOTE_OPTION_DUPLICATE')
@@ -107,8 +127,12 @@ describe('translate', () => {
 
   it('no confunde vote_option_invalid con vote_options_invalid', () => {
     // Los dos son 22023 y se parecen; el par (errcode, sentinel) los separa.
-    expect(translate(errorDePostgres('22023', 'vote_option_invalid'))?.code).toBe('VOTE_OPTION_INVALID')
-    expect(translate(errorDePostgres('22023', 'vote_options_invalid'))?.code).toBe('VALIDATION_ERROR')
+    expect(translate(errorDePostgres('22023', 'vote_option_invalid'))?.code).toBe(
+      'VOTE_OPTION_INVALID',
+    )
+    expect(translate(errorDePostgres('22023', 'vote_options_invalid'))?.code).toBe(
+      'VALIDATION_ERROR',
+    )
   })
 
   it('mapea los cinco conflictos U0001 a sus codigos propios', () => {
@@ -129,7 +153,9 @@ describe('translate', () => {
 
   it('no confunde vote_closed con vote_already_closed', () => {
     expect(translate(errorDePostgres('U0001', 'vote_closed'))?.code).toBe('VOTE_CLOSED')
-    expect(translate(errorDePostgres('U0001', 'vote_already_closed'))?.code).toBe('VOTE_ALREADY_CLOSED')
+    expect(translate(errorDePostgres('U0001', 'vote_already_closed'))?.code).toBe(
+      'VOTE_ALREADY_CLOSED',
+    )
   })
 
   it('mapea la falta de contexto de usuario a un 401', () => {
@@ -144,7 +170,9 @@ describe('translate', () => {
   })
 
   it('un sentinel SIN su errcode no se convierte en el error de negocio', () => {
-    const error = translate(errorDePostgres('23514', 'vote_not_found: violates check constraint "votes_title_length"'))
+    const error = translate(
+      errorDePostgres('23514', 'vote_not_found: violates check constraint "votes_title_length"'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
@@ -161,7 +189,9 @@ describe('translate', () => {
   })
 
   it('un 22P02 es un 400, no un 500', () => {
-    expect(translate(errorDePostgres('22P02', 'invalid input syntax for type vote_type'))?.status).toBe(400)
+    expect(
+      translate(errorDePostgres('22P02', 'invalid input syntax for type vote_type'))?.status,
+    ).toBe(400)
   })
 
   it('devuelve null si el error no viene de PostgreSQL', () => {
@@ -171,7 +201,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })
@@ -196,7 +229,11 @@ describe('ejecuta', () => {
   })
 
   it('deja intacto un AppError que ya es del dominio', async () => {
-    const propio = new AppError(400, 'VOTE_OPTION_INVALID', 'Esa opción no pertenece a esta votación.')
+    const propio = new AppError(
+      400,
+      'VOTE_OPTION_INVALID',
+      'Esa opción no pertenece a esta votación.',
+    )
 
     await expect(
       ejecuta(async () => {

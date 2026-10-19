@@ -57,11 +57,18 @@ const instante = z.iso.datetime({ offset: true })
  * PATCH: ver la cabecera. Convertir la cadena vacia en NULL lo hace el SQL con
  * `nullif(btrim(...), '')`.
  */
-const textoEditable = (max: number, label: string) => z.string().trim().max(max, `${label} es demasiado largo.`).nullish()
+const textoEditable = (max: number, label: string) =>
+  z.string().trim().max(max, `${label} es demasiado largo.`).nullish()
 
 /** Limites de V-10: 2 opciones reales como minimo, 20 como maximo. */
 const opciones = z
-  .array(z.string().trim().min(1, 'Las opciones no pueden estar vacías.').max(120, 'Cada opción admite hasta 120 caracteres.'))
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, 'Las opciones no pueden estar vacías.')
+      .max(120, 'Cada opción admite hasta 120 caracteres.'),
+  )
   .min(2, 'Una votación necesita al menos dos opciones.')
   .max(20, 'Una votación no puede tener más de veinte opciones.')
 
@@ -74,7 +81,11 @@ const opciones = z
  */
 export const createVoteSchema = z
   .object({
-    title: z.string().trim().min(1, 'El título es obligatorio.').max(120, 'El título no puede pasar de 120 caracteres.'),
+    title: z
+      .string()
+      .trim()
+      .min(1, 'El título es obligatorio.')
+      .max(120, 'El título no puede pasar de 120 caracteres.'),
     question: z
       .string()
       .trim()
@@ -91,7 +102,9 @@ export const createVoteSchema = z
       .min(1, 'El quórum debe estar entre 1 y 100.')
       .max(100, 'El quórum debe estar entre 1 y 100.')
       .nullish(),
-    resultVisibility: z.enum(VISIBILIDADES, { error: 'La visibilidad debe ser AFTER_CLOSE, LIVE o ADMIN_ONLY.' }).optional(),
+    resultVisibility: z
+      .enum(VISIBILIDADES, { error: 'La visibilidad debe ser AFTER_CLOSE, LIVE o ADMIN_ONLY.' })
+      .optional(),
     options: opciones,
   })
   .strict()
@@ -138,7 +151,12 @@ export const createVoteSchema = z
  */
 export const updateVoteSchema = z
   .object({
-    title: z.string().trim().min(1, 'El título es obligatorio.').max(120, 'El título no puede pasar de 120 caracteres.').optional(),
+    title: z
+      .string()
+      .trim()
+      .min(1, 'El título es obligatorio.')
+      .max(120, 'El título no puede pasar de 120 caracteres.')
+      .optional(),
     question: z
       .string()
       .trim()
@@ -156,7 +174,9 @@ export const updateVoteSchema = z
       .min(1, 'El quórum debe estar entre 1 y 100.')
       .max(100, 'El quórum debe estar entre 1 y 100.')
       .nullish(),
-    resultVisibility: z.enum(VISIBILIDADES, { error: 'La visibilidad debe ser AFTER_CLOSE, LIVE o ADMIN_ONLY.' }).optional(),
+    resultVisibility: z
+      .enum(VISIBILIDADES, { error: 'La visibilidad debe ser AFTER_CLOSE, LIVE o ADMIN_ONLY.' })
+      .optional(),
     options: opciones.optional(),
   })
   .strict()
@@ -166,8 +186,16 @@ export const updateVoteSchema = z
       return
     }
 
-    if (datos.startsAt !== undefined && datos.endsAt !== undefined && Date.parse(datos.startsAt) >= Date.parse(datos.endsAt)) {
-      ctx.addIssue({ code: 'custom', message: 'El cierre debe ser posterior al inicio.', path: ['endsAt'] })
+    if (
+      datos.startsAt !== undefined &&
+      datos.endsAt !== undefined &&
+      Date.parse(datos.startsAt) >= Date.parse(datos.endsAt)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'El cierre debe ser posterior al inicio.',
+        path: ['endsAt'],
+      })
     }
 
     if (datos.type === 'QUORUM' && datos.quorumPercent === null) {
@@ -196,8 +224,17 @@ export const updateVoteSchema = z
 export const votesQuerySchema = z
   .object({
     status: z.enum(ESTADOS, { error: 'El estado debe ser DRAFT, OPEN o CLOSED.' }).optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

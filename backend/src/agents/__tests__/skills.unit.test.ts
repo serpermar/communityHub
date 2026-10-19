@@ -28,7 +28,12 @@ describe('skills', () => {
 
     const skill = loadSkill('incident-management')
     expect(skill.files).toEqual(
-      expect.arrayContaining(['playbooks/triage.md', 'playbooks/escalado.md', 'playbooks/cierre.md', 'examples.md']),
+      expect.arrayContaining([
+        'playbooks/triage.md',
+        'playbooks/escalado.md',
+        'playbooks/cierre.md',
+        'examples.md',
+      ]),
     )
   })
 

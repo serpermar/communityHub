@@ -28,7 +28,12 @@ export function notFoundHandler(req: Request, res: Response): void {
   })
 }
 
-export function errorHandler(error: unknown, req: Request, res: Response, next: NextFunction): void {
+export function errorHandler(
+  error: unknown,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   // Si la respuesta ya empezo a enviarse, delegar al handler por defecto de
   // Express: no se pueden reescribir cabeceras ya enviadas.
   if (res.headersSent) {
@@ -52,7 +57,10 @@ export function errorHandler(error: unknown, req: Request, res: Response, next: 
       error: {
         code: 'VALIDATION_ERROR',
         message: 'Los datos enviados no son válidos.',
-        details: error.issues.map((i) => ({ field: i.path.join('.') || '(raíz)', message: i.message })),
+        details: error.issues.map((i) => ({
+          field: i.path.join('.') || '(raíz)',
+          message: i.message,
+        })),
       },
     })
     return

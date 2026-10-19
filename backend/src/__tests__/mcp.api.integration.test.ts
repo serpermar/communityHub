@@ -16,7 +16,16 @@
 import request from 'supertest'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { admin } from '../db-admin.js'
-import { createUser, deleteCommunity, deleteUser, makeAdmin, makeCommunity, makeMember, app, type TestUser } from './helpers.js'
+import {
+  createUser,
+  deleteCommunity,
+  deleteUser,
+  makeAdmin,
+  makeCommunity,
+  makeMember,
+  app,
+  type TestUser,
+} from './helpers.js'
 
 const V1 = '/api/v1'
 const MCP = `${V1}/mcp`
@@ -54,13 +63,18 @@ afterAll(async () => {
 })
 
 async function tokenDe(user: TestUser): Promise<string> {
-  const res = await request(app()).post(`${V1}/auth/login`).send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post(`${V1}/auth/login`)
+    .send({ email: user.email, password: user.password })
   expect(res.status).toBe(200)
   return `Bearer ${res.body.data.accessToken}`
 }
 
 async function mcpSession(token: string, communityId: string): Promise<string> {
-  const res = await request(app()).post(`${MCP}/sessions`).set('Authorization', token).send({ communityId })
+  const res = await request(app())
+    .post(`${MCP}/sessions`)
+    .set('Authorization', token)
+    .send({ communityId })
   expect(res.status).toBe(201)
   return res.body.data.token as string
 }

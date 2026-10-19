@@ -111,7 +111,11 @@ async function escena(): Promise<{
   return {
     comunidad,
     admin: await actorEn(await nuevoUsuario({ fullName: 'Administradora' }), comunidad, 'ADMIN'),
-    presidente: await actorEn(await nuevoUsuario({ fullName: 'Presidente' }), comunidad, 'PRESIDENT'),
+    presidente: await actorEn(
+      await nuevoUsuario({ fullName: 'Presidente' }),
+      comunidad,
+      'PRESIDENT',
+    ),
     vecino: await actorEn(await nuevoUsuario({ fullName: 'Vecina' }), comunidad, 'NEIGHBOR'),
     vecinoB: await actorEn(await nuevoUsuario({ fullName: 'Vecino' }), comunidad, 'NEIGHBOR'),
     proveedor: await actorEn(await nuevoUsuario({ fullName: 'Proveedor' }), comunidad, 'PROVIDER'),
@@ -179,7 +183,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     const alta = await request(app()).post(`${COM}/${e.comunidad}/common-areas`).send(altaValida())
     expect(alta.status).toBe(401)
 
-    const detalle = await request(app()).get(`/api/v1/common-areas/${zona.id}/availability?date=2026-10-10`)
+    const detalle = await request(app()).get(
+      `/api/v1/common-areas/${zona.id}/availability?date=2026-10-10`,
+    )
     expect(detalle.status).toBe(401)
 
     const put = await request(app()).put(`/api/v1/common-areas/${zona.id}`).send(putValido('Otra'))
@@ -194,7 +200,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
 
     // El listado es 403: la comunidad existe y este usuario no es miembro, y
     // eso se puede decir sin filtrar nada.
-    const lista = await request(app()).get(`${COM}/${e.comunidad}/common-areas`).set('Authorization', outsiderToken)
+    const lista = await request(app())
+      .get(`${COM}/${e.comunidad}/common-areas`)
+      .set('Authorization', outsiderToken)
     expect(lista.status).toBe(403)
 
     // Las dos de zona son 404: la zona no es visible para el, y un 403
@@ -214,7 +222,11 @@ describe('Seguridad y aislamiento entre comunidades', () => {
   it('un ADMIN de otra comunidad tampoco puede escribir en la zona ajena', async () => {
     const e = await escena()
     const otra = await nuevaComunidad('Comunidad ajena')
-    const adminDeOtra = await actorEn(await nuevoUsuario({ fullName: 'Admin ajeno' }), otra, 'ADMIN')
+    const adminDeOtra = await actorEn(
+      await nuevoUsuario({ fullName: 'Admin ajeno' }),
+      otra,
+      'ADMIN',
+    )
     const zona = await crear(e.admin.token, e.comunidad)
 
     const put = await request(app())
@@ -246,7 +258,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
   it('un communityId que no es un UUID es 400', async () => {
     const e = await escena()
 
-    const lista = await request(app()).get(`${COM}/no-es-uuid/common-areas`).set('Authorization', e.admin.token)
+    const lista = await request(app())
+      .get(`${COM}/no-es-uuid/common-areas`)
+      .set('Authorization', e.admin.token)
     expect(lista.status).toBe(400)
   })
 })
@@ -263,7 +277,9 @@ describe('Lectura (CA-1)', () => {
       ['NEIGHBOR', e.vecino],
       ['PROVIDER', e.proveedor],
     ] as const) {
-      const res = await request(app()).get(`${COM}/${e.comunidad}/common-areas`).set('Authorization', actor.token)
+      const res = await request(app())
+        .get(`${COM}/${e.comunidad}/common-areas`)
+        .set('Authorization', actor.token)
 
       expect(res.status, `con rol ${nombre}`).toBe(200)
       expect(res.body.data, `con rol ${nombre}`).toHaveLength(2)
@@ -274,7 +290,9 @@ describe('Lectura (CA-1)', () => {
     const e = await escena()
     const baja = await crearZonaBaja(e.comunidad)
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/common-areas`).set('Authorization', e.vecino.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/common-areas`)
+      .set('Authorization', e.vecino.token)
 
     expect(res.status).toBe(200)
     const ids = res.body.data.map((z: { id: string }) => z.id)
@@ -294,7 +312,9 @@ describe('Lectura (CA-1)', () => {
       data: { status: 'SUSPENDED' },
     })
 
-    const res = await request(app()).get(`${COM}/${e.comunidad}/common-areas`).set('Authorization', e.vecino.token)
+    const res = await request(app())
+      .get(`${COM}/${e.comunidad}/common-areas`)
+      .set('Authorization', e.vecino.token)
     expect(res.status).toBe(403)
   })
 })
@@ -353,7 +373,11 @@ describe('Alta (CA-1, CA-2, CA-6)', () => {
   it('el mismo nombre en otra comunidad no choca', async () => {
     const e = await escena()
     const otra = await nuevaComunidad('Comunidad ajena')
-    const adminDeOtra = await actorEn(await nuevoUsuario({ fullName: 'Admin ajeno' }), otra, 'ADMIN')
+    const adminDeOtra = await actorEn(
+      await nuevoUsuario({ fullName: 'Admin ajeno' }),
+      otra,
+      'ADMIN',
+    )
 
     const nombre = `Salon ${randomUUID().slice(0, 8)}`
     await crear(e.admin.token, e.comunidad, { name: nombre })
@@ -406,7 +430,9 @@ describe('Reconfiguracion (CA-4, CA-6)', () => {
     const res = await request(app())
       .put(`/api/v1/common-areas/${zona.id}`)
       .set('Authorization', e.admin.token)
-      .send(putValido('Piscina reformada', { requiresApproval: true, slotMinutes: 90, capacity: 40 }))
+      .send(
+        putValido('Piscina reformada', { requiresApproval: true, slotMinutes: 90, capacity: 40 }),
+      )
 
     expect(res.status).toBe(200)
     expect(res.body.data.name).toBe('Piscina reformada')
@@ -437,7 +463,9 @@ describe('Reconfiguracion (CA-4, CA-6)', () => {
     }
 
     // Y la zona sigue como estaba, no como el intento.
-    const lista = await request(app()).get(`${COM}/${e.comunidad}/common-areas`).set('Authorization', e.admin.token)
+    const lista = await request(app())
+      .get(`${COM}/${e.comunidad}/common-areas`)
+      .set('Authorization', e.admin.token)
     expect(lista.body.data[0].name).not.toBe('Intento ajeno')
   })
 
@@ -547,7 +575,9 @@ describe('Disponibilidad (CA-7, D-2)', () => {
     const ocupados = res.body.data.slots.filter((s: { status: string }) => s.status === 'OCCUPIED')
     expect(ocupados).toHaveLength(1)
     expect(ocupados[0].startsAt).toBe(inicio.toISOString())
-    expect(res.body.data.slots.filter((s: { status: string }) => s.status === 'FREE')).toHaveLength(13)
+    expect(res.body.data.slots.filter((s: { status: string }) => s.status === 'FREE')).toHaveLength(
+      13,
+    )
   })
 
   it('la fecha es obligatoria y con formato estricto', async () => {

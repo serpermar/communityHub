@@ -67,7 +67,12 @@ import { requireReservation } from './middleware.js'
 export function createReservationsRouter(): Router {
   const router = Router()
 
-  router.get('/:communityId/reservations', requireAuth, requireCommunity(), controller.listReservations)
+  router.get(
+    '/:communityId/reservations',
+    requireAuth,
+    requireCommunity(),
+    controller.listReservations,
+  )
 
   return router
 }
@@ -96,8 +101,18 @@ export function createReservationRouter(): Router {
 
   router.get('/reservations/me', requireAuth, controller.listMyReservations)
   router.get('/reservations/:id', requireAuth, requireReservation(), controller.getReservation)
-  router.patch('/reservations/:id/cancel', requireAuth, requireReservation(), controller.cancelReservation)
-  router.post('/reservations/:id/confirm', requireAuth, requireReservation(), controller.confirmReservation)
+  router.patch(
+    '/reservations/:id/cancel',
+    requireAuth,
+    requireReservation(),
+    controller.cancelReservation,
+  )
+  router.post(
+    '/reservations/:id/confirm',
+    requireAuth,
+    requireReservation(),
+    controller.confirmReservation,
+  )
 
   return router
 }

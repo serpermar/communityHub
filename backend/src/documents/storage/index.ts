@@ -26,7 +26,11 @@ export async function getStorageGateway(): Promise<StorageGateway> {
     return (local ??= await LocalStorageGateway.create())
   }
 
-  return (supabase ??= new SupabaseStorageGateway(env.DOCUMENTS_BUCKET, env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY))
+  return (supabase ??= new SupabaseStorageGateway(
+    env.DOCUMENTS_BUCKET,
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+  ))
 }
 
 /** Descarta el singleton del driver local (tests). Idempotente. */

@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import {
@@ -44,7 +44,9 @@ async function makeUser() {
 }
 
 async function loginAs(user: { email: string; password: string }) {
-  const res = await request(app()).post('/api/v1/auth/login').send({ email: user.email, password: user.password })
+  const res = await request(app())
+    .post('/api/v1/auth/login')
+    .send({ email: user.email, password: user.password })
   return res
 }
 
@@ -116,9 +118,12 @@ describe('POST /api/v1/auth/register', () => {
   })
 
   it('rechaza una clave desconocida en el cuerpo', async () => {
-    const res = await request(app())
-      .post('/api/v1/auth/register')
-      .send({ email: uniqueEmail(), password: TEST_PASSWORD, fullName: 'Vecino', globalRole: 'ADMIN_SA' })
+    const res = await request(app()).post('/api/v1/auth/register').send({
+      email: uniqueEmail(),
+      password: TEST_PASSWORD,
+      fullName: 'Vecino',
+      globalRole: 'ADMIN_SA',
+    })
 
     expect(res.status).toBe(400)
   })
@@ -268,7 +273,9 @@ describe('POST /api/v1/auth/refresh', () => {
     const login = await loginAs(user)
     const oldCookie = refreshCookieValue(login)!
 
-    const res = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${oldCookie}`])
+    const res = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${oldCookie}`])
 
     expect(res.status).toBe(200)
     expect(res.body.data.accessToken).toBeTruthy()
@@ -283,7 +290,7 @@ describe('POST /api/v1/auth/refresh', () => {
     const login = await loginAs(user)
     const familyId = (await readSessions(user.id))[0]!.family_id
 
-    const res = await request(app())
+    await request(app())
       .post('/api/v1/auth/refresh')
       .set('Cookie', [`refresh_token=${refreshCookieValue(login)}`])
 
@@ -324,10 +331,14 @@ describe('detección de robo de refresh token', () => {
     const login = await loginAs(user)
     const stolen = refreshCookieValue(login)!
 
-    const first = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
+    const first = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
     expect(first.status).toBe(200)
 
-    const second = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
+    const second = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
     expect(second.status).toBe(401)
     expect(second.body.error.code).toBe('TOKEN_REVOKED')
   })
@@ -340,16 +351,22 @@ describe('detección de robo de refresh token', () => {
     const login = await loginAs(user)
     const stolen = refreshCookieValue(login)!
 
-    const legit = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
+    const legit = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
     const victimToken = refreshCookieValue(legit)!
     expect(legit.status).toBe(200)
 
     // El atacante reutiliza el token viejo.
-    const reuse = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
+    const reuse = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
     expect(reuse.status).toBe(401)
 
     // Y ahora el token nuevo de la víctima también falla.
-    const victim = await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${victimToken}`])
+    const victim = await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${victimToken}`])
     expect(victim.status).toBe(401)
 
     const actives = (await readSessions(user.id)).filter((s) => s.status === 'ACTIVE')
@@ -361,8 +378,12 @@ describe('detección de robo de refresh token', () => {
 
     const first = await loginAs(user)
     const stolen = refreshCookieValue(first)!
-    await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
-    await request(app()).post('/api/v1/auth/refresh').set('Cookie', [`refresh_token=${stolen}`])
+    await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
+    await request(app())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refresh_token=${stolen}`])
 
     const second = await loginAs(user)
     const res = await request(app())
@@ -415,7 +436,9 @@ describe('GET /api/v1/auth/me', () => {
       expiresIn: 900,
     })
 
-    const res = await request(app()).get('/api/v1/auth/me').set('Authorization', `Bearer ${noneAlg}`)
+    const res = await request(app())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${noneAlg}`)
 
     expect(res.status).toBe(401)
   })
@@ -428,7 +451,9 @@ describe('GET /api/v1/auth/me', () => {
       expiresIn: -10,
     })
 
-    const res = await request(app()).get('/api/v1/auth/me').set('Authorization', `Bearer ${expired}`)
+    const res = await request(app())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${expired}`)
 
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('TOKEN_EXPIRED')

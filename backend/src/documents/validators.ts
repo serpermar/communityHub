@@ -34,7 +34,14 @@
 import { z } from 'zod'
 
 /** Las seis categorias de `document_category` (01_schema.sql). */
-export const CATEGORIAS = ['MINUTES', 'STATUTES', 'INVOICE', 'BUDGET', 'MAINTENANCE', 'OTHER'] as const
+export const CATEGORIAS = [
+  'MINUTES',
+  'STATUTES',
+  'INVOICE',
+  'BUDGET',
+  'MAINTENANCE',
+  'OTHER',
+] as const
 
 /** Los cuatro valores de `member_role` (01_schema.sql). */
 export const MIN_ROLES = ['NEIGHBOR', 'PRESIDENT', 'ADMIN', 'PROVIDER'] as const
@@ -183,9 +190,23 @@ export const createDocumentSchema = z
 export const listQuerySchema = z
   .object({
     category: z.enum(CATEGORIAS).optional(),
-    q: z.string().trim().min(1, 'La búsqueda no puede estar vacía.').max(100, 'La búsqueda no puede pasar de 100 caracteres.').optional(),
-    page: z.coerce.number().int('La página debe ser un número entero.').min(1, 'La página empieza en 1.').optional(),
-    limit: z.coerce.number().int('El límite debe ser un número entero.').min(1).max(100, 'El límite máximo es 100.').optional(),
+    q: z
+      .string()
+      .trim()
+      .min(1, 'La búsqueda no puede estar vacía.')
+      .max(100, 'La búsqueda no puede pasar de 100 caracteres.')
+      .optional(),
+    page: z.coerce
+      .number()
+      .int('La página debe ser un número entero.')
+      .min(1, 'La página empieza en 1.')
+      .optional(),
+    limit: z.coerce
+      .number()
+      .int('El límite debe ser un número entero.')
+      .min(1)
+      .max(100, 'El límite máximo es 100.')
+      .optional(),
   })
   .strict()
 

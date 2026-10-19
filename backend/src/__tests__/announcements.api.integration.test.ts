@@ -222,7 +222,11 @@ type Aviso = {
 }
 
 /** Crea un aviso por la API y devuelve el `data` de la respuesta. */
-async function crear(token: string, comunidad: string, extra: Record<string, unknown> = {}): Promise<Aviso> {
+async function crear(
+  token: string,
+  comunidad: string,
+  extra: Record<string, unknown> = {},
+): Promise<Aviso> {
   const res = await request(app())
     .post(`${V1}/communities/${comunidad}/announcements`)
     .set('Authorization', token)
@@ -255,7 +259,9 @@ describe('Seguridad y aislamiento entre comunidades', () => {
     const lista = await request(app()).get(`${V1}/communities/${e.comunidad}/announcements`)
     expect(lista.status).toBe(401)
 
-    const alta = await request(app()).post(`${V1}/communities/${e.comunidad}/announcements`).send(altaValida())
+    const alta = await request(app())
+      .post(`${V1}/communities/${e.comunidad}/announcements`)
+      .send(altaValida())
     expect(alta.status).toBe(401)
 
     const put = await request(app()).put(`${V1}/announcements/${aviso.id}`).send(putValido(aviso))
@@ -734,7 +740,10 @@ describe('Listado (AN-8, §7.3)', () => {
   it('el orden es fijados primero y publish_at descendente dentro de cada grupo', async () => {
     const e = await escena()
 
-    const fijado = await crear(e.admin.token, e.comunidad, { isPinned: true, publishAt: enPasado(2) })
+    const fijado = await crear(e.admin.token, e.comunidad, {
+      isPinned: true,
+      publishAt: enPasado(2),
+    })
     const programado = await crear(e.admin.token, e.comunidad, { publishAt: enFuturo(5) })
     const reciente = await crear(e.admin.token, e.comunidad, { publishAt: enPasado(1) })
     const antiguo = await crear(e.admin.token, e.comunidad, { publishAt: enPasado(3) })

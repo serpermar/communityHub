@@ -42,7 +42,9 @@ function errorDePostgres(errcode: string, message: string): unknown {
 
 describe('translate', () => {
   it('mapea el par (P0002, reservation_not_found) a un 404', () => {
-    const error = translate(errorDePostgres('P0002', 'reservation_not_found: no existe o no es visible'))
+    const error = translate(
+      errorDePostgres('P0002', 'reservation_not_found: no existe o no es visible'),
+    )
 
     expect(error).not.toBeNull()
     expect(error?.status).toBe(404)
@@ -59,7 +61,9 @@ describe('translate', () => {
 
   it('mapea los dos 22023 que son 409 a un 409', () => {
     for (const sentinel of ['reservation_not_pending', 'reservation_already_cancelled']) {
-      const error = translate(errorDePostgres('22023', `${sentinel}: la reserva no esta en ese estado`))
+      const error = translate(
+        errorDePostgres('22023', `${sentinel}: la reserva no esta en ese estado`),
+      )
 
       expect(error?.status, `con ${sentinel}`).toBe(409)
       expect(error?.code, `con ${sentinel}`).toBe('CONFLICT')
@@ -69,7 +73,9 @@ describe('translate', () => {
   it('mapea el par (23505, reservation_slot_taken) a un 409', () => {
     // R-6, el corazon del bloque: dos peticiones disputando el mismo hueco y
     // el indice unico decidindo. El 409 es la unica respuesta posible.
-    const error = translate(errorDePostgres('23505', 'reservation_slot_taken: ya hay una reserva en ese hueco'))
+    const error = translate(
+      errorDePostgres('23505', 'reservation_slot_taken: ya hay una reserva en ese hueco'),
+    )
 
     expect(error?.status).toBe(409)
     expect(error?.code).toBe('CONFLICT')
@@ -110,7 +116,9 @@ describe('translate', () => {
     // 23514 con el texto del sentinel de hueco ocupado. Si la traduccion
     // mirase solo el mensaje, esto seria un 409 y el cliente diria "horario
     // ocupado" cuando en realidad es un CHECK de la tabla reventado.
-    const error = translate(errorDePostgres('23514', 'reservation_slot_taken: violates check constraint'))
+    const error = translate(
+      errorDePostgres('23514', 'reservation_slot_taken: violates check constraint'),
+    )
 
     expect(error?.status).toBe(400)
     expect(error?.code).toBe('VALIDATION_ERROR')
@@ -141,7 +149,9 @@ describe('translate', () => {
   })
 
   it('un 23505 sin sentinel conocido sigue siendo un 409', () => {
-    const error = translate(errorDePostgres('23505', 'duplicate key value violates unique constraint'))
+    const error = translate(
+      errorDePostgres('23505', 'duplicate key value violates unique constraint'),
+    )
 
     expect(error?.status).toBe(409)
   })
@@ -165,7 +175,10 @@ describe('translate', () => {
   })
 
   it('devuelve null si viene de Prisma pero no de una consulta en crudo', () => {
-    const otro = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' })
+    const otro = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    })
 
     expect(translate(otro)).toBeNull()
   })

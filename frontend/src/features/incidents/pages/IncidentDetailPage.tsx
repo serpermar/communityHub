@@ -19,12 +19,7 @@ import { useResource } from '@/hooks/useResource'
 import { formatDateTime } from '@/utils/format'
 import { addComment, getIncident, listComments, transitionIncident } from '../api'
 import { commentSchema, type CommentForm } from '../schemas'
-import {
-  CATEGORY_LABELS,
-  PRIORITY_LABELS,
-  STATUS_LABELS,
-  type IncidentStatus,
-} from '../types'
+import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, type IncidentStatus } from '../types'
 
 function nextStatuses(
   status: IncidentStatus,
@@ -130,13 +125,9 @@ export function IncidentDetailPage() {
           </div>
         </dl>
 
-        {item.location && (
-          <p className="mt-3 text-sm text-slate-600">Ubicación: {item.location}</p>
-        )}
+        {item.location && <p className="mt-3 text-sm text-slate-600">Ubicación: {item.location}</p>}
         <p className="mt-4 whitespace-pre-wrap text-sm text-slate-700">{item.description}</p>
-        <p className="mt-3 text-xs text-slate-400">
-          Creada el {formatDateTime(item.createdAt)}
-        </p>
+        <p className="mt-3 text-xs text-slate-400">Creada el {formatDateTime(item.createdAt)}</p>
       </Card>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}

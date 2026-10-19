@@ -41,7 +41,11 @@ export async function createCommonArea(page: Page, name: string): Promise<void> 
  * Entra en la zona indicada, elige el primer hueco libre de un día futuro y
  * confirma la reserva. Deja la app en la pantalla de Reservas.
  */
-export async function reserveFirstFreeSlot(page: Page, areaName: string, daysAhead = 3): Promise<void> {
+export async function reserveFirstFreeSlot(
+  page: Page,
+  areaName: string,
+  daysAhead = 3,
+): Promise<void> {
   await page.getByRole('link', { name: areaName }).click()
   await expect(page.getByRole('heading', { name: areaName })).toBeVisible()
 

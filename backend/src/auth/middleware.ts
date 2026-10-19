@@ -130,7 +130,11 @@ function requireUuidParam(req: Request, paramName: string): string {
  * libre, que es informacion sobre los ids de los demas.
  */
 export function requireCommunity(paramName = 'communityId') {
-  return async function communityGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return async function communityGuard(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     if (!req.auth) {
       throw unauthorized()
     }
@@ -202,13 +206,19 @@ export function requireCommunityRole(...roles: string[]) {
  * seria un cambio de modelo que se decide en su propia spec, no aqui.
  */
 export function requireGlobalAdmin() {
-  return async function globalAdminGuard(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return async function globalAdminGuard(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     if (!req.auth) {
       throw unauthorized()
     }
 
-    const rows = await withContext({ userId: req.auth.userId, communityId: null }, (tx) =>
-      tx.$queryRaw<Array<{ is_admin: boolean }>>`
+    const rows = await withContext(
+      { userId: req.auth.userId, communityId: null },
+      (tx) =>
+        tx.$queryRaw<Array<{ is_admin: boolean }>>`
         select app_is_global_admin() as is_admin
       `,
     )
