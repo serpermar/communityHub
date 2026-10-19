@@ -44,6 +44,9 @@ export type ErrorCode =
   | 'EXTERNAL_NOT_CONFIGURED'
   | 'EXTERNAL_PROVIDER_ERROR'
   | 'GEOCODING_FAILED'
+  | 'AGENT_NOT_FOUND'
+  | 'SKILL_NOT_FOUND'
+  | 'MCP_DISABLED'
 
 export type ErrorBody = {
   error: {

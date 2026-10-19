@@ -254,31 +254,8 @@ export async function incidentCommunity(tx: Tx, incidentId: string): Promise<str
 }
 
 // --- Auditoria (AI-13) -------------------------------------------------------
+//
+// El INSERT vive en `audit/repository.ts` (M-8) para compartirlo con MCP y los
+// agentes. Se reexporta aqui para no romper a quien ya importaba `repo.insertAudit`.
 
-export async function insertAudit(
-  tx: Tx,
-  input: {
-    actorId: string
-    actorRole: string | null
-    agentName: string
-    communityId: string | null
-    action: string
-    entity: string
-    entityId: string | null
-    metadata: unknown
-  },
-): Promise<void> {
-  await tx.$executeRaw`
-    insert into audit_logs (actor_id, actor_role, agent_name, community_id, action, entity, entity_id, metadata)
-    values (
-      ${input.actorId}::uuid,
-      ${input.actorRole},
-      ${input.agentName},
-      ${input.communityId}::uuid,
-      ${input.action},
-      ${input.entity},
-      ${input.entityId},
-      ${JSON.stringify(input.metadata)}::jsonb
-    )
-  `
-}
+export { insertAudit, type AuditInput } from '../audit/repository.js'

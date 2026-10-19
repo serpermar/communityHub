@@ -26,7 +26,7 @@ Verificado en la máquina actual antes de diseñar nada:
 
 ## 1. Arquitectura general
 
-Monorepo con 4 paquetes Node + 1 servidor MCP. Cada paquete compila por separado; el contrato entre frontend y backend es la API REST documentada en OpenAPI.
+Monorepo con paquetes Node independientes (`backend/`, `frontend/`); el servidor MCP **no** es un paquete aparte, vive dentro del backend (decisión M-1, bloque 16). El contrato entre frontend y backend es la API REST documentada en `docs/API.md`.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -126,14 +126,6 @@ communityHub/
 │   │   └── utils/
 │   └── tsconfig.json
 │
-├── mcp-server/                  # servidor MCP
-│   ├── src/
-│   │   ├── server.ts
-│   │   ├── tools/               # una función por tool, schema zod
-│   │   ├── context.ts           # resuelve actor + comunidad desde el transporte
-│   │   └── registry.ts
-│   └── tsconfig.json
-│
 ├── skills/                      # Skills (markdown, portables entre agentes)
 │   ├── community-management/    # SKILL.md
 │   ├── incident-management/
@@ -168,6 +160,13 @@ communityHub/
 > paquete `frontend/` es la SPA (React 18 + Vite + TypeScript + Tailwind + React
 > Router) que consume la API de `/api/v1`; el backend sigue siendo el único
 > gatekeeper (FE-1).
+
+> **Implementado (bloque 16, [`specs/16-mcp-agents.md`](specs/16-mcp-agents.md)).**
+> El servidor MCP **no** es un paquete aparte (decisión M-1): vive en
+> `backend/src/mcp/` y reutiliza `ALL_TOOLS` del backend. `skills/` (9) y
+> `agents/*.agent.md` (6) están rellenos y sincronizados con el registro
+> `backend/src/agents/registry.ts` por un test. Se exponen por HTTP en
+> `POST /api/v1/mcp` y por stdio (`npm run mcp:stdio`).
 
 ---
 
@@ -680,6 +679,15 @@ Invariantes comunes a todos los agentes:
 - **Trazabilidad**: toda tool call va a `audit_logs` con agente, tool, params (redactados), resultado y duración.
 - **Agents de desarrollo** (testing, security, documentation) operan **solo en modo lectura** sobre el repositorio. Ninguno escribe en el repo automáticamente.
 
+> **Implementado (bloque 16, [`specs/16-mcp-agents.md`](specs/16-mcp-agents.md)).**
+> El registro vive en `backend/src/agents/registry.ts` (`AGENTS`, `findAgent`,
+> `runtimeAgents`, `requireRuntimeAgent`) y los 6 ficheros `agents/*.agent.md` están
+> rellenos. Solo los 3 de **runtime** (community, maintenance, finance) se ejecutan
+> por HTTP (`POST /api/v1/ai/agents/:name/run`), reutilizando el bucle del asistente
+> (`backend/src/agents/runtime.ts`) con la identidad y las skills inyectadas; los 3
+> de **desarrollo** existen como declaración y no escriben por sí solos. Un test de
+> sincronía comprueba registro ↔ ficheros. Cada `run` audita `agent.run`.
+
 ---
 
 ## 11. Arquitectura de Skills
@@ -710,6 +718,12 @@ Mapa skill → tools:
 | `documentation` | plantilla de spec y de docs |
 
 Una skill es **documentación operacional que el agente carga como contexto**. No es código. Se versionan y se revisan con el mismo rigor que el código, porque gobiernan el comportamiento del sistema.
+
+> **Implementado (bloque 16, [`specs/16-mcp-agents.md`](specs/16-mcp-agents.md)).**
+> Existen las 9 skills en `skills/<slug>/SKILL.md` (con `playbooks/` y `examples.md`
+> en la de incidencias). El loader es `backend/src/agents/skills.ts` (`SKILLS`,
+> `loadSkill`, `loadAllSkills`). Un test falla si una skill referenciada por un
+> agente no existe o si su `SKILL.md` está vacío.
 
 ---
 
@@ -751,7 +765,16 @@ Requisitos transversales de cada tool:
 4. **Auditoría** de llamadas sensibles.
 5. **Respuesta mínima necesaria** (el modelo solo recibe los campos que necesita).
 
-Transporte MCP: `stdio` (para clientes locales como Claude Desktop) y `SSE`/`Streamable HTTP` (para integración remota). El contexto del actor llega por el transporte — en stdio, por un token de sesión firmado; en HTTP, por el mismo JWT que la API. Sin sesión no hay tool call.
+Transporte MCP: `stdio` (para clientes locales como Claude Desktop, `npm run mcp:stdio`) y `Streamable HTTP` (`POST /api/v1/mcp`). El contexto del actor **no** llega por el JWT de la API: el MCP exige un **token de sesión propio** (`audience:'mcp'`) emitido por `POST /api/v1/mcp/sessions`, que fija `{ sub, cid, role }`. La comunidad sale del token, nunca de los argumentos de la tool. Sin sesión no hay tool call.
+
+> **Implementado (bloque 16, [`specs/16-mcp-agents.md`](specs/16-mcp-agents.md)).**
+> El transporte HTTP es *stateless* (un servidor por petición, sin estado compartido
+> entre usuarios). El catálogo MCP es `publicTools(ALL_TOOLS)` filtrado por el rol
+> del token: las tools `sensitive` (financieras y `prepare_incident_draft`) **no se
+> registran**, de modo que el MCP es un canal de **solo lectura no sensible**. Cada
+> `tools/call` deja una fila en `audit_logs` (`agent_name:'mcp'`). Las tools
+> `set_incident_status` y `search_community_docs` del boceto inicial **no** existen
+> en el registro y no se inventaron.
 
 ---
 
@@ -890,7 +913,7 @@ Defensa en profundidad, aplicada desde el primer commit (no como fase final).
 | **11** | Integraciones externas (weather, map) | degradación limpia si falla |
 | **12** | AI Assistant (tool calling) | spec 11; respuesta con citas |
 | **13** | AI Incident Assistant (draft + confirmación) | spec 11; nunca crea sin humano |
-| **14** | MCP server + skills + agents | sin spec todavía |
+| **14** | MCP server + skills + agents | spec 16; MCP de solo lectura no sensible, sincronía registro ↔ `agents/*.agent.md` |
 | **15** | Agents de desarrollo (testing, security, documentation) | workflow SDD operativo |
 | **16** | Hardening, CI/CD completo, docs, demo | README/ARCHITECTURE/SECURITY/CONTRIBUTING/API/AI-DEVELOPMENT |
 | **17** | Frontend SPA (bloque 15; React 18 + Vite + TS + Tailwind + React Router) | [`specs/15-frontend.md`](specs/15-frontend.md); `npm run typecheck` + componente/integración (Vitest + RTL + MSW) y los 8 flujos E2E en verde |
@@ -909,8 +932,11 @@ Dos consecuencias de que manden los ficheros, y ninguna es un problema:
   las reservas sin zonas no significan nada. Es el mismo caso que la fase 3 con spec 02–03,
   así que un bloque que cubre dos specs ya tiene precedente y no hay que renombrar once
   ficheros ni dejar huecos en la numeración.
-- Las fases 14 y 15 no tienen spec todavía, porque `specs/` llega hasta la 15 (la
-  última, `15-frontend.md`, es de la SPA, no del servidor MCP ni de los agentes).
+- La fase 14 tiene su spec (`16-mcp-agents.md`), que se cerró después de la 15: el
+  servidor MCP, las skills y los agentes se apoyan en el bus de herramientas del
+  backend (spec 11) y reutilizan el bucle del asistente, así que tenía sentido
+  construirlos una vez asentado el resto. La fase 15 (agentes de desarrollo en
+  profundidad) sigue sin spec y queda como trabajo futuro (spec 17).
   No es un olvido: es que aún no se han escrito.
 
 ---

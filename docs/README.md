@@ -470,6 +470,7 @@ El estado de cada pieza:
 | Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
 | Notificaciones | `backend/src/notifications/` | Hecho: los 4 endpoints (campana personal, paginación, contador, marcado y `read-all`); la generación nace en SQL |
 | Frontend | `frontend/` | Hecho: la SPA (React 18 + Vite + TS + Tailwind + React Router) con login, incidencias, reservas, avisos, documentos, finanzas, votaciones, IA, dashboard y notificaciones |
+| MCP, skills y agentes | `backend/src/mcp/`, `backend/src/agents/`, `skills/`, `agents/` | Hecho: servidor MCP (HTTP + stdio) de solo lectura, 9 skills, 6 agentes sincronizados y `POST /api/v1/ai/agents/:name/run` |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:
@@ -498,10 +499,22 @@ Y para comprobar que todo va bien:
 
 ```bash
 npm run typecheck
-npm run test:unit           # 423 tests, sin base de datos
-npm run test:integration    # 381 tests, contra Supabase real
+npm run test:unit           # sin base de datos
+npm run test:integration    # contra Supabase real
 npm run check:db
 ```
+
+El servidor MCP se levanta dentro de la misma app (montado en `MCP_HTTP_PATH`,
+`/api/v1/mcp` por defecto) y se controla con `MCP_ENABLED`; para un cliente local por
+stdio:
+
+```bash
+MCP_SESSION_TOKEN=<tokenMCP> npm run mcp:stdio
+```
+
+El token se obtiene con `POST /api/v1/mcp/sessions`. Detalles en
+[`docs/API.md`](./API.md#mcp-y-agentes) y
+[`docs/AI-DEVELOPMENT.md`](./AI-DEVELOPMENT.md).
 
 `prisma db pull` y no escribir el schema a mano: si definieras los modelos en
 Prisma y luego pegaras este SQL, cualquier diferencia entre ambos sería drift

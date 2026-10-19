@@ -33,10 +33,12 @@ import { createDocumentRouter, createDocumentsRouter } from './documents/routes.
 import { createExpenseRouter, createFinanceRouter } from './finance/routes.js'
 import { createVoteRouter, createVotesRouter } from './voting/routes.js'
 import { createAiRouter } from './ai/routes.js'
+import { createAgentsRouter } from './agents/routes.js'
+import { createMcpRouter } from './mcp/routes.js'
 import { createExternalRouter } from './integrations/routes.js'
 import { createDashboardRouter } from './dashboard/routes.js'
 import { createNotificationsRouter } from './notifications/routes.js'
-import { createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
+import { createAiRateLimiter, createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
 import { prisma } from './db.js'
 
@@ -214,7 +216,26 @@ export function createApp(): Express {
 
   // IA (spec 11): un solo router, sin comunidad en la URL (D-1). El communityId
   // viaja en el cuerpo o en la sesion.
+  //
+  // El limite especifico de IA (M-11) se monta aqui y en MCP: son las dos
+  // superficies que gastan tokens de un proveedor gratuito o exponen datos a un
+  // agente. Se omite en tests por el mismo motivo que el global (una sola app
+  // cacheada para toda la suite agotaria el contador).
+  if (!env.isTest) {
+    app.use('/api/v1/ai', createAiRateLimiter())
+  }
   app.use('/api/v1/ai', createAiRouter())
+
+  // Agentes (spec 16, M-10): ejecucion de agentes de runtime. Cuelgan de `/ai`
+  // porque comparten el mismo dominio y el mismo contrato de comunidad-en-cuerpo.
+  app.use('/api/v1/ai/agents', createAgentsRouter())
+
+  // MCP (spec 16): servidor de tools de solo lectura para agentes externos. Solo
+  // se monta si esta habilitado; el propio router responde MCP_DISABLED si no.
+  if (env.MCP_ENABLED) {
+    if (!env.isTest) app.use(env.MCP_HTTP_PATH, createAiRateLimiter())
+    app.use(env.MCP_HTTP_PATH, createMcpRouter())
+  }
 
   // APIs externas (spec 12): meteorologia y mapa de cada comunidad. Las tres
   // rutas cuelgan de la comunidad porque las tres necesitan sus coordenadas o

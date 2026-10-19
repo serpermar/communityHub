@@ -60,6 +60,7 @@ export const incidentTools: ToolDefinition[] = [
       'A partir de una descripción, propone una incidencia (categoría, prioridad, título). No crea la incidencia: el usuario tiene que confirmarla.',
     roles: ['NEIGHBOR', 'PRESIDENT', 'ADMIN'],
     requiresCommunity: true,
+    sensitive: true,
     schema: z.object({ description: z.string().trim().min(3).max(2000) }).strict(),
     async run(args: { description: string }, ctx) {
       const classification = await classifyIncident(ctx.userId, args.description, ctx.client)

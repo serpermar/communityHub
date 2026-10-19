@@ -21,6 +21,7 @@ import {
   type ToolDefinition,
   defineTool,
   findTool,
+  publicTools,
   runTool,
   toolSpecs,
   toolsForRole,
@@ -56,6 +57,42 @@ describe('defineTool', () => {
     const [spec] = toolSpecs([makeTool()])
     expect(spec).toMatchObject({ name: 'demo', description: 'Una tool de mentira' })
     expect(Object.keys(spec!).sort()).toEqual(['description', 'name', 'parameters'])
+  })
+
+  it('por defecto una tool NO es sensible', () => {
+    expect(makeTool().sensitive).toBe(false)
+  })
+
+  it('`sensitive` se conserva cuando se declara', () => {
+    const tool = defineTool({
+      name: 'dinero',
+      description: 'x',
+      roles: ALL_ROLES,
+      requiresCommunity: true,
+      sensitive: true,
+      schema: z.object({}).strict(),
+      run: async () => ({ result: null }),
+    })
+    expect(tool.sensitive).toBe(true)
+  })
+})
+
+describe('publicTools', () => {
+  it('filtra las sensibles (catalogo MCP)', () => {
+    const tools = [
+      makeTool({ name: 'lectura' }),
+      defineTool({
+        name: 'escritura',
+        description: 'x',
+        roles: ALL_ROLES,
+        requiresCommunity: true,
+        sensitive: true,
+        schema: z.object({}).strict(),
+        run: async () => ({ result: null }),
+      }),
+    ]
+
+    expect(publicTools(tools).map((t) => t.name)).toEqual(['lectura'])
   })
 })
 

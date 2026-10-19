@@ -51,6 +51,13 @@ export type ToolDefinition = {
   description: string
   roles: CommunityRole[]
   requiresCommunity: boolean
+  /**
+   * Marca una tool que un agente externo (MCP) no debe poder invocar sin
+   * supervision: expone datos economicos o gasta presupuesto/LLM por dentro.
+   * En la API propia y en el chat no cambia nada; el adaptador MCP la FILTRA
+   * (M-4, M-6) para que un cliente remoto no la ejecute por su cuenta.
+   */
+  sensitive: boolean
   schema: z.ZodType
   parameters: Record<string, unknown>
   run: (args: any, ctx: ToolContext) => Promise<ToolResult>
@@ -76,12 +83,17 @@ function jsonSchema(schema: z.ZodType): Record<string, unknown> {
  * cada peticion.
  */
 export function defineTool(
-  definition: Omit<ToolDefinition, 'parameters'> & { run: ToolDefinition['run'] },
+  definition: Omit<ToolDefinition, 'parameters' | 'sensitive'> & { sensitive?: boolean },
 ): ToolDefinition {
-  return { ...definition, parameters: jsonSchema(definition.schema) }
+  return { ...definition, sensitive: definition.sensitive ?? false, parameters: jsonSchema(definition.schema) }
 }
 
 // --- Consultas sobre una lista de tools --------------------------------------
+
+/** El catalogo que se puede ofrecer a un agente externo: las tools no sensibles. */
+export function publicTools(tools: readonly ToolDefinition[]): ToolDefinition[] {
+  return tools.filter((tool) => !tool.sensitive)
+}
 
 export function toolSpecs(tools: readonly ToolDefinition[]): ToolSpec[] {
   return tools.map(toSpec)

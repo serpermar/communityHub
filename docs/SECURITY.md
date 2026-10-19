@@ -177,6 +177,37 @@ Dos reglas que no se negocian en el cliente:
   frontend **no maneja credenciales** de Storage ni de proveedores externos
   (FE-2, FE-13).
 
+### El MCP (bloque 16): token con scope, solo lectura y auditoría
+
+El servidor MCP es una **superficie externa nueva**, y se trata como tal (spec 16).
+Tres controles la gobiernan:
+
+- **Token de sesión MCP con scope.** El access token de la API **no** sirve: no lleva
+  comunidad. El MCP exige un JWT propio (`audience:'mcp'`) que se obtiene en
+  `POST /api/v1/mcp/sessions` y que fija `{ sub, cid, role }`. La comunidad sale del
+  token, **nunca** de los argumentos de una tool (M-5). El rol se vuelve a resolver
+  contra la base **en cada petición**, así que sacar a alguien de la comunidad
+  invalida su token al instante sin lista de revocación.
+- **Solo lectura no sensible.** El catálogo MCP es `publicTools(ALL_TOOLS)` filtrado
+  por el rol del token: las tools con `sensitive: true` —las financieras
+  (`get_expenses`, `get_invoices`, `get_finance_summary`) y `prepare_incident_draft`—
+  **no se registran**, así que no aparecen en `tools/list` ni se pueden invocar. El
+  MCP **no escribe** datos: toda mutación sigue pasando por la API REST con un actor
+  humano (human-in-the-loop, M-6).
+- **Auditoría de cada tool call.** Cada `tools/call` corre dentro de `withContext`
+  (el mismo contexto RLS que la API) y deja, en la misma transacción, una fila en
+  `audit_logs` con `agent_name:'mcp'` y `action:'mcp.tool_call'` (M-8). El servicio
+  compartido es `insertAudit` (`backend/src/audit/repository.ts`).
+
+El transporte HTTP monta un servidor MCP **por petición** (stateless): el actor vive
+en el token y no hay estado compartido entre usuarios, lo que elimina la clase de
+fallo más peligrosa de un gateway (que una sesión herede el contexto de otra).
+
+Los **agentes de desarrollo** (documentation, testing, security) no son ejecutables
+por HTTP y no escriben en el repositorio por sí solos: producen planes y propuestas.
+Los de **runtime** (community, maintenance, finance) reutilizan el bucle del
+asistente con su rol, su whitelist de tools y auditoría `agent.run`.
+
 ---
 
 ## 5. Permisos revoked a `anon` y `authenticated`
@@ -806,6 +837,17 @@ auto-notifica (NTF-7), que es lo que evita que publicar un aviso genere un eco p
 quien lo publica. El módulo no añade superficie de escritura HTTP: las cuatro rutas
 son de lectura y de marcado, no hay un `POST` de creación —crear una notificación
 a mano no es una operación del cliente—.
+
+Del bloque 16 (MCP, skills y agentes), los criterios de `specs/16-mcp-agents.md`
+(§11) tienen su test: `mcp.api.integration.test.ts` (un no-miembro no puede pedir
+token; `tools/list` no incluye las sensibles; `tools/call` de `get_community` deja
+fila en `audit_logs` con `agent_name:'mcp'`; una tool sensible responde `isError`; la
+pérdida de pertenencia invalida el token; `GET /mcp` → 405) y
+`agents.api.integration.test.ts` (`GET /ai/agents` solo lista runtime; el `run` con
+rol permitido audita `agent.run`; rol denegado → 403; agente inexistente o de
+desarrollo → 404). En unitarios se comprueba la sincronía del registro con
+`agents/*.agent.md`, que existen las 9 skills, la firma del token MCP (audiencia
+distinta y manipulación) y que `mcpToolsFor` excluye las sensibles y filtra por rol.
 
 No hay ninguna clave de proveedor que proteger en este bloque: Open-Meteo y Photon
 son anónimos, así que la superficie nueva es de salida (una `fetch` con

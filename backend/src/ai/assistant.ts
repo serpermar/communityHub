@@ -26,7 +26,7 @@ import { env } from '../config/env.js'
 import { aiQuotaExceeded } from './errors.js'
 import type { LLMClient, LLMMessage } from './llm/client.js'
 import * as repo from './repository.js'
-import { ALL_TOOLS, runTool, toolSpecs, toolsForRole, type ToolContext } from './tools/index.js'
+import { ALL_TOOLS, runTool, toolSpecs, toolsForRole, type ToolDefinition, type ToolContext } from './tools/index.js'
 import type { Citation, CommunityRole } from './types.js'
 
 export type ChatEvent =
@@ -47,6 +47,17 @@ export type RunAssistantInput = {
   message: string
   signal?: AbortSignal
   onEvent: (event: ChatEvent) => void
+  /**
+   * El catalogo de tools. Por defecto, las que puede usar el rol (`ALL_TOOLS`
+   * filtradas). Un agente pasa su propio subconjunto (M-10).
+   */
+  tools?: ToolDefinition[]
+  /** El system prompt. Por defecto, el del asistente general. */
+  systemPrompt?: string
+  /** Nombre que se anota en `audit_logs` para las tool calls. */
+  agentName?: string
+  /** Accion que se anota en `audit_logs` para las tool calls. */
+  toolAction?: string
 }
 
 export type RunAssistantResult = {
@@ -82,7 +93,7 @@ function chunks(text: string): string[] {
 export async function runAssistant(input: RunAssistantInput): Promise<RunAssistantResult> {
   const { client, onEvent } = input
 
-  const tools = toolsForRole(ALL_TOOLS, input.role)
+  const tools = input.tools ?? toolsForRole(ALL_TOOLS, input.role)
   const specs = toolSpecs(tools)
   const model = env.LLM_PRIMARY_MODEL
 
@@ -94,7 +105,7 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
   }
 
   const messages: LLMMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: input.systemPrompt ?? SYSTEM_PROMPT },
     ...input.history,
     { role: 'user', content: input.message },
   ]
@@ -152,7 +163,7 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
         let payload: string
 
         try {
-          const toolResult = await runTool(ALL_TOOLS, call.name, call.args, ctx)
+          const toolResult = await runTool(tools, call.name, call.args, ctx)
 
           for (const id of toolResult.citations ?? []) {
             citations.push({ tool: call.name, ids: [id] })
@@ -178,9 +189,9 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
           repo.insertAudit(tx, {
             actorId: input.userId,
             actorRole: input.role,
-            agentName: 'assistant',
+            agentName: input.agentName ?? 'assistant',
             communityId: input.communityId,
-            action: 'ai.tool_call',
+            action: input.toolAction ?? 'ai.tool_call',
             entity: 'ai_tool',
             entityId: call.name,
             metadata: { tool: call.name, args: call.args, duration_ms: Date.now() - started },

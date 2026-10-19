@@ -1614,6 +1614,90 @@ comunidad (AI-10).
 
 ---
 
+## MCP y agentes
+
+El servidor MCP es un **adaptador de solo lectura** sobre el mismo bus de
+herramientas que usa la IA de la aplicación (spec 16). No reimplementa nada y no
+escribe: expone, por el protocolo MCP, las tools **no sensibles** que el rol del
+token puede usar. Los **agentes** son actores con nombre que reutilizan el bucle del
+asistente con un *system prompt* propio (su fichero `.agent.md`) y sus skills.
+
+### `POST /api/v1/mcp/sessions`
+
+Canjea la sesión del usuario por un **token de sesión MCP** (Bearer JWT normal en la
+cabecera). El token es un JWT HS256 con `audience:'mcp'`, payload `{ sub, cid, role,
+ver }` y vida `MCP_SESSION_TTL_SECONDS` (por defecto 3600). El rol se resuelve
+contra la base al emitir **y en cada petición** MCP: sacar a alguien de la comunidad
+(o cambiarle el rol) invalida el token al instante.
+
+| Campo | Forma |
+|---|---|
+| `communityId` | UUID de una comunidad tuya |
+
+```
+201 → { "data": { "token":"…", "communityId":"…", "role":"ADMIN", "expiresAt":"…" } }
+400 → VALIDATION_ERROR (communityId no es UUID)
+403 → no perteneces a esa comunidad
+```
+
+### `POST /api/v1/mcp`
+
+El endpoint MCP (JSON-RPC 2.0), autenticado con `Authorization: Bearer <token MCP>`
+—no el access token de la API— y `Accept: application/json, text/event-stream`.
+Métodos soportados: `tools/list` y `tools/call`. `GET /mcp` responde `405`.
+
+`tools/list` devuelve **solo las tools de lectura no sensibles** del rol del token:
+las financieras (`get_expenses`, `get_invoices`, `get_finance_summary`) y
+`prepare_incident_draft` quedaron `sensitive` y **no se registran**. `tools/call`
+ejecuta vía `runTool` (zod + rol + scope) dentro del contexto RLS del actor y deja
+una fila en `audit_logs` (`agent_name:'mcp'`, `action:'mcp.tool_call'`). La
+comunidad sale del token, nunca de los argumentos.
+
+```
+200 → { "jsonrpc":"2.0", "id":1, "result":{ "tools":[ … ] } }        # tools/list
+200 → { "jsonrpc":"2.0", "id":1, "result":{ "content":[ … ] } }      # tools/call OK
+200 → { … "result":{ "isError":true, "content":[ … ] } }             # tool ausente o args inválidos
+401 → UNAUTHORIZED / TOKEN_REVOKED (falta el token, o ya no eres miembro)
+404 → MCP_DISABLED (env MCP_ENABLED=false)
+405 → VALIDATION_ERROR (GET; en modo stateless no hay stream)
+429 → RATE_LIMITED
+```
+
+### `GET /api/v1/ai/agents`
+
+Lista los agentes de **runtime** (Bearer JWT normal). Devuelve `name`, `title`,
+`description`, `roles` y `skills`. Los agentes de desarrollo (testing,
+documentation, security) no aparecen: no son ejecutables por HTTP.
+
+```
+200 → { "data": [ { "name":"community", "title":"…", "roles":["NEIGHBOR","PRESIDENT","ADMIN","PROVIDER"], "skills":[…] }, … ] }
+401 → UNAUTHORIZED
+```
+
+### `POST /api/v1/ai/agents/:name/run`
+
+Ejecuta un agente de runtime con su identidad (fichero `agents/<name>.agent.md`), sus
+skills inyectadas como contexto y sus tools acotadas por tu rol y por la whitelist
+del agente. No abre sesión de chat; **sí** deja auditoría `agent.run`.
+
+| Campo | Forma |
+|---|---|
+| `communityId` | UUID de una comunidad tuya |
+| `message` | string con la consulta |
+
+```
+200 → { "data": { "agent":"finance", "answer":"…", "citations":[ … ], "toolCalls":[ … ],
+                  "tokensIn":n, "tokensOut":n, "model":"…" } }
+400 → VALIDATION_ERROR (body inválido)
+403 → tu rol no puede ejecutar ese agente (p. ej. NEIGHBOR en finance)
+404 → AGENT_NOT_FOUND (no existe, o es un agente de desarrollo)
+503 → AI_NOT_CONFIGURED (no hay proveedor LLM)
+```
+
+El presupuesto diario de IA y el rate limit se aplican igual que en el chat.
+
+---
+
 ## APIs externas
 
 Meteorología (Open-Meteo) y mapa (Photon) para la ficha de una comunidad, más el

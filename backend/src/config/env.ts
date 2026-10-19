@@ -131,6 +131,16 @@ const schema = z.object({
   GEOCODE_CACHE_TTL_HOURS: int(1, 8_760).default(168),
   MAP_SEARCH_RADIUS_M: int(50, 50_000).default(1_500),
   MAP_MAX_RESULTS: int(1, 100).default(25),
+
+  // ---------------------------------------------------------------------------
+  // MCP y agentes (spec 16). El servidor MCP expone las tools de solo lectura a
+  // agentes externos. `MCP_ENABLED=true` por defecto: apagarlo desmonta el
+  // endpoint sin tocar codigo. El token de sesion MCP es aparte del access token
+  // y de vida corta.
+  // ---------------------------------------------------------------------------
+  MCP_ENABLED: booleanish.default(true),
+  MCP_SESSION_TTL_SECONDS: int(60, 86_400).default(3600),
+  MCP_HTTP_PATH: z.string().min(1).default('/api/v1/mcp'),
 })
 
 const parsed = schema.safeParse(process.env)

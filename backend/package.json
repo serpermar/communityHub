@@ -25,9 +25,12 @@
     "test:watch:integration": "vitest --config vitest.integration.config.ts",
     "test:coverage": "vitest run --config vitest.config.ts --coverage",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "mcp": "tsx src/mcp/stdio.ts",
+    "mcp:dist": "node dist/mcp/stdio.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^6.1.0",
     "@supabase/supabase-js": "^2.117.3",
     "argon2": "^0.45.1",

@@ -13,6 +13,7 @@ import { communityTools } from './community.js'
 import { documentTools } from './documents.js'
 import { financeTools } from './finance.js'
 import { incidentTools } from './incidents.js'
+import { integrationTools } from './integrations.js'
 import { votingTools } from './voting.js'
 import type { ToolDefinition } from './registry.js'
 
@@ -24,6 +25,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
   ...documentTools,
   ...financeTools,
   ...votingTools,
+  ...integrationTools,
 ]
 
 export * from './registry.js'
