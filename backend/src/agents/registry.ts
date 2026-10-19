@@ -12,8 +12,10 @@
 //     y actuan sobre una comunidad. Tienen `roles` (quien puede invocarlos) y
 //     `tools`.
 //   - `development`: NO se ejecutan por HTTP. Documentan como trabaja quien
-//     desarrolla el proyecto y solo tienen skills (fase de desarrollo, spec 17).
-//     Se declaran aqui para que existan de verdad y no sean ficheros sueltos.
+//     desarrolla el proyecto y solo tienen skills. Desde la spec 17 son
+//     ejecutables por CLI, en modo lectura, con `backend/src/agents/dev/`
+//     (producen propuestas; nunca escriben en el repositorio). Se declaran aqui
+//     para que existan de verdad y no sean ficheros sueltos.
 //
 // Un test de sincronia (registry.unit.test.ts) comprueba que cada agente del
 // registro tiene su fichero y que no hay ficheros de agente huérfanos.
@@ -117,6 +119,10 @@ export function runtimeAgents(): AgentDefinition[] {
   return AGENTS.filter((agent) => agent.kind === 'runtime')
 }
 
+export function developmentAgents(): AgentDefinition[] {
+  return AGENTS.filter((agent) => agent.kind === 'development')
+}
+
 /** El texto del fichero del agente, o null si no existe. */
 export function readAgentFile(agent: AgentDefinition): string | null {
   const path = join(fileURLToPath(new URL('../../../', import.meta.url)), agent.file)
@@ -129,6 +135,20 @@ export function requireRuntimeAgent(name: string): AgentDefinition {
 
   if (!agent || agent.kind !== 'runtime') {
     throw new AppError(404, 'AGENT_NOT_FOUND', `El agente "${name}" no existe.`)
+  }
+
+  return agent
+}
+
+/**
+ * Exige un agente de desarrollo existente; lanza `AGENT_NOT_FOUND` si no lo es.
+ * Un agente de runtime (o un nombre inventado) no se ejecuta por CLI.
+ */
+export function requireDevelopmentAgent(name: string): AgentDefinition {
+  const agent = findAgent(name)
+
+  if (!agent || agent.kind !== 'development') {
+    throw new AppError(404, 'AGENT_NOT_FOUND', `El agente de desarrollo "${name}" no existe.`)
   }
 
   return agent

@@ -470,7 +470,7 @@ El estado de cada pieza:
 | Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
 | Notificaciones | `backend/src/notifications/` | Hecho: los 4 endpoints (campana personal, paginación, contador, marcado y `read-all`); la generación nace en SQL |
 | Frontend | `frontend/` | Hecho: la SPA (React 18 + Vite + TS + Tailwind + React Router) con login, incidencias, reservas, avisos, documentos, finanzas, votaciones, IA, dashboard y notificaciones |
-| MCP, skills y agentes | `backend/src/mcp/`, `backend/src/agents/`, `skills/`, `agents/` | Hecho: servidor MCP (HTTP + stdio) de solo lectura, 9 skills, 6 agentes sincronizados y `POST /api/v1/ai/agents/:name/run` |
+| MCP, skills y agentes | `backend/src/mcp/`, `backend/src/agents/`, `skills/`, `agents/` | Hecho: servidor MCP (HTTP + stdio) de solo lectura, 9 skills, 6 agentes sincronizados, `POST /api/v1/ai/agents/:name/run` y los 3 agentes de desarrollo por CLI (`npm run agent`) |
 | Resto de módulos | — | Pendiente |
 
 La secuencia completa desde cero:
@@ -515,6 +515,17 @@ MCP_SESSION_TOKEN=<tokenMCP> npm run mcp:stdio
 El token se obtiene con `POST /api/v1/mcp/sessions`. Detalles en
 [`docs/API.md`](./API.md#mcp-y-agentes) y
 [`docs/AI-DEVELOPMENT.md`](./AI-DEVELOPMENT.md).
+
+Los **agentes de desarrollo** (testing, security, documentation) se ejecutan por
+CLI, en solo lectura sobre el repositorio y sin escribir nada: producen una
+propuesta que revisa una persona. Sin proveedor LLM, el comando imprime el prompt
+listo para pegar en el chat.
+
+```bash
+cd backend
+npm run agent -- testing "qué endpoints no tienen test de integración"
+npm run agent -- security "revisa la validación del endpoint de incidencias"
+```
 
 `prisma db pull` y no escribir el schema a mano: si definieras los modelos en
 Prisma y luego pegaras este SQL, cualquier diferencia entre ambos sería drift

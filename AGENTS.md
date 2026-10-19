@@ -13,22 +13,25 @@ sincronía** falla si el registro y los ficheros se desvían.
 
 ## Agentes
 
-| Agente | Clase | Roles que lo ejecutan | Skills |
-|---|---|---|---|
-| [`community.agent.md`](./agents/community.agent.md) | runtime | NEIGHBOR, PROVIDER, ADMIN, PRESIDENT | community-management, incident-management, reservations, finance |
-| [`maintenance.agent.md`](agents/maintenance.agent.md) | runtime | ADMIN, PRESIDENT | incident-management |
-| `finance.agent.md` | runtime | ADMIN | finance |
-| `documentation.agent.md` | development | — (solo declarado) | documentation |
-| `testing.agent.md` | development | — (solo declarado) | testing |
-| `security.agent.md` | development | — (solo declarado) | security |
+| Agente | Clase | Cómo se ejecuta | Roles que lo ejecutan | Skills |
+|---|---|---|---|---|
+| [`community.agent.md`](./agents/community.agent.md) | runtime | `POST /api/v1/ai/agents/:name/run` | NEIGHBOR, PROVIDER, ADMIN, PRESIDENT | community-management, incident-management, reservations, finance |
+| [`maintenance.agent.md`](agents/maintenance.agent.md) | runtime | `POST /api/v1/ai/agents/:name/run` | ADMIN, PRESIDENT | incident-management |
+| `finance.agent.md` | runtime | `POST /api/v1/ai/agents/:name/run` | ADMIN | finance |
+| `documentation.agent.md` | development | `npm run agent -- documentation "…"` | — | documentation |
+| `testing.agent.md` | development | `npm run agent -- testing "…"` | — | testing |
+| `security.agent.md` | development | `npm run agent -- security "…"` | — | security |
 
 Los agentes **de runtime** se ejecutan con `POST /api/v1/ai/agents/:name/run` y se
-listan en `GET /api/v1/ai/agents`. Los de **desarrollo** existen como declaración
-(qué sabe y cómo trabaja cada rol de desarrollo) y **no** son ejecutables por HTTP:
-no escriben en el repositorio por sí solos.
+listan en `GET /api/v1/ai/agents`. Los de **desarrollo** (spec 17) se ejecutan por
+**CLI** (`npm run agent -- <name> "…"`), **solo en lectura** sobre el repositorio y
+**sin escribir nada**: producen una **propuesta** que revisa y aplica una persona
+(si no hay proveedor LLM, el comando imprime el prompt listo para pegar en el
+chat). No son ejecutables por HTTP.
 
 El registro en código vive en `backend/src/agents/registry.ts` (`AGENTS`,
-`findAgent`, `runtimeAgents`, `requireRuntimeAgent`).
+`findAgent`, `runtimeAgents`, `developmentAgents`, `requireRuntimeAgent`,
+`requireDevelopmentAgent`).
 
 ---
 
@@ -61,5 +64,9 @@ skills/<slug>/SKILL.md ─(contexto)┘
 AgentRegistry (código) ──(verdad)──► tools permitidas ∧ rol ──► ALL_TOOLS
 ```
 
-Para el detalle (flujo SDD, MCP, token de sesión, auditoría) ver
-[`docs/AI-DEVELOPMENT.md`](docs/AI-DEVELOPMENT.md).
+Los agentes de desarrollo no entran en ese bus de tools de comunidad: usan su
+propio catálogo de **solo lectura** sobre el repositorio (`list_files`,
+`read_file`, `search_repo`), en `backend/src/agents/dev/`.
+
+Para el detalle (flujo SDD, MCP, token de sesión, auditoría, agentes de
+desarrollo) ver [`docs/AI-DEVELOPMENT.md`](docs/AI-DEVELOPMENT.md).

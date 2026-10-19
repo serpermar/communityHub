@@ -90,7 +90,7 @@ conjunto de **tools** (acciones) y un ámbito. Hay dos clases:
 | Clase | Qué es | Ejecutable |
 |---|---|---|
 | `runtime` | Actúa sobre una comunidad | `POST /api/v1/ai/agents/:name/run` |
-| `development` | Documenta cómo se desarrolla el proyecto | No (solo declarado) |
+| `development` | Ayuda a quien desarrolla el proyecto | `npm run agent -- <name> "…"` (CLI, solo lectura) |
 
 Los seis agentes:
 
@@ -106,7 +106,8 @@ Los seis agentes:
 **Dos piezas, una verdad:**
 
 - El **registro** (`backend/src/agents/registry.ts`) es la fuente de verdad del
-  comportamiento: `AGENTS`, `findAgent`, `runtimeAgents`, `requireRuntimeAgent`.
+  comportamiento: `AGENTS`, `findAgent`, `runtimeAgents`, `developmentAgents`,
+  `requireRuntimeAgent`, `requireDevelopmentAgent`.
 - El **fichero** `agents/<name>.agent.md` es el «alma» legible del agente y se
   inyecta en el *system prompt* al ejecutarlo (`readAgentFile`).
 
@@ -129,6 +130,32 @@ silencio.
 
 No abre sesión de chat: un `run` es una consulta puntual que no se guarda en el
 historial del usuario.
+
+### Ejecución de un agente de desarrollo
+
+Los tres agentes de desarrollo (spec 17) se ejecutan **por CLI**, no por HTTP:
+no son actores de comunidad y no tienen datos que aislar. El comando es:
+
+```bash
+cd backend
+npm run agent -- testing "qué endpoints no tienen test de integración"
+npm run agent -- security "revisa la validación del endpoint de incidencias"
+npm run agent -- documentation "comprueba specs vs código"
+```
+
+- **Solo lectura.** El agente recibe un catálogo de tres herramientas sobre el
+  repositorio —`list_files`, `read_file`, `search_repo`— **confinado a la raíz**:
+  una ruta con `..` o absoluta es un error, no una lectura. No hay escritura, ni
+  comandos, ni base de datos.
+- **Propone, no aplica.** La salida es una **propuesta** por `stdout` (o
+  `--out <fichero>`), que una persona revisa y aplica. Esto es el
+  *human-in-the-loop*: ningún agente de desarrollo escribe en el repo.
+- **Sin proveedor LLM no falla.** `npm run agent -- <name> "…"` imprime el
+  *prompt* compuesto (identidad + skills + catálogo de tools) para pegarlo en el
+  chat de siempre (PROMPT §16). Con `--prompt` se fuerza ese modo.
+- El runner **no reutiliza `runAssistant`**: aquel consume cuota y audita por
+  usuario/comunidad, y un agente de desarrollo no tiene ninguna de las dos. Vive
+  en `backend/src/agents/dev/` (`tools.ts`, `runner.ts`, `cli.ts`).
 
 ---
 
@@ -247,8 +274,9 @@ Si eres un agente (humano o IA) haciendo cambios aquí:
    los proveedores externos (Open-Meteo, Photon) tienen su caché y su degradación.
 5. **Nada de secretos en el repositorio.** Las claves viven en `backend/.env`
    (fuera de Git); las plantillas solo llevan la estructura.
-6. **Los agentes de desarrollo no escriben en el repo solos.** Producen planes y
-   propuestas; el cambio lo aplica un actor humano.
+6. **Los agentes de desarrollo no escriben en el repo.** Ni solos ni
+   acompañados: su catálogo es de solo lectura y su salida es una propuesta;
+   el cambio lo aplica una persona.
 
 ---
 
@@ -259,7 +287,9 @@ Si eres un agente (humano o IA) haciendo cambios aquí:
 | El catálogo de tools | `backend/src/ai/tools/index.ts` (`ALL_TOOLS`) |
 | El registro de agentes | `backend/src/agents/registry.ts` |
 | El loader de skills | `backend/src/agents/skills.ts` |
-| La ejecución de un agente | `backend/src/agents/runtime.ts` |
+| La ejecución de un agente de runtime | `backend/src/agents/runtime.ts` |
+| La ejecución de un agente de desarrollo | `backend/src/agents/dev/` |
+| Las dev tools (solo lectura) | `backend/src/agents/dev/tools.ts` |
 | El servidor MCP | `backend/src/mcp/server.ts` |
 | El token MCP | `backend/src/mcp/session.ts` |
 | La auditoría compartida | `backend/src/audit/repository.ts` |

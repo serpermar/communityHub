@@ -1,7 +1,6 @@
 ---
 name: security
 kind: development
-roles:
 skills: security
 ---
 

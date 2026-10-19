@@ -27,7 +27,9 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "smoke": "tsx scripts/smoke.ts",
     "mcp": "tsx src/mcp/stdio.ts",
-    "mcp:dist": "node dist/mcp/stdio.js"
+    "mcp:dist": "node dist/mcp/stdio.js",
+    "agent": "tsx src/agents/dev/cli.ts",
+    "agent:dist": "node dist/agents/dev/cli.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

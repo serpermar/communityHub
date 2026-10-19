@@ -204,7 +204,12 @@ en el token y no hay estado compartido entre usuarios, lo que elimina la clase d
 fallo más peligrosa de un gateway (que una sesión herede el contexto de otra).
 
 Los **agentes de desarrollo** (documentation, testing, security) no son ejecutables
-por HTTP y no escriben en el repositorio por sí solos: producen planes y propuestas.
+por HTTP. Desde la spec 17 tampoco pueden escribir en el repositorio: se ejecutan por
+CLI local (`npm run agent -- <name> "…"`) con un catálogo de solo lectura
+(`list_files`, `read_file`, `search_repo`) **confinado a la raíz del repo** —una ruta
+con `..` o absoluta es un error— y su salida es una **propuesta** que aplica una
+persona. El contenido de los ficheros que leen es dato, nunca instrucción: no hay
+prompt injection que gane privilegios porque no hay privilegios que ganar.
 Los de **runtime** (community, maintenance, finance) reutilizan el bucle del
 asistente con su rol, su whitelist de tools y auditoría `agent.run`.
 

@@ -677,7 +677,7 @@ Invariantes comunes a todos los agentes:
 - **Human-in-the-loop** en acciones sensibles (escrituras, migraciones, cambios de permisos). El agente produce un *plan*; la ejecución pasa por un endpoint que exige un actor humano.
 - **Presupuesto**: límite de iteraciones y de llamadas a tools por sesión.
 - **Trazabilidad**: toda tool call va a `audit_logs` con agente, tool, params (redactados), resultado y duración.
-- **Agents de desarrollo** (testing, security, documentation) operan **solo en modo lectura** sobre el repositorio. Ninguno escribe en el repo automáticamente.
+- **Agents de desarrollo** (testing, security, documentation) operan **solo en modo lectura** sobre el repositorio. Ninguno escribe en el repo automáticamente — y desde la spec 17 **ni puede**: su catálogo de tools no tiene escritura.
 
 > **Implementado (bloque 16, [`specs/16-mcp-agents.md`](specs/16-mcp-agents.md)).**
 > El registro vive en `backend/src/agents/registry.ts` (`AGENTS`, `findAgent`,
@@ -687,6 +687,15 @@ Invariantes comunes a todos los agentes:
 > (`backend/src/agents/runtime.ts`) con la identidad y las skills inyectadas; los 3
 > de **desarrollo** existen como declaración y no escriben por sí solos. Un test de
 > sincronía comprueba registro ↔ ficheros. Cada `run` audita `agent.run`.
+
+> **Implementado (bloque 17, [`specs/17-development-agents.md`](specs/17-development-agents.md)).**
+> Los 3 agentes de **desarrollo** pasan de declaración a ejecutables por **CLI**
+> (`npm run agent -- <name> "…"`), nunca por HTTP: no son actores de comunidad. Su
+> catálogo (`backend/src/agents/dev/tools.ts`) es de **solo lectura** y confinado a
+> la raíz del repo (`list_files`, `read_file`, `search_repo`); la salida es una
+> **propuesta** que aplica una persona. Sin proveedor LLM, el comando imprime el
+> *prompt* para pegar en el chat. El runner (`dev/runner.ts`) no usa la base de
+> datos ni `runAssistant`.
 
 ---
 
@@ -914,7 +923,7 @@ Defensa en profundidad, aplicada desde el primer commit (no como fase final).
 | **12** | AI Assistant (tool calling) | spec 11; respuesta con citas |
 | **13** | AI Incident Assistant (draft + confirmación) | spec 11; nunca crea sin humano |
 | **14** | MCP server + skills + agents | spec 16; MCP de solo lectura no sensible, sincronía registro ↔ `agents/*.agent.md` |
-| **15** | Agents de desarrollo (testing, security, documentation) | workflow SDD operativo |
+| **15** | Agents de desarrollo (testing, security, documentation) | [`specs/17-development-agents.md`](specs/17-development-agents.md); CLI en solo lectura, propuesta revisada por una persona |
 | **16** | Hardening, CI/CD completo, docs, demo | README/ARCHITECTURE/SECURITY/CONTRIBUTING/API/AI-DEVELOPMENT |
 | **17** | Frontend SPA (bloque 15; React 18 + Vite + TS + Tailwind + React Router) | [`specs/15-frontend.md`](specs/15-frontend.md); `npm run typecheck` + componente/integración (Vitest + RTL + MSW) y los 8 flujos E2E en verde |
 
@@ -935,9 +944,9 @@ Dos consecuencias de que manden los ficheros, y ninguna es un problema:
 - La fase 14 tiene su spec (`16-mcp-agents.md`), que se cerró después de la 15: el
   servidor MCP, las skills y los agentes se apoyan en el bus de herramientas del
   backend (spec 11) y reutilizan el bucle del asistente, así que tenía sentido
-  construirlos una vez asentado el resto. La fase 15 (agentes de desarrollo en
-  profundidad) sigue sin spec y queda como trabajo futuro (spec 17).
-  No es un olvido: es que aún no se han escrito.
+  construirlos una vez asentado el resto. La fase 15 tiene la suya
+  (`17-development-agents.md`): los agentes de desarrollo se ejecutan por CLI en
+  solo lectura y proponen; ningún agente escribe en el repo.
 
 ---
 
