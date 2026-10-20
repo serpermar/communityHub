@@ -1,8 +1,8 @@
 # Spec 15 — Frontend (SPA React)
 
 > **Estado: IMPLEMENTED — implementada (2026-10-16).** Bloque 15, el
-> primero y único de frontend. Decisiones `FE-1`…`FE-19` cerradas: ver §2 y §12
-> (`FE-16`…`FE-19` son la revisión posterior de mejoras de UX, tema, rendimiento
+> primero y único de frontend. Decisiones `FE-1`…`FE-25` cerradas: ver §2 y §12
+> (`FE-16`…`FE-25` son revisiones posteriores de mejoras de UX, tema, rendimiento
 > y cuenta).
 > Este documento define **la SPA**
 > que consume el backend ya terminado (bloques `01`–`14`) y, con él, **la
@@ -68,6 +68,12 @@ El objetivo de arquitectura es que `frontend/` demuestre la organización por
 | **FE-17** | **Code-splitting por ruta** con `React.lazy` + `Suspense` y `manualChunks` en Vite (`vendor-react`, `vendor-charts`, `vendor-forms`). El `RouteFallback` cubre la carga | Un único bundle | Recharts pesa y solo lo usa el dashboard (FE-9); partirlo evita que la primera pintura cargue gráficos que quizá nadie abra |
 | **FE-18** | **Estados de carga y error de primera clase**: `Skeleton`/`SkeletonList` en las listas, `ErrorBoundary` envolviendo el router, y `Modal` con *focus trap*, foco inicial y retorno, `aria-labelledby` y bloqueo de scroll. El shell tiene *skip link* a `#main` | Estados de carga mínimos y sin barreras | Son los tres puntos donde una SPA se rompe en silencio (pantalla blanca, spinner infinito, modal que no se cierra con Escape). Ninguno depende del backend |
 | **FE-19** | **Cuenta propia**: `PATCH /auth/me` (editar `fullName`/`phone`) y `POST /auth/change-password` (exige la actual y **revoca las demás sesiones**). Cierra el hueco de §4.14 | Dejar la edición de perfil fuera de alcance | El backend ya expone ambos endpoints (spec 01 §5.5); la SPA los consume como cualquier otra feature, sin inventar contrato |
+| **FE-20** | **Primitivas de UI de primera clase** en `components/ui`: `PageHeader` (título/descripción/acciones), `ConfirmDialog` (sobre `Modal`, para acciones destructivas o irreversibles) y `SkeletonDetail`/`SkeletonDashboard`. Los tokens `surface`/`surface-muted` viven en `tailwind.config.ts` | Cabeceras y diálogos ad hoc por pantalla | Un `PageHeader` da jerarquía y espaciado idénticos en las 16 páginas; un `ConfirmDialog` reutiliza el *focus trap* del `Modal` (FE-18) en vez de repetir `window.confirm` |
+| **FE-21** | **Accesibilidad del `Toast`**: `role="alert"` en errores y `role="status"` en el resto, botón de cierre («Cerrar aviso»), autocierre a 4 s **pausable** al pasar el foco o el ratón (conserva el tiempo restante) | Notificaciones que desaparecen sin control | Un aviso que se va mientras se lee o que no se anuncia a un lector de pantalla es inaccesible; la pausa evita perder el mensaje |
+| **FE-22** | **Gráficos del dashboard conscientes del tema**: `useChartColors` devuelve los colores según claro/oscuro (Recharts pinta con `fill`/`stroke` *inline* y no hereda `dark:`). Cada gráfico va en un `<figure>` con tabla `sr-only` de respaldo | Dejar los colores fijos o el `dark:` de Tailwind | Recharts no reacciona a la clase `dark`; sin esto el gráfico se queda en colores claros sobre fondo oscuro. La tabla `sr-only` da una alternativa textual a quien no ve el gráfico |
+| **FE-23** | **Sidebar colapsable y con iconos**: `NavIcons` da un icono a cada sección y el estado colapsado se persiste en `localStorage` (`communityhub.sidebar`); colapsado muestra `title` y el botón lleva `aria-pressed`. Selección de comunidad con **combobox con búsqueda** (`CommunitySwitcher`) | Sidebar fijo y un `<select>` nativo | Con muchas comunidades y secciones, un `<select>` y un sidebar rígido obligan a cambios de contexto; colapsar libera ancho y el buscador filtra por nombre |
+| **FE-24** | **Sin destello de tema (FOUC)**: un script *inline* en `index.html` aplica la clase `dark` **antes** del primer pintado, leyendo la misma clave (`communityhub.theme`) y `prefers-color-scheme` que `ThemeContext` | Aplicar el tema solo tras montar React | React monta tarde; sin el script, el primer fotograma es claro y luego salta a oscuro. La lógica se duplica a propósito (el script no puede importar el contexto) |
+| **FE-25** | **Paginación con números y tamaño de página** en `Pagination`: ventana de páginas alrededor de la actual (con extremos plegados), botones Anterior/Siguiente y selector de tamaño (`pageSizeOptions`) que reinicia a la página 1. Los `EmptyState` aceptan una **acción/CTA** contextual | Solo Anterior/Siguiente y vacíos sin salida | Navegar de una en una por muchas páginas es lento; un vacío sin CTA deja al usuario sin siguiente paso. El backend ya devuelve `meta.total`/`totalPages` |
 
 ---
 
@@ -435,6 +441,23 @@ Cerrada tras la primera implementación, sobre el feedback de uso:
       `ErrorBoundary` y `Modal` accesible; *skip link* a `#main`.
 - [x] **FE-19 — Cuenta**: `PATCH /auth/me` y `POST /auth/change-password`
       (cierra el hueco de §4.14).
+
+### Revisión de mejoras (FE-20…FE-25)
+
+Cerrada tras la revisión de diseño/accesibilidad sobre FE-16…FE-19:
+
+- [x] **FE-20 — Primitivas de UI**: `PageHeader` y `ConfirmDialog` en
+      `components/ui`, más `SkeletonDetail`/`SkeletonDashboard`; tokens
+      `surface`/`surface-muted` en Tailwind.
+- [x] **FE-21 — `Toast` accesible**: `role` según severidad, cierre manual y
+      autocierre pausable.
+- [x] **FE-22 — Gráficos por tema** con `useChartColors` y respaldo textual
+      `sr-only` en un `<figure>`.
+- [x] **FE-23 — Navegación**: sidebar colapsable con iconos (`NavIcons`) y
+      selección de comunidad con búsqueda (`CommunitySwitcher`).
+- [x] **FE-24 — Sin FOUC**: script *inline* en `index.html` que fija el tema antes
+      del primer pintado.
+- [x] **FE-25 — Paginación con números y tamaño** y `EmptyState` con CTA.
 
 ---
 

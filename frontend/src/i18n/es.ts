@@ -27,6 +27,11 @@ export const es = {
     themeLight: 'Tema claro',
     themeDark: 'Tema oscuro',
     skipToContent: 'Saltar al contenido',
+    breadcrumb: 'Ruta de navegación',
+    collapseSidebar: 'Contraer menú lateral',
+    expandSidebar: 'Expandir menú lateral',
+    searchCommunity: 'Buscar comunidad',
+    noCommunityResults: 'Sin resultados',
   },
   nav: {
     dashboard: 'Panel',

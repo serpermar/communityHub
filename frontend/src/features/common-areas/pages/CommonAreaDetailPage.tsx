@@ -9,7 +9,8 @@ import {
   ErrorState,
   Field,
   Input,
-  LoadingState,
+  SkeletonDetail,
+  SkeletonList,
   Textarea,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
@@ -58,7 +59,7 @@ export function CommonAreaDetailPage() {
     }
   }
 
-  if (areas.loading) return <LoadingState />
+  if (areas.loading) return <SkeletonDetail />
   if (areas.error) return <ErrorState error={areas.error} onRetry={areas.reload} />
   if (!area) return <EmptyState title="Zona no encontrada" />
 
@@ -101,7 +102,7 @@ export function CommonAreaDetailPage() {
 
         {availability.loading ? (
           <div className="mt-4">
-            <LoadingState />
+            <SkeletonList rows={2} />
           </div>
         ) : availability.error ? (
           <div className="mt-4">

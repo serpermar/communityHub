@@ -9,6 +9,7 @@ import {
   Card,
   Field,
   Input,
+  PageHeader,
   Select,
   Textarea,
   useToast,
@@ -118,7 +119,7 @@ export function IncidentCreatePage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Nueva incidencia</h1>
+      <PageHeader title="Nueva incidencia" />
 
       <Card title="Asistente IA (opcional)">
         <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">

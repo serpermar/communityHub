@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Field, Input } from '@/components/ui'
+import { Alert, Button, Card, Field, Input, PageHeader } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { redeemInvitation } from '../api'
 
@@ -32,12 +32,10 @@ export function RedeemInvitationPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-        Canjear invitación
-      </h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Pega el código que te ha compartido el administrador de la comunidad.
-      </p>
+      <PageHeader
+        title="Canjear invitación"
+        description="Pega el código que te ha compartido el administrador de la comunidad."
+      />
 
       <Card className="mt-4">
         {serverError && (

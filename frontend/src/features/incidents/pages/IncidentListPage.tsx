@@ -8,6 +8,7 @@ import {
   Pagination,
   Select,
   Input,
+  PageHeader,
   type Column,
 } from '@/components/ui'
 import { ErrorState, EmptyState, SkeletonList } from '@/components/ui'
@@ -107,14 +108,16 @@ export function IncidentListPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Incidencias</h1>
-        {role !== 'PROVIDER' && (
-          <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
-            Nueva incidencia
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Incidencias"
+        actions={
+          role !== 'PROVIDER' && (
+            <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+              Nueva incidencia
+            </Button>
+          )
+        }
+      />
 
       <Card>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -190,6 +193,13 @@ export function IncidentListPage() {
                 <EmptyState
                   title="No hay incidencias"
                   description="No se encontraron incidencias con estos filtros."
+                  action={
+                    role !== 'PROVIDER' ? (
+                      <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+                        Nueva incidencia
+                      </Button>
+                    ) : undefined
+                  }
                 />
               }
             />

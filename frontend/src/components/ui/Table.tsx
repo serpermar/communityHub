@@ -57,17 +57,33 @@ export function Pagination({
   totalPages,
   total,
   onPage,
+  pageSize,
+  pageSizeOptions,
+  onPageSize,
 }: {
   page: number
   totalPages: number
   total?: number
   onPage: (page: number) => void
+  pageSize?: number
+  pageSizeOptions?: number[]
+  onPageSize?: (size: number) => void
 }) {
-  if (totalPages <= 1) return null
+  // Con una sola página y sin control de tamaño no hay nada que mostrar.
+  if (totalPages <= 1 && !onPageSize) return null
+
+  // Ventana de páginas alrededor de la actual, con "…" en los extremos.
+  const windowSize = 5
+  let start = Math.max(1, page - Math.floor(windowSize / 2))
+  const end = Math.min(totalPages, start + windowSize - 1)
+  start = Math.max(1, end - windowSize + 1)
+  const pages: number[] = []
+  for (let value = start; value <= end; value += 1) pages.push(value)
+
   return (
     <nav
       aria-label="Paginación"
-      className="flex items-center justify-between gap-3 pt-3 text-sm text-slate-600 dark:text-slate-300"
+      className="flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-slate-600 dark:text-slate-300"
     >
       <span>
         Página {page} de {totalPages}
@@ -75,18 +91,56 @@ export function Pagination({
           <span className="text-slate-400 dark:text-slate-500"> · {total} en total</span>
         )}
       </span>
-      <div className="flex gap-2">
-        <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Anterior
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onPage(page + 1)}
-        >
-          Siguiente
-        </Button>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {onPageSize && pageSizeOptions && pageSize && (
+          <label className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+            Por página
+            <select
+              value={pageSize}
+              onChange={(event) => onPageSize(Number(event.target.value))}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => onPage(page - 1)}
+            >
+              Anterior
+            </Button>
+            {pages.map((value) => (
+              <Button
+                key={value}
+                variant={value === page ? 'primary' : 'secondary'}
+                size="sm"
+                aria-current={value === page ? 'page' : undefined}
+                onClick={() => onPage(value)}
+              >
+                {value}
+              </Button>
+            ))}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => onPage(page + 1)}
+            >
+              Siguiente
+            </Button>
+          </div>
+        )}
       </div>
     </nav>
   )

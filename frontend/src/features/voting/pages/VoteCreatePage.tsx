@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Field, Input, Select, Textarea } from '@/components/ui'
+import { Alert, Button, Card, Field, Input, PageHeader, Select, Textarea } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { createVote } from '../api'
@@ -69,7 +69,7 @@ export function VoteCreatePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Nueva votación</h1>
+      <PageHeader title="Nueva votación" />
       <Card className="mt-4">
         {error && (
           <div className="mb-4">

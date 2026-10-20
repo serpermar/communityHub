@@ -7,11 +7,13 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   DataTable,
   ErrorState,
   Field,
   Input,
   LoadingState,
+  PageHeader,
   useToast,
   type Column,
 } from '@/components/ui'
@@ -28,6 +30,7 @@ export function AccountPage() {
   const { user, logout, reload } = useAuth()
   const { notify } = useToast()
   const [error, setError] = useState<string | null>(null)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const sessions = useResource(() => listSessions(), [])
 
   const profileForm = useForm<ProfileForm>({
@@ -127,7 +130,7 @@ export function AccountPage() {
         ← Volver
       </button>
 
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Mi cuenta</h1>
+      <PageHeader title="Mi cuenta" />
 
       <Card title="Datos de la cuenta">
         <form className="space-y-4" onSubmit={onSubmitProfile} noValidate>
@@ -246,12 +249,18 @@ export function AccountPage() {
         ) : null}
       </Card>
 
-      <Button
-        variant="danger"
-        onClick={() => void logout().then(() => navigate('/login', { replace: true }))}
-      >
+      <Button variant="danger" onClick={() => setLogoutOpen(true)}>
         Cerrar sesión en este dispositivo
       </Button>
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Cerrar sesión"
+        description="Se cerrará la sesión en este dispositivo y volverás a la pantalla de acceso."
+        confirmLabel="Cerrar sesión"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => logout().then(() => navigate('/login', { replace: true }))}
+      />
     </div>
   )
 }

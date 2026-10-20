@@ -14,6 +14,12 @@ export default {
           700: '#4338ca',
         },
       },
+      // Tokens semánticos: una sola fuente para los colores de superficie que
+      // hoy se escribían a mano como `bg-white dark:bg-slate-900`, etc.
+      backgroundColor: {
+        surface: 'rgb(255 255 255)',
+        'surface-muted': 'rgb(241 245 249)',
+      },
     },
   },
   plugins: [],

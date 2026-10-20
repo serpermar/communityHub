@@ -46,8 +46,9 @@ La configuración de desarrollo redirige `/api` a `http://localhost:3000` (proxy
 
 Una vez dentro de una comunidad, la app usa `AppLayout`:
 
-- **Cabecera superior**: logo, selector de comunidad, botón de tema, campana de notificaciones, nombre de usuario (enlaza a **Mi cuenta**) y botón "Salir".
-- **Barra lateral (desktop)**: navegación principal con los módulos disponibles según tu rol.
+- **Cabecera superior**: logo, selector de comunidad (con **búsqueda**), botón de tema, campana de notificaciones, nombre de usuario (enlaza a **Mi cuenta**) y botón "Salir".
+- **Barra lateral (desktop)**: navegación principal con **icono por módulo**, disponible según tu rol. Se puede **contraer/expandir** (el estado se recuerda en `localStorage`).
+- **Breadcrumbs**: bajo la cabecera se muestra la ruta de la sección activa (oculto en el panel).
 - **Menú móvil (hamburguesa)**: aparece en pantallas `md:hidden`. Se abre/cierra desde el icono de hamburguesa y se cierra automáticamente al navegar.
 - **Área principal**: ruta activa (`Outlet`) con fondo `slate-50`/`dark:slate-950`. Al cargar una ruta nueva se muestra un *skeleton*; si un componente falla al renderizar, un `ErrorBoundary` evita la pantalla en blanco.
 - **Notificaciones globales**: el centro de notificaciones es `/notifications` (accesible desde la campana → "Ver todas").
@@ -115,7 +116,7 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 ### 5.6 Dashboard con tendencia (punto 8)
 1. Ve a **Panel** (`/c/:id/dashboard`).
 2. Si eres `ADMIN`, verás una tarjeta **"Tendencia de gastos por mes"** (`LineChart`) con `finance.expensesByMonth`. También aparecen totales de finanzas (gasto total, pendiente, vencidas).
-3. Gráficos existentes: "Incidencias por categoría" (barras) y "Reservas por mes" (barras). Todos con soporte claro/oscuro y componentes responsive.
+3. Gráficos existentes: "Incidencias por categoría" (barras) y "Reservas por mes" (barras). Todos **adaptan sus colores al tema** (claro/oscuro) mediante `useChartColors` y ofrecen una **tabla de datos oculta (`sr-only`)** como alternativa accesible.
 
 ### 5.7 Mi cuenta: perfil y contraseña (mejoras 9–13)
 1. Abre **Mi cuenta** (`/account`) desde el nombre de usuario en la cabecera.
@@ -130,15 +131,20 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **Persistencia**: `localStorage.getItem('communityhub.theme')`.
 - **Preferencias del sistema**: si no hay valor, usa `prefers-color-scheme`.
 - **Aplicación**: añade clase `dark` a `<html>`; colores base definidos en `src/index.css` (`body` con `dark:bg-slate-950 dark:text-slate-100`).
+- **Sin destello (FOUC)**: un script *inline* en `index.html` aplica el tema **antes** del primer pintado (misma clave y misma lógica que `ThemeContext`), de modo que no se ve el salto claro→oscuro.
+- **Movimiento reducido**: `index.css` respeta `@media (prefers-reduced-motion: reduce)`.
 - **Cobertura**: las 18 páginas y los componentes compartidos (Button, Badge/Card/Modal, Feedback, Form, Table, Toast) tienen variantes `dark:` aplicadas.
 
 ---
 
 ## 7. Acciones rápidas desde teclado/UX
 - **Menú móvil**: abre/cierra con hamburguesa; se cierra al pulsar fuera o al navegar.
-- **Selector de comunidad**: cambia de comunidad al instante (redirecciona a `/c/:id/dashboard`).
+- **Selector de comunidad**: es un **combobox con búsqueda**; escribe para filtrar, `↑`/`↓` para moverte, `Enter` para elegir y `Escape` para cerrar. Al elegir redirige a `/c/:id/dashboard`.
+- **Barra lateral**: se **contrae/expande** con el botón de la cabecera de la barra; la preferencia persiste entre sesiones.
 - **Campana**: clic abre desplegable; clic fuera lo cierra.
 - **Búsqueda de miembros**: escribe y el listado se filtra automáticamente (sin petición extra a API).
+- **Paginación**: además de Anterior/Siguiente hay **números de página** y un selector de **tamaño de página** (10/20/50) donde la lista lo soporta.
+- **Estados vacíos**: cuando una lista está vacía, el mensaje incluye un **botón de acción** contextual ("Nueva incidencia", "Subir documento", etc.) si tu rol lo permite.
 
 ---
 
@@ -146,7 +152,9 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **No commitear**: las instrucciones indican no hacer commits (decisión del usuario).
 - **Docker prohibido**: no usar contenedores para estas tareas.
 - **Rutas protegidas**: requieren sesión válida; sin comunidad activa se muestra CTA para canjear invitación o crear comunidad (solo `ADMIN_SA`).
-- **Toasts**: `useToast()` disponible globalmente (ToastProvider). Se usa en acciones con éxito (crear/actualizar/marcar leído, guardar perfil...).
+- **Toasts**: `useToast()` disponible globalmente (ToastProvider). Se usa en acciones con éxito (crear/actualizar/marcar leído, guardar perfil...). Los avisos se **anuncian a lectores de pantalla** (`role="alert"`/`"status"`), tienen **botón de cierre** y autocierre de 4 s que se **pausa** al pasar el ratón o el foco.
+- **Diálogos de confirmación**: las acciones destructivas (borrar documento, aviso o gasto; cerrar sesión) usan `ConfirmDialog` (sobre el `Modal` accesible) en vez de `window.confirm`.
+- **Cabeceras de página**: `PageHeader` (título/descripción/acciones) da estructura homogénea a todas las pantallas.
 - **i18n ligero**: textos del shell (nav, app, common, notifications, toast) viven en `src/i18n/es.ts` (`t(path)`); preparado para añadir otros idiomas.
 - **Carga diferida**: cada ruta se importa con `React.lazy` y Vite parte el bundle por vendors (`vendor-react`, `vendor-charts`, `vendor-forms`); al navegar se ve un *skeleton* hasta que llega el chunk.
 - **Accesibilidad**: `Modal` con *focus trap*, foco inicial, retorno de foco y cierre con Escape; *skip link* a `#main`; `ErrorBoundary` en la raíz del router.

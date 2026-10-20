@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import {
   Bar,
   BarChart,
@@ -9,19 +10,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Card, ErrorState, LoadingState } from '@/components/ui'
+import { Card, ErrorState, PageHeader, SkeletonDashboard } from '@/components/ui'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
 import { CATEGORY_LABELS } from '@/features/incidents/types'
+import { useChartColors } from '@/hooks/useChartColors'
 import { getDashboard } from '../api'
 
 export function DashboardPage() {
   const { active } = useCommunity()
+  const colors = useChartColors()
   const dashboard = useResource(() => getDashboard(active!.id), [active?.id])
 
-  if (dashboard.loading) return <LoadingState />
+  if (dashboard.loading) return <SkeletonDashboard />
   if (dashboard.error) return <ErrorState error={dashboard.error} onRetry={dashboard.reload} />
   if (!dashboard.data) return null
 
@@ -41,15 +44,10 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-          {data.community.name}
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {data.community.city} · {data.community.memberCount} miembros (
-          {data.community.neighborCount} vecinos)
-        </p>
-      </div>
+      <PageHeader
+        title={data.community.name}
+        description={`${data.community.city} · ${data.community.memberCount} miembros (${data.community.neighborCount} vecinos)`}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Incidencias abiertas" value={data.incidents.open} />
@@ -65,17 +63,25 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Incidencias por categoría">
           {categoryData.length > 0 ? (
-            <div className="h-64">
+            <ChartFigure caption="Incidencias por categoría" data={categoryData}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="total" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: colors.axis }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.tooltipBorder}`,
+                      borderRadius: 8,
+                      color: colors.tooltipText,
+                    }}
+                    labelStyle={{ color: colors.tooltipText }}
+                  />
+                  <Bar dataKey="total" fill={colors.bars.incidents} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </ChartFigure>
           ) : (
             <p className="text-sm text-slate-500 dark:text-slate-400">Sin datos de incidencias.</p>
           )}
@@ -83,17 +89,25 @@ export function DashboardPage() {
 
         <Card title="Reservas por mes">
           {reservationData.length > 0 ? (
-            <div className="h-64">
+            <ChartFigure caption="Reservas por mes" data={reservationData}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={reservationData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: colors.axis }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.tooltipBorder}`,
+                      borderRadius: 8,
+                      color: colors.tooltipText,
+                    }}
+                    labelStyle={{ color: colors.tooltipText }}
+                  />
+                  <Bar dataKey="total" fill={colors.bars.reservations} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </ChartFigure>
           ) : (
             <p className="text-sm text-slate-500 dark:text-slate-400">Sin datos de reservas.</p>
           )}
@@ -169,23 +183,31 @@ export function DashboardPage() {
 
           <Card title={t('dashboard.expenseTrend')}>
             {expenseData.length > 0 ? (
-              <div className="h-64">
+              <ChartFigure caption={t('dashboard.expenseTrend')} data={expenseData}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={expenseData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
+                    <YAxis tick={{ fontSize: 11, fill: colors.axis }} />
+                    <Tooltip
+                      contentStyle={{
+                        background: colors.tooltipBg,
+                        border: `1px solid ${colors.tooltipBorder}`,
+                        borderRadius: 8,
+                        color: colors.tooltipText,
+                      }}
+                      labelStyle={{ color: colors.tooltipText }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="total"
-                      stroke="#7c3aed"
+                      stroke={colors.line}
                       strokeWidth={2}
                       dot={{ r: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartFigure>
             ) : (
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Sin datos de gastos todavía.
@@ -206,5 +228,44 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
         {value}
       </p>
     </Card>
+  )
+}
+
+/**
+ * Envuelve un gráfico de Recharts en una `<figure>` con altura fija y una tabla
+ * de datos visualmente oculta (`sr-only`). Recharts renderiza `<svg>` sin texto
+ * accesible, así que un lector de pantalla no obtiene nada del gráfico; la tabla
+ * da las mismas cifras en formato lineal.
+ */
+function ChartFigure({
+  caption,
+  data,
+  children,
+}: {
+  caption: string
+  data: { name: string; total: number }[]
+  children: ReactNode
+}) {
+  return (
+    <figure className="m-0">
+      <div className="h-64">{children}</div>
+      <table className="sr-only">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Categoría</th>
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.name}>
+              <th scope="row">{row.name}</th>
+              <td>{row.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </figure>
   )
 }

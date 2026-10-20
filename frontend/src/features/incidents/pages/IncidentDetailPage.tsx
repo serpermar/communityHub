@@ -9,6 +9,7 @@ import {
   Card,
   Field,
   LoadingState,
+  SkeletonDetail,
   ErrorState,
   Textarea,
 } from '@/components/ui'
@@ -78,7 +79,7 @@ export function IncidentDetailPage() {
     }
   })
 
-  if (incident.loading) return <LoadingState />
+  if (incident.loading) return <SkeletonDetail />
   if (incident.error) return <ErrorState error={incident.error} onRetry={incident.reload} />
   if (!incident.data) return null
 

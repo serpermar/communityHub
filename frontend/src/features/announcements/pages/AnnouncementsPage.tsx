@@ -7,11 +7,13 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   Field,
   Input,
   Modal,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -62,6 +64,7 @@ export function AnnouncementsPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null)
 
   const result = useResource(
     () => listAnnouncements(active!.id, { type: (type || undefined) as never, page, limit: 20 }),
@@ -131,6 +134,7 @@ export function AnnouncementsPage() {
     setServerError(null)
     try {
       await deleteAnnouncement(announcement.id)
+      setPendingDelete(null)
       result.reload()
     } catch (caught) {
       setServerError(ApiError.from(caught).message)
@@ -139,10 +143,10 @@ export function AnnouncementsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Avisos</h1>
-        {canManage && <Button onClick={openCreate}>Nuevo aviso</Button>}
-      </div>
+      <PageHeader
+        title="Avisos"
+        actions={canManage && <Button onClick={openCreate}>Nuevo aviso</Button>}
+      />
 
       <Card>
         <Select
@@ -194,7 +198,7 @@ export function AnnouncementsPage() {
                         <Button
                           size="sm"
                           variant="danger"
-                          onClick={() => void onDelete(announcement)}
+                          onClick={() => setPendingDelete(announcement)}
                         >
                           Eliminar
                         </Button>
@@ -221,7 +225,11 @@ export function AnnouncementsPage() {
           />
         </>
       ) : (
-        <EmptyState title="No hay avisos" />
+        <EmptyState
+          title="No hay avisos"
+          description="Publica el primer aviso para la comunidad."
+          action={canManage ? <Button onClick={openCreate}>Nuevo aviso</Button> : undefined}
+        />
       )}
 
       <Modal
@@ -274,6 +282,14 @@ export function AnnouncementsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Eliminar aviso"
+        description={pendingDelete ? `Se eliminará el aviso «${pendingDelete.title}».` : undefined}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => (pendingDelete ? onDelete(pendingDelete) : undefined)}
+      />
     </div>
   )
 }

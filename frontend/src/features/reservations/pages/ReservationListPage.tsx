@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorState,
   Input,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -119,41 +120,41 @@ export function ReservationListPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-          {t('nav.reservations')}
-        </h1>
-        <div
-          role="group"
-          aria-label="Vista"
-          className="inline-flex overflow-hidden rounded-md border border-slate-300 dark:border-slate-600"
-        >
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            aria-pressed={view === 'list'}
-            className={`px-3 py-1 text-sm ${
-              view === 'list'
-                ? 'bg-brand-600 text-white'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-            }`}
+      <PageHeader
+        title={t('nav.reservations')}
+        actions={
+          <div
+            role="group"
+            aria-label="Vista"
+            className="inline-flex overflow-hidden rounded-md border border-slate-300 dark:border-slate-600"
           >
-            Lista
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('calendar')}
-            aria-pressed={view === 'calendar'}
-            className={`px-3 py-1 text-sm ${
-              view === 'calendar'
-                ? 'bg-brand-600 text-white'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-            }`}
-          >
-            Calendario
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              aria-pressed={view === 'list'}
+              className={`px-3 py-1 text-sm ${
+                view === 'list'
+                  ? 'bg-brand-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              }`}
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('calendar')}
+              aria-pressed={view === 'calendar'}
+              className={`px-3 py-1 text-sm ${
+                view === 'calendar'
+                  ? 'bg-brand-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              }`}
+            >
+              Calendario
+            </button>
+          </div>
+        }
+      />
 
       {view === 'calendar' ? (
         <ReservationCalendar />
@@ -201,7 +202,12 @@ export function ReservationListPage() {
                   columns={columns}
                   rows={result.data.data}
                   rowKey={(row) => row.id}
-                  empty={<EmptyState title="No hay reservas" />}
+                  empty={
+                    <EmptyState
+                      title="No hay reservas"
+                      description="Reserva una zona común desde su ficha."
+                    />
+                  }
                 />
               </Card>
               <Pagination

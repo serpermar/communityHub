@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, Card, Field, Input, LoadingState } from '@/components/ui'
+import { Alert, Button, Card, Field, Input, LoadingState, PageHeader } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
@@ -69,9 +69,7 @@ export function CommunitySettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-        Ajustes de la comunidad
-      </h1>
+      <PageHeader title="Ajustes de la comunidad" />
 
       <Card title="Datos generales">
         {serverError && (

@@ -16,6 +16,21 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
 }
 
+/*
+ * Respeta a quien pide menos movimiento en el sistema: desactiva las
+ * animaciones (spinners, pulso de esqueletos) y las transiciones.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .btn {
   @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium
     transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500

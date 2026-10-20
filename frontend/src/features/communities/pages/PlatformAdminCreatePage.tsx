@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Field, Input } from '@/components/ui'
+import { Alert, Button, Card, Field, Input, PageHeader } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { createCommunity } from '../api'
 import { createCommunitySchema, type CreateCommunityForm } from '../schemas'
@@ -35,10 +35,10 @@ export function PlatformAdminCreatePage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Nueva comunidad</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Se te asignará como primer administrador de la comunidad creada.
-      </p>
+      <PageHeader
+        title="Nueva comunidad"
+        description="Se te asignará como primer administrador de la comunidad creada."
+      />
 
       <Card className="mt-4">
         {serverError && (

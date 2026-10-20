@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
@@ -11,6 +12,7 @@ import {
   Input,
   LoadingState,
   Modal,
+  PageHeader,
   Pagination,
   Select,
   type Column,
@@ -45,25 +47,29 @@ export function FinancePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Finanzas</h1>
-      <div className="flex gap-2">
-        {(
-          [
-            ['summary', 'Resumen'],
-            ['expenses', 'Gastos'],
-            ['invoices', 'Facturas'],
-          ] as const
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={tab === value ? 'primary' : 'secondary'}
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
+      <PageHeader
+        title="Finanzas"
+        actions={
+          <div className="flex gap-2">
+            {(
+              [
+                ['summary', 'Resumen'],
+                ['expenses', 'Gastos'],
+                ['invoices', 'Facturas'],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={tab === value ? 'primary' : 'secondary'}
+                onClick={() => setTab(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
       {tab === 'summary' && <SummaryTab communityId={active!.id} />}
       {tab === 'expenses' && <ExpensesTab communityId={active!.id} />}
@@ -131,6 +137,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
   const [editing, setEditing] = useState<Expense | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null)
   const [concept, setConcept] = useState('')
   const [amount, setAmount] = useState('')
   const [expenseDate, setExpenseDate] = useState(today())
@@ -195,6 +202,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
     setError(null)
     try {
       await deleteExpense(row.id)
+      setPendingDelete(null)
       result.reload()
     } catch (caught) {
       setError(ApiError.from(caught).message)
@@ -219,7 +227,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
           <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
             Editar
           </Button>
-          <Button size="sm" variant="danger" onClick={() => void remove(row)}>
+          <Button size="sm" variant="danger" onClick={() => setPendingDelete(row)}>
             Eliminar
           </Button>
         </div>
@@ -321,6 +329,16 @@ function ExpensesTab({ communityId }: { communityId: string }) {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Eliminar gasto"
+        description={
+          pendingDelete ? `Se eliminará el gasto «${pendingDelete.concept}».` : undefined
+        }
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => (pendingDelete ? remove(pendingDelete) : undefined)}
+      />
     </div>
   )
 }

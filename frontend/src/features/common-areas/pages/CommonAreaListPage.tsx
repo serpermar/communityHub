@@ -14,6 +14,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   Select,
   SkeletonList,
   type Column,
@@ -109,10 +110,10 @@ export function CommonAreaListPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Zonas comunes</h1>
-        {role === 'ADMIN' && <Button onClick={() => setOpen(true)}>Nueva zona</Button>}
-      </div>
+      <PageHeader
+        title="Zonas comunes"
+        actions={role === 'ADMIN' && <Button onClick={() => setOpen(true)}>Nueva zona</Button>}
+      />
 
       {areas.loading ? (
         <SkeletonList />
@@ -124,7 +125,17 @@ export function CommonAreaListPage() {
             columns={columns}
             rows={areas.data}
             rowKey={(area) => area.id}
-            empty={<EmptyState title="No hay zonas comunes" />}
+            empty={
+              <EmptyState
+                title="No hay zonas comunes"
+                description="Crea una zona para poder reservarla."
+                action={
+                  role === 'ADMIN' ? (
+                    <Button onClick={() => setOpen(true)}>Nueva zona</Button>
+                  ) : undefined
+                }
+              />
+            }
           />
         </Card>
       ) : null}

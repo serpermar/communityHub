@@ -7,6 +7,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -66,12 +67,14 @@ export function VotingPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Votaciones</h1>
-        {isManager(role) && (
-          <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>Nueva votación</Button>
-        )}
-      </div>
+      <PageHeader
+        title="Votaciones"
+        actions={
+          isManager(role) && (
+            <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>Nueva votación</Button>
+          )
+        }
+      />
 
       <Card>
         <Select
@@ -103,7 +106,19 @@ export function VotingPage() {
               columns={columns}
               rows={result.data.data}
               rowKey={(row) => row.id}
-              empty={<EmptyState title="No hay votaciones" />}
+              empty={
+                <EmptyState
+                  title="No hay votaciones"
+                  description="Crea una votación para consultar a la comunidad."
+                  action={
+                    isManager(role) ? (
+                      <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>
+                        Nueva votación
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              }
             />
           </Card>
           <Pagination

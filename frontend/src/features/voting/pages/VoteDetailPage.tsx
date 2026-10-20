@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Badge, Button, Card, ErrorState, LoadingState } from '@/components/ui'
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ErrorState,
+  SkeletonDetail,
+  SkeletonList,
+} from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { isManager } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
@@ -41,7 +49,7 @@ export function VoteDetailPage() {
     }
   }
 
-  if (vote.loading) return <LoadingState />
+  if (vote.loading) return <SkeletonDetail />
   if (vote.error) return <ErrorState error={vote.error} onRetry={vote.reload} />
   if (!vote.data) return null
 
@@ -159,7 +167,7 @@ export function VoteDetailPage() {
         }
       >
         {results.loading ? (
-          <LoadingState />
+          <SkeletonList rows={2} />
         ) : results.data ? (
           <div className="space-y-3">
             <p className="text-sm text-slate-600 dark:text-slate-300">

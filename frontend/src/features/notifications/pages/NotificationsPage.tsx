@@ -5,6 +5,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -63,14 +64,14 @@ export function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-          {t('notifications.pageTitle')}
-        </h1>
-        <Button variant="secondary" onClick={() => void readAll()}>
-          {t('notifications.markAll')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('notifications.pageTitle')}
+        actions={
+          <Button variant="secondary" onClick={() => void readAll()}>
+            {t('notifications.markAll')}
+          </Button>
+        }
+      />
 
       <Card>
         <Select

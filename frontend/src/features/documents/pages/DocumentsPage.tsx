@@ -4,12 +4,14 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
   Field,
   Input,
   Modal,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -35,9 +37,11 @@ export function DocumentsPage() {
   const { active, role } = useCommunity()
   const isAdmin = role === 'ADMIN'
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [category, setCategory] = useState<DocumentCategory | ''>('')
   const [open, setOpen] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<CommunityDocument | null>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
@@ -51,9 +55,9 @@ export function DocumentsPage() {
       listDocuments(active!.id, {
         category: category || undefined,
         page,
-        limit: 20,
+        limit: pageSize,
       }),
-    [active?.id, category, page],
+    [active?.id, category, page, pageSize],
   )
 
   const onDownload = async (document: CommunityDocument) => {
@@ -69,6 +73,7 @@ export function DocumentsPage() {
     setServerError(null)
     try {
       await deleteDocument(document.id)
+      setPendingDelete(null)
       result.reload()
     } catch (caught) {
       setServerError(ApiError.from(caught).message)
@@ -127,7 +132,7 @@ export function DocumentsPage() {
             Descargar
           </Button>
           {isAdmin && (
-            <Button size="sm" variant="danger" onClick={() => void onDelete(row)}>
+            <Button size="sm" variant="danger" onClick={() => setPendingDelete(row)}>
               Eliminar
             </Button>
           )}
@@ -138,10 +143,10 @@ export function DocumentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Documentos</h1>
-        {isAdmin && <Button onClick={() => setOpen(true)}>Subir documento</Button>}
-      </div>
+      <PageHeader
+        title="Documentos"
+        actions={isAdmin && <Button onClick={() => setOpen(true)}>Subir documento</Button>}
+      />
 
       <Card>
         <Select
@@ -175,7 +180,17 @@ export function DocumentsPage() {
               columns={columns}
               rows={result.data.data}
               rowKey={(row) => row.id}
-              empty={<EmptyState title="No hay documentos" />}
+              empty={
+                <EmptyState
+                  title="No hay documentos"
+                  description="Sube el primer documento de la comunidad."
+                  action={
+                    isAdmin ? (
+                      <Button onClick={() => setOpen(true)}>Subir documento</Button>
+                    ) : undefined
+                  }
+                />
+              }
             />
           </Card>
           <Pagination
@@ -183,6 +198,12 @@ export function DocumentsPage() {
             totalPages={result.data.meta.totalPages}
             total={result.data.meta.total}
             onPage={setPage}
+            pageSize={pageSize}
+            pageSizeOptions={[10, 20, 50]}
+            onPageSize={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
           />
         </>
       ) : null}
@@ -251,6 +272,16 @@ export function DocumentsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Eliminar documento"
+        description={
+          pendingDelete ? `Se eliminará «${pendingDelete.title}» de la biblioteca.` : undefined
+        }
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => (pendingDelete ? onDelete(pendingDelete) : undefined)}
+      />
     </div>
   )
 }

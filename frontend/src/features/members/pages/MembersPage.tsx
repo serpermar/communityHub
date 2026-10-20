@@ -11,6 +11,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   Pagination,
   Select,
   SkeletonList,
@@ -155,12 +156,10 @@ export function MembersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-          {t('nav.members')}
-        </h1>
-        {isAdmin && <Button onClick={() => setInviteOpen(true)}>Invitar</Button>}
-      </div>
+      <PageHeader
+        title={t('nav.members')}
+        actions={isAdmin && <Button onClick={() => setInviteOpen(true)}>Invitar</Button>}
+      />
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
 
