@@ -10,10 +10,10 @@ import {
   ErrorState,
   Field,
   Input,
-  LoadingState,
   Modal,
   Pagination,
   Select,
+  SkeletonList,
   useToast,
   type Column,
 } from '@/components/ui'
@@ -178,7 +178,7 @@ export function MembersPage() {
       </Card>
 
       {members.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : members.error ? (
         <ErrorState error={members.error} onRetry={members.reload} />
       ) : members.data ? (
@@ -203,17 +203,17 @@ export function MembersPage() {
       {isAdmin && (
         <Card title="Invitaciones pendientes">
           {invitations.loading ? (
-            <LoadingState />
+            <SkeletonList rows={1} />
           ) : invitations.data && invitations.data.length > 0 ? (
             <ul className="space-y-2">
               {invitations.data.map((invitation) => (
                 <li
                   key={invitation.id}
-                  className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2 text-sm dark:border-slate-800"
                 >
                   <div>
-                    <p className="text-slate-700">{invitation.email}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-slate-700 dark:text-slate-200">{invitation.email}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                       {invitation.acceptedAt
                         ? `Aceptada el ${formatDate(invitation.acceptedAt)}`
                         : `Caduca el ${formatDate(invitation.expiresAt)}`}
@@ -236,7 +236,9 @@ export function MembersPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">No hay invitaciones pendientes.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              No hay invitaciones pendientes.
+            </p>
           )}
         </Card>
       )}
@@ -247,7 +249,7 @@ export function MembersPage() {
             <Alert variant="success">
               Invitación creada. Copia el código y compártelo: solo se muestra una vez.
             </Alert>
-            <code className="block break-all rounded-md bg-slate-100 px-3 py-2 text-sm">
+            <code className="block break-all rounded-md bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-100">
               {createdCode}
             </code>
             <div className="flex justify-end">

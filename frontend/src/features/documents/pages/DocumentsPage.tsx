@@ -9,10 +9,10 @@ import {
   ErrorState,
   Field,
   Input,
-  LoadingState,
   Modal,
   Pagination,
   Select,
+  SkeletonList,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
@@ -139,7 +139,7 @@ export function DocumentsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Documentos</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Documentos</h1>
         {isAdmin && <Button onClick={() => setOpen(true)}>Subir documento</Button>}
       </div>
 
@@ -165,7 +165,7 @@ export function DocumentsPage() {
       {serverError && <Alert variant="error">{serverError}</Alert>}
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
@@ -232,7 +232,7 @@ export function DocumentsPage() {
               </Select>
             </Field>
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input
               type="checkbox"
               checked={isPublic}

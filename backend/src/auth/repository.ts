@@ -119,6 +119,70 @@ export async function findUserById(tx: Tx, userId: string) {
   })
 }
 
+/**
+ * Actualiza el perfil propio (nombre y telefono).
+ *
+ * RLS (`users_update_self`) ya limita el `where` a la fila propia: un id ajeno
+ * afectaria a cero filas. Devuelve la fila actualizada con el mismo `select` que
+ * la lectura, para no encadenar dos viajes a la base de datos.
+ */
+export async function updateProfile(
+  tx: Tx,
+  userId: string,
+  input: { fullName: string; phone: string | null },
+) {
+  return tx.users.update({
+    where: { id: userId },
+    data: { full_name: input.fullName, phone: input.phone },
+    select: {
+      id: true,
+      email: true,
+      full_name: true,
+      phone: true,
+      avatar_url: true,
+      global_role: true,
+      email_verified_at: true,
+      created_at: true,
+    },
+  })
+}
+
+/** Hash de la contrasena propia, para verificar la actual antes de cambiarla. */
+export async function findUserPasswordHash(tx: Tx, userId: string) {
+  return tx.users.findUnique({ where: { id: userId }, select: { password_hash: true } })
+}
+
+export async function updatePasswordHash(
+  tx: Tx,
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  await tx.users.update({ where: { id: userId }, data: { password_hash: passwordHash } })
+}
+
+/**
+ * Revoca todas las sesiones activas salvo la actual.
+ *
+ * Cambiar la contrasena cierra la sesion en el resto de dispositivos: si alguien
+ * habia entrado con la contrasena vieja, deja de tener una sesion viva. La sesion
+ * desde la que se cambia se conserva para no expulsar a quien lo ha pedido.
+ */
+export async function revokeOtherSessions(
+  tx: Tx,
+  userId: string,
+  currentSessionId: string,
+): Promise<number> {
+  const result = await tx.sessions.updateMany({
+    where: {
+      user_id: userId,
+      status: session_status.ACTIVE,
+      id: { not: currentSessionId },
+    },
+    data: { status: session_status.REVOKED, revoked_at: new Date() },
+  })
+  return result.count
+}
+
 export async function insertSession(
   tx: Tx,
   input: {

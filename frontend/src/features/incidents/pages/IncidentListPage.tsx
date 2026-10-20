@@ -10,7 +10,7 @@ import {
   Input,
   type Column,
 } from '@/components/ui'
-import { LoadingState, ErrorState, EmptyState } from '@/components/ui'
+import { ErrorState, EmptyState, SkeletonList } from '@/components/ui'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -71,7 +71,9 @@ export function IncidentListPage() {
       key: 'reference',
       header: 'Referencia',
       render: (incident) => (
-        <span className="font-mono text-xs text-slate-500">{incident.referenceCode}</span>
+        <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+          {incident.referenceCode}
+        </span>
       ),
     },
     {
@@ -80,7 +82,7 @@ export function IncidentListPage() {
       render: (incident) => (
         <button
           type="button"
-          className="text-left font-medium text-brand-700 hover:underline"
+          className="text-left font-medium text-brand-700 dark:text-brand-400 hover:underline"
           onClick={() => navigate(`/c/${active!.id}/incidents/${incident.id}`)}
         >
           {incident.title}
@@ -106,7 +108,7 @@ export function IncidentListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Incidencias</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Incidencias</h1>
         {role !== 'PROVIDER' && (
           <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
             Nueva incidencia
@@ -174,7 +176,7 @@ export function IncidentListPage() {
       </Card>
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (

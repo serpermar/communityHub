@@ -1,6 +1,6 @@
 # Guía paso a paso para navegar por el frontend de CommunityHub
 
-Esta guía te ayudará a recorrer la aplicación CommunityHub desde el arranque hasta las secciones clave. Se basa en el estado actual del código tras las mejoras 1–8 implementadas.
+Esta guía te ayudará a recorrer la aplicación CommunityHub desde el arranque hasta las secciones clave. Se basa en el estado actual del código tras las mejoras 1–13 implementadas (incluye tema claro/oscuro, carga diferida por ruta, estados de carga accesibles y la pantalla de cuenta).
 
 ## 1. Arranque de la aplicación
 
@@ -46,11 +46,12 @@ La configuración de desarrollo redirige `/api` a `http://localhost:3000` (proxy
 
 Una vez dentro de una comunidad, la app usa `AppLayout`:
 
-- **Cabecera superior**: logo, selector de comunidad, botón de tema, campana de notificaciones, nombre de usuario y botón "Salir".
+- **Cabecera superior**: logo, selector de comunidad, botón de tema, campana de notificaciones, nombre de usuario (enlaza a **Mi cuenta**) y botón "Salir".
 - **Barra lateral (desktop)**: navegación principal con los módulos disponibles según tu rol.
 - **Menú móvil (hamburguesa)**: aparece en pantallas `md:hidden`. Se abre/cierra desde el icono de hamburguesa y se cierra automáticamente al navegar.
-- **Área principal**: ruta activa (`Outlet`) con fondo `slate-50`/`dark:slate-950`.
+- **Área principal**: ruta activa (`Outlet`) con fondo `slate-50`/`dark:slate-950`. Al cargar una ruta nueva se muestra un *skeleton*; si un componente falla al renderizar, un `ErrorBoundary` evita la pantalla en blanco.
 - **Notificaciones globales**: el centro de notificaciones es `/notifications` (accesible desde la campana → "Ver todas").
+- **Accesibilidad**: primer elemento enfocable es un *skip link* ("Saltar al contenido") que salta a `#main`.
 
 ---
 
@@ -68,7 +69,8 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 | Votaciones | `/c/:id/votes` | `ADMIN`, `PRESIDENT`, `NEIGHBOR` | Votaciones y resultados. |
 | Asistente IA | `/c/:id/assistant` | Todos | Chat con el asistente IA. Muestra **llamadas a herramientas** (`tool_calls`) y **citas/fuentes** (`citations`) durante la respuesta. |
 | Miembros | `/c/:id/members` | Todos | Listado de miembros con **búsqueda en tiempo real** y **paginación cliente**. Invitaciones disponibles para `ADMIN`. |
-| Ajustes | `/c/:id/settings` | Solo `ADMIN` | Configuración de comunidad.
+| Ajustes | `/c/:id/settings` | Solo `ADMIN` | Configuración de comunidad. |
+| Mi cuenta | `/account` | Todos (ruta global, fuera de una comunidad) | Editar perfil (`fullName`, `phone`), cambiar contraseña y ver/revocar sesiones. Se abre desde el nombre de usuario en la cabecera. |
 
 ---
 
@@ -115,14 +117,20 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 2. Si eres `ADMIN`, verás una tarjeta **"Tendencia de gastos por mes"** (`LineChart`) con `finance.expensesByMonth`. También aparecen totales de finanzas (gasto total, pendiente, vencidas).
 3. Gráficos existentes: "Incidencias por categoría" (barras) y "Reservas por mes" (barras). Todos con soporte claro/oscuro y componentes responsive.
 
+### 5.7 Mi cuenta: perfil y contraseña (mejoras 9–13)
+1. Abre **Mi cuenta** (`/account`) desde el nombre de usuario en la cabecera.
+2. **Perfil**: edita nombre y teléfono y pulsa **Guardar**. Dejar el teléfono vacío lo borra. Se confirma con un *toast*.
+3. **Contraseña**: introduce la **actual** y la **nueva** (mínimo 12 caracteres) y repítela. Si la actual no coincide, el error aparece en el propio campo (*no* es un mensaje genérico).
+4. Al cambiar la contraseña, el backend **revoca las demás sesiones**; la tuya sigue activa. La tabla de **sesiones** se refresca y puedes revocar cualquiera con `DELETE /auth/sessions/:id`.
+
 ---
 
 ## 6. Tema claro/oscuro (punto 8)
-- **Toggle**: icono sol/luna en cabecera (cambia entre `light`/`dark`).
+- **Toggle**: icono sol/luna en cabecera (cambia entre `light`/`dark`). También aparece en las pantallas de login/registro.
 - **Persistencia**: `localStorage.getItem('communityhub.theme')`.
 - **Preferencias del sistema**: si no hay valor, usa `prefers-color-scheme`.
 - **Aplicación**: añade clase `dark` a `<html>`; colores base definidos en `src/index.css` (`body` con `dark:bg-slate-950 dark:text-slate-100`).
-- **Componentes**: Button, Badge/Card/Modal (Display), Feedback (Alert/Spinner), Form, Table, Toast tienen variantes `dark:` aplicadas.
+- **Cobertura**: las 18 páginas y los componentes compartidos (Button, Badge/Card/Modal, Feedback, Form, Table, Toast) tienen variantes `dark:` aplicadas.
 
 ---
 
@@ -138,10 +146,12 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **No commitear**: las instrucciones indican no hacer commits (decisión del usuario).
 - **Docker prohibido**: no usar contenedores para estas tareas.
 - **Rutas protegidas**: requieren sesión válida; sin comunidad activa se muestra CTA para canjear invitación o crear comunidad (solo `ADMIN_SA`).
-- **Toasts**: `useToast()` disponible globalmente (ToastProvider). Se usa en acciones con éxito (crear/actualizar/marcar leído...).
+- **Toasts**: `useToast()` disponible globalmente (ToastProvider). Se usa en acciones con éxito (crear/actualizar/marcar leído, guardar perfil...).
 - **i18n ligero**: textos del shell (nav, app, common, notifications, toast) viven en `src/i18n/es.ts` (`t(path)`); preparado para añadir otros idiomas.
+- **Carga diferida**: cada ruta se importa con `React.lazy` y Vite parte el bundle por vendors (`vendor-react`, `vendor-charts`, `vendor-forms`); al navegar se ve un *skeleton* hasta que llega el chunk.
+- **Accesibilidad**: `Modal` con *focus trap*, foco inicial, retorno de foco y cierre con Escape; *skip link* a `#main`; `ErrorBoundary` en la raíz del router.
 - **TypeScript estricto**: `tsc --noEmit` pasa. ESLint y Prettier OK.
-- **Tests frontend**: 15 unit tests pasan (`ApiError`, `format`, `LoginPage`).
+- **Tests frontend**: 31 tests pasan (`ApiError`, `format`, `LoginPage`, `links` de notificaciones, `useDebouncedValue`, `Display`/Modal y `AccountPage`).
 
 ---
 
@@ -154,5 +164,6 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 6. **Notificaciones**: abre la campana, ve "Ver todas", marca algunas como leídas.
 7. **Dashboard**: revisa la tendencia de gastos (si hay rol ADMIN en comunidad con finanzas).
 8. **Toggle tema**: alterna claro/oscuro en distintas páginas para verificar estilos.
+9. **Mi cuenta**: edita el perfil y cambia la contraseña; observa cómo se revocan las demás sesiones.
 
 ¡Listo! Con esta guía puedes recorrer CommunityHub de principio a fin de forma ordenada.

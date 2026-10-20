@@ -32,8 +32,10 @@ export function LoginPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-800">Iniciar sesión</h2>
-      <p className="mt-1 text-sm text-slate-500">Accede con tu correo y contraseña.</p>
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Iniciar sesión</h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Accede con tu correo y contraseña.
+      </p>
 
       {serverError && (
         <div className="mt-4">
@@ -60,9 +62,12 @@ export function LoginPage() {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-slate-500">
+      <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
         ¿No tienes cuenta?{' '}
-        <Link to="/register" className="font-medium text-brand-700 hover:underline">
+        <Link
+          to="/register"
+          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
+        >
           Crear una
         </Link>
       </p>

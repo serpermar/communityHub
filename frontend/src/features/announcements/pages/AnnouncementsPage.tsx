@@ -11,10 +11,10 @@ import {
   ErrorState,
   Field,
   Input,
-  LoadingState,
   Modal,
   Pagination,
   Select,
+  SkeletonList,
   Textarea,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
@@ -140,7 +140,7 @@ export function AnnouncementsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Avisos</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Avisos</h1>
         {canManage && <Button onClick={openCreate}>Nuevo aviso</Button>}
       </div>
 
@@ -166,7 +166,7 @@ export function AnnouncementsPage() {
       {serverError && <Alert variant="error">{serverError}</Alert>}
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data && result.data.data.length > 0 ? (
@@ -203,8 +203,10 @@ export function AnnouncementsPage() {
                   ) : undefined
                 }
               >
-                <p className="whitespace-pre-wrap text-sm text-slate-700">{announcement.body}</p>
-                <p className="mt-3 text-xs text-slate-400">
+                <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
+                  {announcement.body}
+                </p>
+                <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
                   {announcement.authorName ?? 'Comunidad'} ·{' '}
                   {formatDateTime(announcement.publishAt)}
                 </p>
@@ -257,7 +259,7 @@ export function AnnouncementsPage() {
           <Field label="Caduca (opcional)" htmlFor="ann-expires">
             <Input id="ann-expires" type="datetime-local" {...register('expiresAt')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input type="checkbox" {...register('isPinned')} />
             Fijar en la parte superior
           </label>

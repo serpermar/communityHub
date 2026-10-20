@@ -8,9 +8,9 @@ import {
   EmptyState,
   ErrorState,
   Input,
-  LoadingState,
   Pagination,
   Select,
+  SkeletonList,
   useToast,
   type Column,
 } from '@/components/ui'
@@ -191,7 +191,7 @@ export function ReservationListPage() {
           {actionError && <Alert variant="error">{actionError}</Alert>}
 
           {result.loading ? (
-            <LoadingState />
+            <SkeletonList />
           ) : result.error ? (
             <ErrorState error={result.error} onRetry={result.reload} />
           ) : result.data ? (

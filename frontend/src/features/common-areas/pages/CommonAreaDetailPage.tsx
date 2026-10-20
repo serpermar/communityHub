@@ -67,19 +67,19 @@ export function CommonAreaDetailPage() {
       <button
         type="button"
         onClick={() => navigate(`/c/${active!.id}/common-areas`)}
-        className="text-sm text-slate-500 hover:text-brand-700"
+        className="text-sm text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-400"
       >
         ← Volver a zonas comunes
       </button>
 
       <Card>
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-slate-800">{area.name}</h1>
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{area.name}</h1>
           <Badge tone={area.isActive ? 'green' : 'slate'}>
             {area.isActive ? 'Activa' : 'Baja'}
           </Badge>
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {COMMON_AREA_TYPE_LABELS[area.type]} · franjas de {area.slotMinutes} min · {area.openTime}
           –{area.closeTime}
           {area.requiresApproval && ' · requiere aprobación'}
@@ -119,10 +119,10 @@ export function CommonAreaDetailPage() {
                   onClick={() => setSelected(slot)}
                   className={`rounded-md border px-2 py-1 text-sm ${
                     slot.status === 'OCCUPIED'
-                      ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                      ? 'cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                       : isSelected
-                        ? 'border-brand-600 bg-brand-50 text-brand-700'
-                        : 'border-slate-300 bg-white hover:border-brand-400'
+                        ? 'border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300'
+                        : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-400'
                   }`}
                 >
                   {slot.startsAt.slice(11, 16)}
@@ -131,13 +131,13 @@ export function CommonAreaDetailPage() {
             })}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-slate-500">No hay franjas ese día.</p>
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No hay franjas ese día.</p>
         )}
       </Card>
 
       {selected && (
         <Card title="Reservar franja">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             {formatDateTime(selected.startsAt)} – {formatDateTime(selected.endsAt)}
           </p>
           {serverError && (

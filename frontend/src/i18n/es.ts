@@ -26,6 +26,7 @@ export const es = {
     toggleTheme: 'Cambiar tema',
     themeLight: 'Tema claro',
     themeDark: 'Tema oscuro',
+    skipToContent: 'Saltar al contenido',
   },
   nav: {
     dashboard: 'Panel',

@@ -69,7 +69,9 @@ export function CommunitySettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold text-slate-800">Ajustes de la comunidad</h1>
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        Ajustes de la comunidad
+      </h1>
 
       <Card title="Datos generales">
         {serverError && (
@@ -95,7 +97,7 @@ export function CommunitySettingsPage() {
           <Field label="Descripción" htmlFor="description" error={errors.description?.message}>
             <Input id="description" {...register('description')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input type="checkbox" {...register('isActive')} />
             Comunidad activa
           </label>
@@ -112,13 +114,13 @@ export function CommunitySettingsPage() {
 
       <Card title="Meteorología del barrio">
         {weather.data ? (
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-slate-700 dark:text-slate-200">
             {weather.data.current.temperatureC} °C (sensación{' '}
             {weather.data.current.apparentTemperatureC} °C) · {weather.data.current.condition}. Máx{' '}
             {weather.data.today.maxC} °C / Mín {weather.data.today.minC} °C.
           </p>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             No hay datos meteorológicos (la comunidad aún no tiene coordenadas o el proveedor no
             responde).
           </p>

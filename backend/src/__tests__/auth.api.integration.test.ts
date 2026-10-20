@@ -481,6 +481,133 @@ describe('GET /api/v1/auth/me', () => {
   })
 })
 
+describe('PATCH /api/v1/auth/me', () => {
+  it('actualiza nombre y teléfono y lo refleja en la lectura', async () => {
+    const user = await makeUser()
+    const login = await loginAs(user)
+    const token = login.body.data.accessToken as string
+
+    const res = await request(app())
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ fullName: 'Nombre Nuevo', phone: '+34600111222' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toMatchObject({ fullName: 'Nombre Nuevo', phone: '+34600111222' })
+
+    const me = await request(app()).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`)
+    expect(me.body.data.fullName).toBe('Nombre Nuevo')
+    expect(me.body.data.phone).toBe('+34600111222')
+  })
+
+  it('borra el teléfono cuando se envía vacío', async () => {
+    const user = await makeUser()
+    const login = await loginAs(user)
+    const token = login.body.data.accessToken as string
+
+    const res = await request(app())
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ fullName: 'Sin Teléfono', phone: '' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.phone).toBeNull()
+  })
+
+  it('rechaza un nombre vacío con 400', async () => {
+    const user = await makeUser()
+    const login = await loginAs(user)
+
+    const res = await request(app())
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.data.accessToken}`)
+      .send({ fullName: '   ' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('devuelve 401 sin autenticación', async () => {
+    const res = await request(app()).patch('/api/v1/auth/me').send({ fullName: 'Nadie' })
+
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('POST /api/v1/auth/change-password', () => {
+  it('cambia la contraseña y permite entrar con la nueva', async () => {
+    const user = await makeUser()
+    const login = await loginAs(user)
+    const token = login.body.data.accessToken as string
+    const newPassword = 'nueva-contraseña-larga'
+
+    const res = await request(app())
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: user.password, newPassword })
+
+    expect(res.status).toBe(204)
+
+    const oldLogin = await request(app())
+      .post('/api/v1/auth/login')
+      .send({ email: user.email, password: user.password })
+    expect(oldLogin.status).toBe(401)
+
+    const newLogin = await request(app())
+      .post('/api/v1/auth/login')
+      .send({ email: user.email, password: newPassword })
+    expect(newLogin.status).toBe(200)
+  })
+
+  it('rechaza la contraseña actual incorrecta con CURRENT_PASSWORD_INVALID', async () => {
+    const user = await makeUser()
+    const login = await loginAs(user)
+
+    const res = await request(app())
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${login.body.data.accessToken}`)
+      .send({ currentPassword: 'esta-no-es-la-actual', newPassword: 'nueva-contraseña-larga' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('CURRENT_PASSWORD_INVALID')
+  })
+
+  it('revoca las demás sesiones y conserva la actual', async () => {
+    const user = await makeUser()
+    const first = await loginAs(user)
+    const second = await loginAs(user)
+    const firstToken = first.body.data.accessToken as string
+    const secondToken = second.body.data.accessToken as string
+
+    await request(app())
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${firstToken}`)
+      .send({ currentPassword: user.password, newPassword: 'nueva-contraseña-larga' })
+      .expect(204)
+
+    // La otra sesión queda revocada...
+    const other = await request(app())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${secondToken}`)
+    expect(other.status).toBe(401)
+    expect(other.body.error.code).toBe('TOKEN_REVOKED')
+
+    // ...y la que cambió la contraseña sigue viva.
+    await request(app())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${firstToken}`)
+      .expect(200)
+  })
+
+  it('devuelve 401 sin autenticación', async () => {
+    const res = await request(app())
+      .post('/api/v1/auth/change-password')
+      .send({ currentPassword: 'x', newPassword: 'nueva-contraseña-larga' })
+
+    expect(res.status).toBe(401)
+  })
+})
+
 describe('POST /api/v1/auth/logout', () => {
   it('cierra sesión, borra la cookie e invalida el access token', async () => {
     // Criterio 9.

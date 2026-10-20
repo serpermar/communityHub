@@ -5,9 +5,9 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  LoadingState,
   Pagination,
   Select,
+  SkeletonList,
 } from '@/components/ui'
 import { useToast } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
@@ -90,7 +90,7 @@ export function NotificationsPage() {
       {error && <ErrorState error={error} />}
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (

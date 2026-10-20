@@ -1,7 +1,9 @@
 # Spec 15 — Frontend (SPA React)
 
 > **Estado: IMPLEMENTED — implementada (2026-10-16).** Bloque 15, el
-> primero y único de frontend. Decisiones `FE-1`…`FE-15` cerradas: ver §2 y §12.
+> primero y único de frontend. Decisiones `FE-1`…`FE-19` cerradas: ver §2 y §12
+> (`FE-16`…`FE-19` son la revisión posterior de mejoras de UX, tema, rendimiento
+> y cuenta).
 > Este documento define **la SPA**
 > que consume el backend ya terminado (bloques `01`–`14`) y, con él, **la
 > plantilla de arquitectura de features** que el enunciado pide (§3 del PROMPT).
@@ -62,6 +64,10 @@ El objetivo de arquitectura es que `frontend/` demuestre la organización por
 | **FE-13** | La **subida de documentos** va por `multipart/form-data` **a la API** (el backend valida y firma la *signed URL*); el cliente **nunca** habla con Storage | Subir directo al bucket | El backend es el gatekeeper de ACL y de tipo/tamaño (spec 08). El cliente no debe tener credenciales de Storage |
 | **FE-14** | **Testing**: Vitest + React Testing Library + **MSW** para componentes e integración; **Playwright** para E2E con los 8 casos del enunciado (§18). Los componentes se prueban **con el backend mockeado**, nunca contra Supabase | E2E para todo | ARCHITECTURE §14: los tests de componente/integración con MSW son rápidos y deterministas; el E2E se reserva para los flujos de extremo a extremo |
 | **FE-15** | **Administración de plataforma** para `ADMIN_SA`: una pantalla mínima que **crea comunidades** (`POST /communities`) y muestra el resultado. No hay listado global ni edición de ajenas: el `ADMIN_SA` crea pero **no lee** lo que no pertenece (C-12) | Un CRUD global de comunidades | El backend no expone «listar todas» ni administrar ajenas; la pantalla refleja lo único que el backend permite |
+| **FE-16** | **Tema claro/oscuro con `class` de Tailwind** (`darkMode: 'class'`): la preferencia vive en `localStorage` (`communityhub.theme`), y si no hay, se toma `prefers-color-scheme`. La clase `dark` se pone en `<html>` | Solo tema claro, o dos hojas CSS | Tailwind ya está en el stack (FE-8); la variante `dark:` no añade dependencias y evita duplicar estilos. El «hueco» de §15 queda cerrado |
+| **FE-17** | **Code-splitting por ruta** con `React.lazy` + `Suspense` y `manualChunks` en Vite (`vendor-react`, `vendor-charts`, `vendor-forms`). El `RouteFallback` cubre la carga | Un único bundle | Recharts pesa y solo lo usa el dashboard (FE-9); partirlo evita que la primera pintura cargue gráficos que quizá nadie abra |
+| **FE-18** | **Estados de carga y error de primera clase**: `Skeleton`/`SkeletonList` en las listas, `ErrorBoundary` envolviendo el router, y `Modal` con *focus trap*, foco inicial y retorno, `aria-labelledby` y bloqueo de scroll. El shell tiene *skip link* a `#main` | Estados de carga mínimos y sin barreras | Son los tres puntos donde una SPA se rompe en silencio (pantalla blanca, spinner infinito, modal que no se cierra con Escape). Ninguno depende del backend |
+| **FE-19** | **Cuenta propia**: `PATCH /auth/me` (editar `fullName`/`phone`) y `POST /auth/change-password` (exige la actual y **revoca las demás sesiones**). Cierra el hueco de §4.14 | Dejar la edición de perfil fuera de alcance | El backend ya expone ambos endpoints (spec 01 §5.5); la SPA los consume como cualquier otra feature, sin inventar contrato |
 
 ---
 
@@ -72,8 +78,8 @@ frontend consume la API documentada en [`docs/API.md`](../docs/API.md); aquí so
 lo que condiciona decisiones del cliente:
 
 - **Auth propia** (no GoTrue). `POST /auth/register`, `POST /auth/login`,
-  `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`,
-  `GET /auth/sessions`, `DELETE /auth/sessions/:id`.
+  `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `PATCH /auth/me`,
+  `POST /auth/change-password`, `GET /auth/sessions`, `DELETE /auth/sessions/:id`.
 - **Login/refresh devuelven el access token en el cuerpo** (`{ data: {
   accessToken, expiresIn, user } }`) y el **refresh token solo en cookie**
   `httpOnly`. El cliente debe mandar `withCredentials: true`.
@@ -112,8 +118,11 @@ Cada feature consume endpoints ya existentes. La columna «endpoints» remite a
   (con *badge*), menú de usuario (perfil, sesiones, salir).
 - **Sidebar** por feature, con entradas visibles según rol (FE-1, §7).
 - **AuthLayout** para `/login` y `/register`.
-- Estados de carga (`Spinner`), vacío (`EmptyState`) y error (`ErrorState`) en la
-  base de cada pantalla de lista.
+- Estados de carga (`Skeleton`), vacío (`EmptyState`) y error (`ErrorState`) en la
+  base de cada pantalla de lista. Un `ErrorBoundary` envuelve el router para que un
+  fallo de render no deje la pantalla en blanco (FE-18).
+- **Atajo de accesibilidad**: *skip link* a `#main` como primer elemento del shell;
+  el `Modal` atrapa el foco y se cierra con Escape (FE-18).
 
 ### 4.3 Comunidades y selección (`features/communities`)
 
@@ -205,16 +214,19 @@ Cada feature consume endpoints ya existentes. La columna «endpoints» remite a
   (`POST /invitations/redeem`). Solo `ADMIN` invita y cambia roles (el backend lo
   impone); la UI lo refleja.
 
-### 4.14 Cuenta y sesiones (`features/profile`)
+### 4.14 Cuenta y sesiones (`features/account`)
 
-- **Ver** el perfil propio: `GET /auth/me` (nada más: no hay edición de perfil ni
-  cambio de contraseña en el backend — **hueco conocido**).
+- **Ver y editar** el perfil propio: `GET /auth/me` y `PATCH /auth/me`
+  (`fullName`, `phone`; vaciar `phone` lo borra). Formulario RHF + zod con toast de
+  confirmación (FE-19).
+- **Cambiar contraseña**: `POST /auth/change-password` (`currentPassword`,
+  `newPassword` ≥ 12). El error `CURRENT_PASSWORD_INVALID` se mapea al campo
+  *contraseña actual*, no a un mensaje genérico. Al éxito, se avisa de que las
+  demás sesiones se han revocado.
 - Gestión de sesiones: `GET /auth/sessions`, `DELETE /auth/sessions/:id`, y
-  logout. Es la única parte de «ajustes» con backend detrás.
-- **Hueco de backend declarado:** no existe módulo `users` ni endpoints de
-  `PATCH /auth/me` / cambio de contraseña. Editar el perfil es **fuera de alcance**
-  de este bloque: exigiría primero una spec y un bloque de backend. La SPA no
-  inventa el endpoint.
+  logout. La tabla de sesiones se refresca tras un cambio de contraseña.
+- `AccountPage` usa dos formularios (`<form>` independientes) y una lista de
+  descripción (`<dl>`) semántica para los datos de solo lectura.
 
 ### 4.15 Administración de plataforma (`features/platform-admin`)
 
@@ -306,6 +318,7 @@ están en las specs `02`–`14` y en `docs/SECURITY.md`.
 |---|---|---|
 | Formulario inválido | `VALIDATION_ERROR` | Pintar `details` en los campos (RHF `setError`); toast genérico |
 | Credenciales | `INVALID_CREDENTIALS` | Mensaje en el formulario de login |
+| Contraseña actual incorrecta | `CURRENT_PASSWORD_INVALID` | Mensaje inline en el campo *contraseña actual* |
 | Sesión caducada / revocada | `TOKEN_EXPIRED`, `TOKEN_REVOKED` | Refresco transparente; si falla, `/login` |
 | Sin permiso (`403`) | `FORBIDDEN`, etc. | Ocultar la acción + mensaje «no tienes permiso» |
 | No encontrado (`404`) | `NOT_FOUND` | `EmptyState`/página 404 de la SPA |
@@ -363,9 +376,10 @@ frontend/
 │   ├── routes/                    # route tree + ProtectedRoute/RoleGate
 │   ├── layouts/                   # AppLayout, AuthLayout
 │   ├── components/                # ui/ (Button, Input, Modal, Table…)
+│   ├── components/ErrorBoundary.tsx  # límite de render (FE-18)
 │   ├── services/                  # http.ts + api por dominio
 │   ├── context/                   # AuthContext, CommunityContext
-│   ├── hooks/                     # useAsync, useDebounce, useMediaQuery…
+│   ├── hooks/                     # useAsync, useDebouncedValue, useMediaQuery…
 │   ├── types/                     # api.ts, roles.ts
 │   ├── utils/                     # fechas, moneda, cn()
 │   └── features/
@@ -373,7 +387,7 @@ frontend/
 │       ├── communities/  members/
 │       ├── incidents/  common-areas/  reservations/
 │       ├── announcements/  documents/  finance/
-│       ├── voting/  ai/  dashboard/  notifications/  profile/
+│       ├── voting/  ai/  dashboard/  notifications/  account/
 │       └── ...
 └── tests/  (e2e/ con Playwright)
 ```
@@ -383,9 +397,13 @@ frontend/
 ## 11. Tests
 
 - **Componente**: `*.test.tsx` con RTL sobre `components/ui` y componentes de
-  feature (render, interacción, accesibilidad básica).
+  feature (render, interacción, accesibilidad básica). La revisión FE-16…FE-19
+  añadió `components/ui/Display.test.tsx` (Modal + `SkeletonList`) y
+  `features/account/pages/AccountPage.test.tsx` (perfil, contraseña, errores).
 - **Integración de feature**: con **MSW** simulando `/api/v1`; verifica estados
-  carga/vacío/error y el camino feliz de cada formulario.
+  carga/vacío/error y el camino feliz de cada formulario. La suite cubre también
+  utilidades puras (`features/notifications/links.test.ts` para el enrutado de
+  notificaciones, `hooks/useDebouncedValue.test.ts`).
 - **E2E (Playwright)** — los 8 flujos del enunciado §18: **login**, **crear
   incidencia**, **consultar incidencia**, **crear reserva**, **cancelar reserva**,
   **crear votación**, **votar**, **consultar resultados**. Contra el backend real
@@ -403,6 +421,20 @@ Aprobadas por el desarrollador (2026-10-16):
 - [x] **Administración de plataforma** para `ADMIN_SA`: **sí**, se incluye en este
       bloque (FE-15, §4.15).
 - [x] **Vite + React 18** (`react@^18`, `react-dom@^18`). No hace falta React 19.
+
+### Revisión de mejoras (FE-16…FE-19)
+
+Cerrada tras la primera implementación, sobre el feedback de uso:
+
+- [x] **FE-16 — Tema claro/oscuro** con `darkMode: 'class'`, preferencia en
+      `localStorage` y respeto de `prefers-color-scheme`. Sustituye al «tema claro
+      únicamente» que dejaba §15.
+- [x] **FE-17 — Code-splitting** por ruta (`React.lazy` + `Suspense`) y
+      `manualChunks` de Vite para React, Recharts y formularios.
+- [x] **FE-18 — Carga y error de primera clase**: `Skeleton`/`SkeletonList`,
+      `ErrorBoundary` y `Modal` accesible; *skip link* a `#main`.
+- [x] **FE-19 — Cuenta**: `PATCH /auth/me` y `POST /auth/change-password`
+      (cierra el hueco de §4.14).
 
 ---
 
@@ -433,8 +465,11 @@ Aprobadas por el desarrollador (2026-10-16):
 - `docs/README.md`: fila «Frontend» y comando de arranque (`npm run dev` en
   `frontend/`).
 - `ARCHITECTURE.md` §2 y §16: marcar la fase de frontend; enlazar esta spec.
-- `docs/API.md`: sin cambios (el contrato lo define el backend); si el frontend
-  descubre una divergencia, primero se corrige la spec del backend.
+- `docs/API.md`: sin cambios por parte del frontend (el contrato lo define el
+  backend); si el frontend descubre una divergencia, primero se corrige la spec
+  del backend. La revisión FE-19 consume los endpoints `PATCH /auth/me` y
+  `POST /auth/change-password` que se documentaron en `docs/API.md` y en
+  `specs/01-authentication.md` §5.5.
 - `docs/CONTRIBUTING.md`: cómo se prueba el frontend (component/integration/E2E).
 - `docs/SECURITY.md`: párrafo del bloque (tokens en memoria + cookie `httpOnly`,
   contenido de usuario como texto, el frontend no autoriza).
@@ -448,5 +483,8 @@ Aprobadas por el desarrollador (2026-10-16):
   de IA, que ya expone el backend.
 - **Envío de notificaciones** por email/push.
 - **Servidor MCP** y **agentes de desarrollo** (specs propias, aún sin escribir).
-- **Internacionalización** y **temas** (claro/oscuro) más allá de un tema claro.
+- **Internacionalización** más allá del castellano. El tema claro/oscuro **ya no**
+  está aquí: se implementó en FE-16.
 - **PWA / offline**.
+- **Recuperación de contraseña olvidada** (ver `specs/01-authentication.md` §12):
+  el cambio autenticado sí está (FE-19), la recuperación por correo no.

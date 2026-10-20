@@ -37,8 +37,10 @@ export function RegisterPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-800">Crear cuenta</h2>
-      <p className="mt-1 text-sm text-slate-500">Regístrate y accede con tus credenciales.</p>
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Crear cuenta</h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Regístrate y accede con tus credenciales.
+      </p>
 
       {serverError && (
         <div className="mt-4">
@@ -84,9 +86,12 @@ export function RegisterPage() {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-slate-500">
+      <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
         ¿Ya tienes cuenta?{' '}
-        <Link to="/login" className="font-medium text-brand-700 hover:underline">
+        <Link
+          to="/login"
+          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
+        >
           Inicia sesión
         </Link>
       </p>

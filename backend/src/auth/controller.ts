@@ -16,7 +16,13 @@ import { created, noContent, ok } from '../http/envelope.js'
 import { env } from '../config/env.js'
 import * as service from './service.js'
 import { routeParam } from './middleware.js'
-import { formatIssues, loginSchema, registerSchema } from './validators.js'
+import {
+  changePasswordSchema,
+  formatIssues,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+} from './validators.js'
 import type { ZodType } from 'zod'
 
 function parse<T>(schema: ZodType<T>, payload: unknown): T {
@@ -138,6 +144,37 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
 export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     ok(res, await service.getMe(req.auth!.userId))
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function updateProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const input = parse(updateProfileSchema, req.body)
+    ok(res, await service.updateProfile(req.auth!.userId, input))
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function changePassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const input = parse(changePasswordSchema, req.body)
+    await service.changePassword({
+      userId: req.auth!.userId,
+      sessionId: req.auth!.sessionId,
+      ...input,
+    })
+    noContent(res)
   } catch (error) {
     next(error)
   }

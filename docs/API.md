@@ -39,6 +39,41 @@ Que el rol global se lea de la base de datos y no del token es deliberado: el
 token dura 15 minutos, así que leer el rol de ahí permitiría revocar un permiso
 y seguir usándolo durante la ventana del token.
 
+### Endpoints
+
+| Método | Ruta | Auth | Qué hace |
+|---|---|---|---|
+| `POST` | `/auth/register` | No | Crea la cuenta (`409 EMAIL_TAKEN` si el correo ya existe). |
+| `POST` | `/auth/login` | No | Inicia sesión. Rate limit 5/15 min por (email, IP). |
+| `POST` | `/auth/refresh` | Cookie | Renueva el access token (rotación con detección de reúso). |
+| `POST` | `/auth/logout` | Sí | Revoca la sesión actual. |
+| `GET` | `/auth/me` | Sí | Usuario actual (`PublicUser`). |
+| `PATCH` | `/auth/me` | Sí | Edita el perfil propio (`fullName`, `phone`). |
+| `POST` | `/auth/change-password` | Sí | Cambia la contraseña y revoca las demás sesiones. |
+| `GET` | `/auth/sessions` | Sí | Sesiones activas del usuario. |
+| `DELETE` | `/auth/sessions/:id` | Sí | Revoca una sesión concreta. |
+
+#### `PATCH /api/v1/auth/me`
+
+Cuerpo `{ fullName, phone? }`. Un `phone` vacío o ausente **borra** el teléfono.
+Devuelve el `PublicUser` actualizado.
+
+```jsonc
+{ "data": { "id": "uuid", "email": "ana@x.com", "fullName": "Ana", "phone": "+34600…" } }
+```
+
+#### `POST /api/v1/auth/change-password`
+
+Cuerpo `{ currentPassword, newPassword }`, con `newPassword` de **12 caracteres
+como mínimo**. Verifica `currentPassword` con argon2, guarda el hash nuevo y
+**revoca todas las demás sesiones** del usuario; la sesión que hace el cambio
+sigue viva. Responde `204` sin cuerpo.
+
+| HTTP | code | Cuándo |
+|---|---|---|
+| 400 | `CURRENT_PASSWORD_INVALID` | La contraseña actual no coincide (`details` con `field: "currentPassword"`) |
+| 400 | `VALIDATION_ERROR` | La nueva contraseña no llega a 12 caracteres |
+
 ---
 
 ## Comunidades

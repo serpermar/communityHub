@@ -19,6 +19,7 @@ import { env } from '../config/env.js'
 import {
   conflict,
   invalidCredentials,
+  invalidCurrentPassword,
   notFound,
   tokenExpired,
   tokenRevoked,
@@ -378,4 +379,71 @@ export async function getMe(userId: string): Promise<PublicUser> {
   }
 
   return toPublicUser(row)
+}
+
+// ---------------------------------------------------------------------------
+// Edicion del perfil propio
+// ---------------------------------------------------------------------------
+
+/**
+ * Actualizar nombre y telefono del usuario de la peticion.
+ *
+ * El correo no se toca: cambiarlo exige verificar de nuevo la direccion, que es
+ * otro flujo. Aqui solo hay datos de contacto, y el servicio los normaliza antes
+ * de guardarlos (cadena vacia en telefono significa "borrar").
+ */
+export async function updateProfile(
+  userId: string,
+  input: { fullName: string; phone?: string },
+): Promise<PublicUser> {
+  const row = await withContext({ userId, communityId: null }, (tx) =>
+    repo.updateProfile(tx, userId, {
+      fullName: input.fullName.trim(),
+      phone: input.phone?.trim() || null,
+    }),
+  )
+
+  if (!row) {
+    throw notFound('Usuario no encontrado.')
+  }
+
+  return toPublicUser(row)
+}
+
+/**
+ * Cambiar la contrasena del usuario de la peticion.
+ *
+ * Se exige la contrasena actual: sin eso, cualquiera con una sesion abierta (un
+ * portatil dejado desbloqueado, un token robado) podria apropiarse de la cuenta.
+ * Se verifica con argon2 antes de tocar nada.
+ *
+ * Al guardar la nueva se revocan las demas sesiones: si la contrasena anterior
+ * estaba comprometida, sus sesiones dejan de valer. La sesion actual sobrevive
+ * para no expulsar a quien esta cambiando la contrasena.
+ */
+export async function changePassword(input: {
+  userId: string
+  sessionId: string
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  const row = await withContext({ userId: input.userId, communityId: null }, (tx) =>
+    repo.findUserPasswordHash(tx, input.userId),
+  )
+
+  if (!row) {
+    throw notFound('Usuario no encontrado.')
+  }
+
+  const currentOk = await verifyPassword(row.password_hash, input.currentPassword)
+  if (!currentOk) {
+    throw invalidCurrentPassword()
+  }
+
+  const passwordHash = await hashPassword(input.newPassword)
+
+  await withContext({ userId: input.userId, communityId: null }, async (tx) => {
+    await repo.updatePasswordHash(tx, input.userId, passwordHash)
+    await repo.revokeOtherSessions(tx, input.userId, input.sessionId)
+  })
 }

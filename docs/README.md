@@ -469,7 +469,7 @@ El estado de cada pieza:
 | APIs externas | `backend/src/integrations/` | Hecho: los 3 endpoints (meteorología Open-Meteo, mapa Photon y geocodificado), con caché y degradación a `null` |
 | Dashboard | `backend/src/dashboard/` | Hecho: el endpoint de portada (contadores, listas cortas y series), solo lectura; `finance` solo para ADMIN |
 | Notificaciones | `backend/src/notifications/` | Hecho: los 4 endpoints (campana personal, paginación, contador, marcado y `read-all`); la generación nace en SQL |
-| Frontend | `frontend/` | Hecho: la SPA (React 18 + Vite + TS + Tailwind + React Router) con login, incidencias, reservas, avisos, documentos, finanzas, votaciones, IA, dashboard y notificaciones |
+| Frontend | `frontend/` | Hecho: la SPA (React 18 + Vite + TS + Tailwind + React Router) con login, incidencias, reservas, avisos, documentos, finanzas, votaciones, IA, dashboard y notificaciones; tema claro/oscuro, carga diferida por ruta y pantalla de cuenta (perfil + contraseña) |
 | MCP, skills y agentes | `backend/src/mcp/`, `backend/src/agents/`, `skills/`, `agents/` | Hecho: servidor MCP (HTTP + stdio) de solo lectura, 9 skills, 6 agentes sincronizados, `POST /api/v1/ai/agents/:name/run` y los 3 agentes de desarrollo por CLI (`npm run agent`) |
 | Resto de módulos | — | Pendiente |
 

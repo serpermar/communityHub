@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { RouterProvider } from 'react-router-dom'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/components/ui'
@@ -9,7 +10,9 @@ export function AppProviders({ children }: { children?: ReactNode }) {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ToastProvider>{children ?? <RouterProvider router={router} />}</ToastProvider>
+        <ToastProvider>
+          <ErrorBoundary>{children ?? <RouterProvider router={router} />}</ErrorBoundary>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   )

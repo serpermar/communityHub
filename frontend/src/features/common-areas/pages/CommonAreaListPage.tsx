@@ -13,9 +13,9 @@ import {
   ErrorState,
   Field,
   Input,
-  LoadingState,
   Modal,
   Select,
+  SkeletonList,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
@@ -85,7 +85,7 @@ export function CommonAreaListPage() {
       render: (area) => (
         <Link
           to={`/c/${active!.id}/common-areas/${area.id}`}
-          className="font-medium text-brand-700 hover:underline"
+          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
         >
           {area.name}
         </Link>
@@ -110,12 +110,12 @@ export function CommonAreaListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Zonas comunes</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Zonas comunes</h1>
         {role === 'ADMIN' && <Button onClick={() => setOpen(true)}>Nueva zona</Button>}
       </div>
 
       {areas.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : areas.error ? (
         <ErrorState error={areas.error} onRetry={areas.reload} />
       ) : areas.data ? (
@@ -151,7 +151,7 @@ export function CommonAreaListPage() {
           <Field label="Franja (minutos)" htmlFor="slotMinutes" error={errors.slotMinutes?.message}>
             <Input id="slotMinutes" type="number" step={30} {...register('slotMinutes')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input type="checkbox" {...register('requiresApproval')} />
             Requiere aprobación del administrador
           </label>

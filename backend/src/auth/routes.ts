@@ -26,6 +26,8 @@ export function createAuthRouter(): Router {
   // Protegidos.
   router.post('/logout', requireAuth, controller.logout)
   router.get('/me', requireAuth, controller.me)
+  router.patch('/me', requireAuth, controller.updateProfile)
+  router.post('/change-password', requireAuth, controller.changePassword)
   router.get('/sessions', requireAuth, controller.listSessions)
   router.delete('/sessions/:id', requireAuth, controller.revokeSession)
 

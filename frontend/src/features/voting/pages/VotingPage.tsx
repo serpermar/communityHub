@@ -7,9 +7,9 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
-  LoadingState,
   Pagination,
   Select,
+  SkeletonList,
   type Column,
 } from '@/components/ui'
 import { isManager } from '@/types/roles'
@@ -37,7 +37,7 @@ export function VotingPage() {
       render: (vote) => (
         <Link
           to={`/c/${active!.id}/votes/${vote.id}`}
-          className="font-medium text-brand-700 hover:underline"
+          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
         >
           {vote.title}
         </Link>
@@ -67,7 +67,7 @@ export function VotingPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Votaciones</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Votaciones</h1>
         {isManager(role) && (
           <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>Nueva votación</Button>
         )}
@@ -93,7 +93,7 @@ export function VotingPage() {
       </Card>
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonList />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (

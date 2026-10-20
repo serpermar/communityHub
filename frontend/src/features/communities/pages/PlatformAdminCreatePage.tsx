@@ -35,8 +35,8 @@ export function PlatformAdminCreatePage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="text-xl font-semibold text-slate-800">Nueva comunidad</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Nueva comunidad</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Se te asignará como primer administrador de la comunidad creada.
       </p>
 

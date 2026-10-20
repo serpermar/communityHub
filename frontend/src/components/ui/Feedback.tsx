@@ -25,6 +25,32 @@ export function LoadingState({ label = 'Cargando…' }: { label?: string }) {
   )
 }
 
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('animate-pulse rounded-md bg-slate-200 dark:bg-slate-800', className)}
+    />
+  )
+}
+
+export function SkeletonList({ rows = 3 }: { rows?: number }) {
+  return (
+    <div role="status" aria-label="Cargando" className="space-y-3" data-testid="skeleton-list">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+        >
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="mt-3 h-3 w-full" />
+          <Skeleton className="mt-2 h-3 w-2/3" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function EmptyState({
   title,
   description,

@@ -2,17 +2,22 @@
 
 > **Estado: IMPLEMENTADA Y VERIFICADA.**
 >
-> Los 7 endpoints existen y responden. La verificación, con lo que cubre cada
+> Los 9 endpoints existen y responden. La verificación, con lo que cubre cada
 > capa:
 >
 > | Comprobación | Resultado |
 > |---|---|
 > | `npm run typecheck` | limpio |
-> | `npm run test:unit` | 28 tests, sin base de datos |
-> | `npm run test:integration` | 49 tests, contra Supabase real |
+> | `npm run test:unit` | 640 tests, sin base de datos |
+> | `npm run test:integration` | 49 tests base + los de perfil y contraseña, contra Supabase real |
 > | `npm run check:db` | todas las comprobaciones en verde |
 > | `npm run smoke` | 17 comprobaciones por HTTP real |
 > | `04_verify.sql` | sin excepciones |
+>
+> > Ampliación (perfil y cambio de contraseña). Se añadieron `PATCH /auth/me` y
+> > `POST /auth/change-password` (§5.5, §6), con sus tests unitarios de
+> > validadores y de integración. La integración necesita base de datos, así que
+> > solo corre en CI o contra Supabase real.
 
 > **Estado:** pendiente de revisión.
 > **Fase:** 1 → 2 (autenticación propia, decisión D-11 de `ARCHITECTURE.md`).
@@ -284,6 +289,45 @@ El paso 4 es donde RLS empieza a hacer su trabajo, y por eso `withContext()`
 exige que la consulta pase por su callback. Una consulta hecha fuera de la
 transacción corre sin contexto y RLS deniega.
 
+### 5.5 Perfil y cambio de contraseña
+
+Dos endpoints autenticados que operan **sobre la propia fila** del usuario, sin
+contexto de comunidad.
+
+```
+PATCH /api/v1/auth/me
+  { fullName, phone? }
+
+1. requireAuth  →  sub = app.current_user_id (con withContext).
+2. Validar: fullName no vacío; phone opcional (vacío = borrar).
+3. UPDATE users SET full_name, phone WHERE id = sub.
+4. 200 { user: PublicUser }
+```
+
+```
+POST /api/v1/auth/change-password
+  { currentPassword, newPassword }   (newPassword >= 12)
+
+1. app_auth_find_user_by_email(sub)  →  hash actual
+2. argon2.verify(hash, currentPassword)
+   si falla  →  400 CURRENT_PASSWORD_INVALID   (details: field currentPassword)
+3. argon2id(newPassword)  →  UPDATE users SET password_hash
+4. Revocar TODAS las demás sesiones ACTIVE del usuario,
+   conservando la sesión actual (por `ver` del access token).
+5. 204 sin cuerpo
+```
+
+El paso 4 es la decisión de seguridad: cambiar la contraseña cierra cualquier
+sesión abierta con la contraseña anterior, pero **no** expulsa a quien la cambia.
+Es el comportamiento que espera cualquiera que cambia su contraseña «por si
+acaso»: quien la tenía robada deja de entrar.
+
+El cambio de contraseña exige conocer la **actual**, así que un access token
+robado por sí solo no permite cambiar la contraseña de la víctima y hacerse con
+la cuenta. `CURRENT_PASSWORD_INVALID` se distingue de `INVALID_CREDENTIALS`
+porque aquí el usuario ya está autenticado y el fallo es de un campo del
+formulario, no de identidad.
+
 ---
 
 ## 6. Contrato HTTP
@@ -297,6 +341,8 @@ transacción corre sin contexto y RLS deniega.
 | POST | `/api/v1/auth/refresh` | Cookie | Renovar, con rotación |
 | POST | `/api/v1/auth/logout` | Sí | Revocar la sesión actual |
 | GET | `/api/v1/auth/me` | Sí | Usuario actual |
+| PATCH | `/api/v1/auth/me` | Sí | Editar el perfil propio (`fullName`, `phone`) |
+| POST | `/api/v1/auth/change-password` | Sí | Cambiar contraseña y revocar las demás sesiones |
 | GET | `/api/v1/auth/sessions` | Sí | Sesiones activas del usuario |
 | DELETE | `/api/v1/auth/sessions/:id` | Sí | Revocar una sesión concreta |
 
@@ -309,6 +355,7 @@ transacción corre sin contexto y RLS deniega.
 | HTTP | code | Cuándo |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Formato inválido, password corta |
+| 400 | `CURRENT_PASSWORD_INVALID` | La contraseña actual no coincide (`details` con `field: "currentPassword"`) |
 | 401 | `INVALID_CREDENTIALS` | Email o contraseña incorrectos, indistinguible |
 | 401 | `TOKEN_EXPIRED` | Access token vencido |
 | 401 | `TOKEN_REVOKED` | Sesión revocada, incluido el caso de robo |
@@ -391,9 +438,10 @@ backend/
     config/
       env.ts                        validación del .env al arrancar
     auth/
-      service.ts                    register, login, refresh, logout, revoke
+      service.ts                    register, login, refresh, logout, revoke,
+                                    updateProfile, changePassword
       repository.ts                 las consultas
-      routes.ts                     los 7 endpoints
+      routes.ts                     los 9 endpoints
       controller.ts                 validación y envelope
       middleware.ts                 requireAuth
       password.ts                   argon2id: hash, verify, hash señuelo
@@ -405,7 +453,7 @@ backend/
       errors.ts                     códigos de la sección 6
       ratelimit.ts                  límite en memoria
     __tests__/
-      auth.api.integration.test.ts  los 7 endpoints
+      auth.api.integration.test.ts  los 9 endpoints
       rls.integration.test.ts       aislamiento y políticas
       integration.setup.ts          exige conexión real y app_runtime
       helpers.ts                    fixtures, vía db-admin
@@ -428,7 +476,7 @@ no puede reproducir. El sufijo del archivo dice de qué tipo es.
 
 Cada uno tiene un test que lo demuestra. No se da por good sin él.
 
-Los 19 están implementados. La columna de la derecha es dónde vive cada uno.
+Los 22 están implementados. La columna de la derecha es dónde vive cada uno.
 
 ### Seguridad
 
@@ -453,12 +501,15 @@ Los 19 están implementados. La columna de la derecha es dónde vive cada uno.
 | 12 | Dos vecinos de comunidades distintas no pueden leerse entre sí | `rls.integration`, `auth.api.integration` |
 | 13 | `app_runtime` no tiene `BYPASSRLS` | `rls.integration`, `check:db` |
 | 14 | Sin `set_config`, las consultas de datos de comunidad devuelven 0 filas | `rls.integration`, `check:db` |
+| 20 | `PATCH /auth/me` edita solo la fila propia y devuelve el `PublicUser` | `auth.api.integration` |
+| 21 | Cambiar contraseña con la actual incorrecta da 400 `CURRENT_PASSWORD_INVALID` | `auth.api.integration`, `validators.unit` |
+| 22 | Cambiar contraseña revoca las demás sesiones y conserva la actual | `auth.api.integration` |
 
 ### Contrato
 
 | # | Criterio | Dónde |
 |---|---|---|
-| 15 | Los 7 endpoints responden con el envelope de la sección 6 | `auth.api.integration` |
+| 15 | Los 9 endpoints responden con el envelope de la sección 6 | `auth.api.integration` |
 | 16 | Los errores usan los códigos de la tabla | `auth.api.integration` |
 | 17 | El rate limit responde 429 al superarse, y **no** cuenta los aciertos | `auth.api.integration` (ambos sentidos) |
 
@@ -494,7 +545,9 @@ Los 19 están implementados. La columna de la derecha es dónde vive cada uno.
 
 - Verificación de email por correo. Requiere un proveedor transaccional con
   dominio propio; Supabase no lo da en plan free sin configurar SMTP.
-- Recuperación de contraseña. Mismo motivo.
+- Recuperación de contraseña **olvidada**. Mismo motivo. Ojo: no es lo mismo que
+  el **cambio de contraseña** de §5.5, que sí está implementado porque el usuario
+  ya está autenticado y conoce la actual; aquí falta justo esa sesión de partida.
 - OAuth (Google, GitHub). Se añade después sobre la misma interfaz.
 - MFA. Igual.
 

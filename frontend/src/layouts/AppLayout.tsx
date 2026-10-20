@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
-import { LoadingState, ErrorState, Button } from '@/components/ui'
+import { LoadingState, ErrorState, Button, ThemeToggle } from '@/components/ui'
+import { Logo } from '@/components/brand/Logo'
 import { useAuth } from '@/context/AuthContext'
 import { CommunityProvider, useCommunity } from '@/context/CommunityContext'
-import { useTheme } from '@/context/ThemeContext'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { t } from '@/i18n'
 import type { MemberRole } from '@/types/roles'
@@ -42,7 +42,6 @@ function AppLayoutInner() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { active, communities, role, loading, error, reload } = useCommunity()
-  const { theme, toggle } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
 
   // El menu movil se cierra al cambiar de seccion.
@@ -94,6 +93,12 @@ function AppLayoutInner() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        {t('app.skipToContent')}
+      </a>
       <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
         <button
           type="button"
@@ -107,9 +112,11 @@ function AppLayoutInner() {
           </svg>
         </button>
 
-        <span className="text-sm font-bold tracking-tight text-brand-700 dark:text-brand-400">
-          CommunityHub
-        </span>
+        <Logo
+          withText
+          className="text-brand-700 dark:text-brand-400"
+          textClassName="hidden text-base sm:inline"
+        />
 
         <label className="sr-only" htmlFor="community-switcher">
           {t('app.switchCommunity')}
@@ -137,34 +144,7 @@ function AppLayoutInner() {
               {t('app.newCommunity')}
             </NavLink>
           )}
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={t('app.toggleTheme')}
-            className="rounded-md p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-5 w-5 fill-none stroke-current"
-            >
-              {theme === 'dark' ? (
-                <path
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 3v2m0 14v2M5.2 5.2l1.4 1.4m10.8 10.8 1.4 1.4M3 12h2m14 0h2M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
-                />
-              ) : (
-                <path
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"
-                />
-              )}
-            </svg>
-          </button>
+          <ThemeToggle />
           <NotificationBell />
           <NavLink
             to="/account"
@@ -196,7 +176,7 @@ function AppLayoutInner() {
           </div>
         )}
 
-        <main className="flex-1 bg-slate-50 p-4 md:p-6 dark:bg-slate-950">
+        <main id="main-content" className="flex-1 bg-slate-50 p-4 md:p-6 dark:bg-slate-950">
           {active ? <Outlet /> : <NoCommunity />}
         </main>
       </div>

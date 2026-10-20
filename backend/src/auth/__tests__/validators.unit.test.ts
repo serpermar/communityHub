@@ -6,7 +6,12 @@
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest'
-import { loginSchema, registerSchema } from '../validators.js'
+import {
+  changePasswordSchema,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+} from '../validators.js'
 
 const valid = {
   email: 'ana@comunidad-a.test',
@@ -79,5 +84,74 @@ describe('loginSchema', () => {
     const result = loginSchema.parse({ email: 'ANA@Comunidad-A.test', password: 'lo-que-sea' })
 
     expect(result.email).toBe('ana@comunidad-a.test')
+  })
+})
+
+describe('updateProfileSchema', () => {
+  it('acepta nombre y teléfono válidos', () => {
+    expect(updateProfileSchema.safeParse({ fullName: 'Ana', phone: '+34600000001' }).success).toBe(
+      true,
+    )
+  })
+
+  it('permite vaciar el teléfono (cadena vacía)', () => {
+    expect(updateProfileSchema.safeParse({ fullName: 'Ana', phone: '' }).success).toBe(true)
+  })
+
+  it('acepta la ausencia de teléfono', () => {
+    expect(updateProfileSchema.safeParse({ fullName: 'Ana' }).success).toBe(true)
+  })
+
+  it('rechaza un nombre vacío', () => {
+    expect(updateProfileSchema.safeParse({ fullName: '  ' }).success).toBe(false)
+  })
+
+  it('rechaza un teléfono demasiado corto', () => {
+    expect(updateProfileSchema.safeParse({ fullName: 'Ana', phone: '123' }).success).toBe(false)
+  })
+
+  it('rechaza una clave desconocida', () => {
+    expect(updateProfileSchema.safeParse({ fullName: 'Ana', email: 'x@y.test' }).success).toBe(
+      false,
+    )
+  })
+})
+
+describe('changePasswordSchema', () => {
+  it('acepta una contraseña actual y una nueva válida', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: 'la-de-antes-larga',
+      newPassword: 'una-nueva-larga-12',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('exige el mínimo de longitud en la nueva contraseña', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: 'la-de-antes-larga',
+      newPassword: 'corta',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rechaza una contraseña actual vacía', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: '',
+      newPassword: 'una-nueva-larga-12',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rechaza una clave desconocida', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: 'la-de-antes-larga',
+      newPassword: 'una-nueva-larga-12',
+      confirmPassword: 'una-nueva-larga-12',
+    })
+
+    expect(result.success).toBe(false)
   })
 })

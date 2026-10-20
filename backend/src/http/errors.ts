@@ -12,6 +12,7 @@
 export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'INVALID_CREDENTIALS'
+  | 'CURRENT_PASSWORD_INVALID'
   | 'TOKEN_EXPIRED'
   | 'TOKEN_REVOKED'
   | 'EMAIL_TAKEN'
@@ -80,6 +81,17 @@ export const unauthorized = (
 
 export const invalidCredentials = () =>
   new AppError(401, 'INVALID_CREDENTIALS', 'Correo o contraseña incorrectos.')
+
+/**
+ * La contraseña actual no coincide al cambiarla.
+ *
+ * Es un 400 con código propio (no INVALID_CREDENTIALS, que es del login): el
+ * cliente lo pinta sobre el campo `currentPassword` y no como un fallo de sesión.
+ */
+export const invalidCurrentPassword = () =>
+  new AppError(400, 'CURRENT_PASSWORD_INVALID', 'La contraseña actual no es correcta.', [
+    { field: 'currentPassword', message: 'La contraseña actual no es correcta.' },
+  ])
 
 export const tokenExpired = () =>
   new AppError(401, 'TOKEN_EXPIRED', 'La sesión ha caducado. Vuelve a entrar.')

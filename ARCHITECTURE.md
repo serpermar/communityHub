@@ -388,11 +388,12 @@ POST   /api/v1/auth/login
 POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 GET    /api/v1/auth/me
+PATCH  /api/v1/auth/me
+POST   /api/v1/auth/change-password
+GET    /api/v1/auth/sessions
+DELETE /api/v1/auth/sessions/:id
 
 # ── USERS / COMMUNITIES / MEMBERS ────────────────────
-GET    /api/v1/users/me
-PATCH  /api/v1/users/me
-POST   /api/v1/users/me/password
 GET    /api/v1/communities
 POST   /api/v1/communities                     (global ADMIN)
 GET    /api/v1/communities/:communityId

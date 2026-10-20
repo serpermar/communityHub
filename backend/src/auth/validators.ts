@@ -55,8 +55,36 @@ export const loginSchema = z
   })
   .strict()
 
+/**
+ * Editar el perfil propio.
+ *
+ * El telefono se puede vaciar para borrarlo (cadena vacia -> null en el
+ * servicio), por eso no lleva `min(6)` global: se valida la longitud solo si se
+ * envia un valor.
+ */
+export const updateProfileSchema = z
+  .object({
+    fullName: z.string().trim().min(1, 'El nombre es obligatorio.').max(120),
+    phone: z
+      .string()
+      .trim()
+      .max(30, 'El teléfono es demasiado largo.')
+      .refine((value) => value === '' || value.length >= 6, 'El teléfono no es válido.')
+      .optional(),
+  })
+  .strict()
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'La contraseña actual es obligatoria.').max(200),
+    newPassword: password,
+  })
+  .strict()
+
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 
 /** Convierte los issues de zod en el detalle que viaja en la respuesta de error. */
 export function formatIssues(error: z.ZodError): Array<{ field: string; message: string }> {

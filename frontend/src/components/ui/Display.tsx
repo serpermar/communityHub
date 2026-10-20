@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 
 export function Badge({
@@ -77,13 +77,58 @@ export function Modal({
   children: ReactNode
   footer?: ReactNode
 }) {
+  const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
+
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    const focusables = () =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+            ),
+          )
+        : []
+
+    const first = focusables()[0] ?? dialog
+    first?.focus()
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusables()
+      if (items.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const firstItem = items[0]
+      const lastItem = items[items.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === firstItem || active === dialog)) {
+        event.preventDefault()
+        lastItem.focus()
+      } else if (!event.shiftKey && active === lastItem) {
+        event.preventDefault()
+        firstItem.focus()
+      }
     }
+
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+      previouslyFocused?.focus?.()
+    }
   }, [open, onClose])
 
   if (!open) return null
@@ -91,13 +136,17 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} aria-hidden="true" />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
-        className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl dark:bg-slate-900"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl outline-none dark:bg-slate-900"
       >
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
+          <h2 id={titleId} className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}

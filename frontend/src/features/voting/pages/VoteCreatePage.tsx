@@ -69,7 +69,7 @@ export function VoteCreatePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold text-slate-800">Nueva votación</h1>
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Nueva votación</h1>
       <Card className="mt-4">
         {error && (
           <div className="mb-4">
@@ -153,7 +153,7 @@ export function VoteCreatePage() {
               />
             </Field>
           )}
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input
               type="checkbox"
               checked={allowAbstention}
@@ -163,7 +163,9 @@ export function VoteCreatePage() {
           </label>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-slate-700">Opciones</legend>
+            <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Opciones
+            </legend>
             {options.map((option, index) => (
               <div key={index} className="flex gap-2">
                 <Input

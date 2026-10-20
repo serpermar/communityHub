@@ -206,7 +206,7 @@ export function AssistantPage() {
                 <button
                   type="button"
                   aria-label="Eliminar conversación"
-                  className="text-xs text-slate-400 hover:text-red-600"
+                  className="text-xs text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
                   onClick={() => void removeSession(session.id)}
                 >
                   ✕
@@ -236,7 +236,7 @@ export function AssistantPage() {
                       : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
                   }`}
                 >
-                  {message.content || <span className="text-slate-400">…</span>}
+                  {message.content || <span className="text-slate-400 dark:text-slate-500">…</span>}
 
                   {message.role !== 'user' && message.toolCalls.length > 0 && (
                     <ul className="mt-2 flex flex-wrap gap-1">

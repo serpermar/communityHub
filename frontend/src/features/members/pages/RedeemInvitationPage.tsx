@@ -32,8 +32,10 @@ export function RedeemInvitationPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="text-xl font-semibold text-slate-800">Canjear invitación</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        Canjear invitación
+      </h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Pega el código que te ha compartido el administrador de la comunidad.
       </p>
 

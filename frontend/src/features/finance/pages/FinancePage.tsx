@@ -45,7 +45,7 @@ export function FinancePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-slate-800">Finanzas</h1>
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Finanzas</h1>
       <div className="flex gap-2">
         {(
           [
@@ -82,9 +82,13 @@ function SummaryTab({ communityId }: { communityId: string }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Card title="Gastos">
-        <p className="text-2xl font-semibold text-slate-800">{money(data.expenseTotal)}</p>
-        <p className="text-sm text-slate-500">{data.expenseCount} gastos registrados.</p>
-        <ul className="mt-3 space-y-1 text-sm text-slate-600">
+        <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
+          {money(data.expenseTotal)}
+        </p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {data.expenseCount} gastos registrados.
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
           {data.expenseByCategory.map((item) => (
             <li key={item.category} className="flex items-center justify-between">
               <span>{EXPENSE_CATEGORY_LABELS[item.category]}</span>
@@ -95,8 +99,10 @@ function SummaryTab({ communityId }: { communityId: string }) {
       </Card>
 
       <Card title="Facturas">
-        <p className="text-2xl font-semibold text-slate-800">{money(data.invoiceTotal)}</p>
-        <ul className="mt-3 space-y-1 text-sm text-slate-600">
+        <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
+          {money(data.invoiceTotal)}
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <li className="flex items-center justify-between">
             <span>Pendiente de cobro/pago</span>
             <span>{money(data.invoiceOpenAmount)}</span>
@@ -415,7 +421,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-800">Facturas</h2>
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Facturas</h2>
         <Button onClick={() => setOpen(true)}>Nueva factura</Button>
       </div>
 

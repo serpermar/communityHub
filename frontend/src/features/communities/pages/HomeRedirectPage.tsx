@@ -20,9 +20,11 @@ export function HomeRedirectPage() {
   if (loading) return <LoadingState />
 
   return (
-    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-      <p className="text-sm font-medium text-slate-700">Aún no tienes ninguna comunidad</p>
-      <p className="mt-1 text-sm text-slate-500">
+    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center">
+      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        Aún no tienes ninguna comunidad
+      </p>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Entra con una invitación o crea una comunidad si eres administrador de plataforma.
       </p>
       <div className="mt-4 flex justify-center gap-2">
