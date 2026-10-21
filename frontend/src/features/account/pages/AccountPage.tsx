@@ -20,6 +20,7 @@ import {
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { useResource } from '@/hooks/useResource'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { formatDateTime } from '@/utils/format'
 import type { SessionView } from '@/types/auth'
 import { changePassword, listSessions, revokeSession, updateProfile } from '../api'
@@ -36,12 +37,16 @@ export function AccountPage() {
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
     defaultValues: { fullName: user?.fullName ?? '', phone: user?.phone ?? '' },
+    mode: 'onTouched',
   })
 
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+    mode: 'onTouched',
   })
+
+  const profileLeave = useUnsavedChanges(profileForm.formState.isDirty)
 
   useEffect(() => {
     profileForm.reset({ fullName: user?.fullName ?? '', phone: user?.phone ?? '' })
@@ -260,6 +265,16 @@ export function AccountPage() {
         confirmLabel="Cerrar sesión"
         onCancel={() => setLogoutOpen(false)}
         onConfirm={() => logout().then(() => navigate('/login', { replace: true }))}
+      />
+
+      <ConfirmDialog
+        open={profileLeave.blocked}
+        title="Cambios sin guardar"
+        description="Tienes cambios sin guardar en tu perfil. Si sales ahora, se perderán."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        onConfirm={profileLeave.confirm}
+        onCancel={profileLeave.cancel}
       />
     </div>
   )

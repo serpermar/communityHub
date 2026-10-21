@@ -15,12 +15,16 @@ import {
   Pagination,
   Select,
   SkeletonList,
+  SkeletonTable,
+  EmptyBoxIcon,
   useToast,
+  MEMBER_STATUS_TONES,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { t } from '@/i18n'
 import { formatDate } from '@/utils/format'
@@ -44,8 +48,8 @@ export function MembersPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [createdCode, setCreatedCode] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const { filters, page, setFilter, setPage } = useUrlFilters({ q: undefined })
+  const search = filters.q
   const debouncedSearch = useDebouncedValue(search, 250)
 
   const members = useResource(() => listMembers(active!.id), [active?.id])
@@ -104,9 +108,27 @@ export function MembersPage() {
   })
 
   const columns: Column<Member>[] = [
-    { key: 'name', header: 'Miembro', render: (row) => row.fullName ?? '—' },
-    { key: 'email', header: 'Correo', render: (row) => row.email ?? '—' },
-    { key: 'unit', header: 'Vivienda', render: (row) => row.unitNumber ?? '—' },
+    {
+      key: 'name',
+      header: 'Miembro',
+      sortable: true,
+      sortValue: (row) => row.fullName ?? '',
+      render: (row) => row.fullName ?? '—',
+    },
+    {
+      key: 'email',
+      header: 'Correo',
+      sortable: true,
+      sortValue: (row) => row.email ?? '',
+      render: (row) => row.email ?? '—',
+    },
+    {
+      key: 'unit',
+      header: 'Vivienda',
+      sortable: true,
+      sortValue: (row) => row.unitNumber ?? '',
+      render: (row) => row.unitNumber ?? '—',
+    },
     {
       key: 'role',
       header: 'Rol',
@@ -146,12 +168,16 @@ export function MembersPage() {
             ))}
           </Select>
         ) : (
-          <Badge tone={row.status === 'ACTIVE' ? 'green' : 'slate'}>
-            {MEMBER_STATUS_LABELS[row.status]}
-          </Badge>
+          <Badge tone={MEMBER_STATUS_TONES[row.status]}>{MEMBER_STATUS_LABELS[row.status]}</Badge>
         ),
     },
-    { key: 'joined', header: 'Alta', render: (row) => formatDate(row.joinedAt) },
+    {
+      key: 'joined',
+      header: 'Alta',
+      sortable: true,
+      sortValue: (row) => row.joinedAt,
+      render: (row) => formatDate(row.joinedAt),
+    },
   ]
 
   return (
@@ -168,16 +194,13 @@ export function MembersPage() {
           aria-label="Buscar miembros"
           placeholder="Buscar por nombre, correo o vivienda…"
           value={search}
-          onChange={(event) => {
-            setSearch(event.target.value)
-            setPage(1)
-          }}
+          onChange={(event) => setFilter('q', event.target.value)}
           className="sm:max-w-sm"
         />
       </Card>
 
       {members.loading ? (
-        <SkeletonList />
+        <SkeletonTable columns={6} />
       ) : members.error ? (
         <ErrorState error={members.error} onRetry={members.reload} />
       ) : members.data ? (
@@ -187,7 +210,9 @@ export function MembersPage() {
               columns={columns}
               rows={paged}
               rowKey={(row) => row.id}
-              empty={<EmptyState title="No hay miembros" />}
+              empty={
+                <EmptyState icon={<EmptyBoxIcon className="h-6 w-6" />} title="No hay miembros" />
+              }
             />
           </Card>
           <Pagination

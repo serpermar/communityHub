@@ -9,10 +9,12 @@ import {
   Pagination,
   Select,
   SkeletonList,
+  EmptyBellIcon,
 } from '@/components/ui'
 import { useToast } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../api'
@@ -28,8 +30,10 @@ import type { Notification } from '../types'
 export function NotificationsPage() {
   const navigate = useNavigate()
   const { notify } = useToast()
-  const [page, setPage] = useState(1)
-  const [unread, setUnread] = useState(false)
+  const { filters, page, setFilter, setPage } = useUrlFilters({
+    filter: ['all', 'unread'] as const,
+  })
+  const unread = filters.filter === 'unread'
   const [error, setError] = useState<ApiError | null>(null)
 
   const result = useResource(
@@ -77,10 +81,7 @@ export function NotificationsPage() {
         <Select
           aria-label="Filtro"
           value={unread ? 'unread' : 'all'}
-          onChange={(event) => {
-            setUnread(event.target.value === 'unread')
-            setPage(1)
-          }}
+          onChange={(event) => setFilter('filter', event.target.value)}
           className="sm:w-64"
         >
           <option value="all">{t('notifications.all')}</option>
@@ -96,7 +97,10 @@ export function NotificationsPage() {
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
         result.data.data.length === 0 ? (
-          <EmptyState title={t('notifications.empty')} />
+          <EmptyState
+            icon={<EmptyBellIcon className="h-6 w-6" />}
+            title={t('notifications.empty')}
+          />
         ) : (
           <>
             <Card>

@@ -11,15 +11,20 @@ import {
   Field,
   Input,
   LoadingState,
+  SkeletonTable,
   Modal,
   PageHeader,
   Pagination,
   Select,
+  Tabs,
+  TabPanel,
+  INVOICE_STATUS_TONES,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import {
   createExpense,
   createInvoice,
@@ -33,6 +38,7 @@ import {
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABELS,
+  INVOICE_STATUS_LABELS,
   type Expense,
   type ExpenseCategory,
   type Invoice,
@@ -43,37 +49,38 @@ const today = (): string => new Date().toISOString().slice(0, 10)
 
 export function FinancePage() {
   const { active } = useCommunity()
-  const [tab, setTab] = useState<'summary' | 'expenses' | 'invoices'>('summary')
+  const { filters, setFilter } = useUrlFilters({
+    tab: ['summary', 'expenses', 'invoices'] as const,
+  })
+  const tab = (filters.tab || 'summary') as 'summary' | 'expenses' | 'invoices'
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Finanzas"
         actions={
-          <div className="flex gap-2">
-            {(
-              [
-                ['summary', 'Resumen'],
-                ['expenses', 'Gastos'],
-                ['invoices', 'Facturas'],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                key={value}
-                size="sm"
-                variant={tab === value ? 'primary' : 'secondary'}
-                onClick={() => setTab(value)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
+          <Tabs
+            ariaLabel="Secciones de finanzas"
+            value={tab}
+            onChange={(value) => setFilter('tab', value)}
+            items={[
+              { value: 'summary', label: 'Resumen' },
+              { value: 'expenses', label: 'Gastos' },
+              { value: 'invoices', label: 'Facturas' },
+            ]}
+          />
         }
       />
 
-      {tab === 'summary' && <SummaryTab communityId={active!.id} />}
-      {tab === 'expenses' && <ExpensesTab communityId={active!.id} />}
-      {tab === 'invoices' && <InvoicesTab communityId={active!.id} />}
+      <TabPanel value="summary" active={tab}>
+        <SummaryTab communityId={active!.id} />
+      </TabPanel>
+      <TabPanel value="expenses" active={tab}>
+        <ExpensesTab communityId={active!.id} />
+      </TabPanel>
+      <TabPanel value="invoices" active={tab}>
+        <InvoicesTab communityId={active!.id} />
+      </TabPanel>
     </div>
   )
 }
@@ -244,7 +251,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
       {error && <Alert variant="error">{error}</Alert>}
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonTable columns={5} />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
@@ -407,18 +414,8 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       key: 'status',
       header: 'Estado',
       render: (row) => (
-        <Badge
-          tone={
-            row.effectiveStatus === 'PAID'
-              ? 'green'
-              : row.effectiveStatus === 'OVERDUE'
-                ? 'red'
-                : row.effectiveStatus === 'CANCELLED'
-                  ? 'slate'
-                  : 'amber'
-          }
-        >
-          {row.effectiveStatus}
+        <Badge tone={INVOICE_STATUS_TONES[row.effectiveStatus]}>
+          {INVOICE_STATUS_LABELS[row.effectiveStatus]}
         </Badge>
       ),
     },
@@ -446,7 +443,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       {error && <Alert variant="error">{error}</Alert>}
 
       {result.loading ? (
-        <LoadingState />
+        <SkeletonTable columns={5} />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (

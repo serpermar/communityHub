@@ -37,7 +37,7 @@ export function RegisterPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Crear cuenta</h2>
+      <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Crear cuenta</h1>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Regístrate y accede con tus credenciales.
       </p>

@@ -32,7 +32,7 @@ export function LoginPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Iniciar sesión</h2>
+      <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Iniciar sesión</h1>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Accede con tu correo y contraseña.
       </p>

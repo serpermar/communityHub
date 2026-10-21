@@ -12,6 +12,7 @@ import {
   SkeletonDetail,
   ErrorState,
   Textarea,
+  INCIDENT_STATUS_TONES,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
@@ -106,9 +107,7 @@ export function IncidentDetailPage() {
               {item.title}
             </h1>
           </div>
-          <Badge tone={item.status === 'RESOLVED' ? 'green' : 'blue'}>
-            {STATUS_LABELS[item.status]}
-          </Badge>
+          <Badge tone={INCIDENT_STATUS_TONES[item.status]}>{STATUS_LABELS[item.status]}</Badge>
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

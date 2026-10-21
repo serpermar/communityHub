@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "analyze": "vite build --mode analyze",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
@@ -51,6 +52,7 @@
     "msw": "^2.7.0",
     "postcss": "^8.4.49",
     "prettier": "^3.9.10",
+    "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.71.2",

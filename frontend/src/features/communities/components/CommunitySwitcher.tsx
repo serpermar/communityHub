@@ -49,6 +49,8 @@ export function CommunitySwitcher({
     navigate(`/c/${id}/dashboard`)
   }
 
+  const optionId = (id: string) => `community-option-${id}`
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
       setOpen(false)
@@ -61,6 +63,12 @@ export function CommunitySwitcher({
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       setHighlight((value) => Math.max(value - 1, 0))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setHighlight(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      setHighlight(filtered.length - 1)
     } else if (event.key === 'Enter' && filtered[highlight]) {
       event.preventDefault()
       choose(filtered[highlight].id)
@@ -76,6 +84,9 @@ export function CommunitySwitcher({
         aria-controls="community-listbox"
         aria-autocomplete="list"
         aria-label={t('app.switchCommunity')}
+        aria-activedescendant={
+          open && filtered[highlight] ? optionId(filtered[highlight].id) : undefined
+        }
         value={open ? query : (active?.name ?? '')}
         placeholder={t('app.searchCommunity')}
         onFocus={() => setOpen(true)}
@@ -90,6 +101,7 @@ export function CommunitySwitcher({
         <ul
           id="community-listbox"
           role="listbox"
+          aria-label={t('app.switchCommunity')}
           className="absolute z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
         >
           {filtered.length === 0 ? (
@@ -101,19 +113,25 @@ export function CommunitySwitcher({
               <li key={community.id}>
                 <button
                   type="button"
+                  id={optionId(community.id)}
                   role="option"
-                  aria-selected={community.id === activeId}
+                  aria-selected={index === highlight}
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => choose(community.id)}
                   className={cn(
-                    'block w-full px-3 py-2 text-left',
+                    'flex w-full items-center justify-between gap-2 px-3 py-2 text-left',
                     index === highlight
                       ? 'bg-slate-100 dark:bg-slate-700'
                       : 'hover:bg-slate-50 dark:hover:bg-slate-700/50',
                     community.id === activeId && 'font-medium text-brand-700 dark:text-brand-300',
                   )}
                 >
-                  {community.name}
+                  <span>{community.name}</span>
+                  {community.id === activeId && (
+                    <span aria-hidden="true" className="text-brand-600 dark:text-brand-400">
+                      ✓
+                    </span>
+                  )}
                 </button>
               </li>
             ))

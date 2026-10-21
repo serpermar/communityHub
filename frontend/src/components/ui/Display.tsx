@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
+import type { BadgeTone } from './status'
 
 export function Badge({
   children,
@@ -7,15 +8,15 @@ export function Badge({
   className,
 }: {
   children: ReactNode
-  tone?: 'slate' | 'green' | 'amber' | 'red' | 'blue' | 'violet'
+  tone?: BadgeTone
   className?: string
 }) {
-  const tones: Record<string, string> = {
+  const tones: Record<BadgeTone, string> = {
     slate: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
-    green: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-    amber: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-    red: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
-    blue: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+    green: 'bg-success-100 text-success-800 dark:bg-success-950 dark:text-success-100',
+    amber: 'bg-warning-100 text-warning-800 dark:bg-warning-950 dark:text-warning-100',
+    red: 'bg-danger-100 text-danger-800 dark:bg-danger-950 dark:text-danger-100',
+    blue: 'bg-info-100 text-info-800 dark:bg-info-950 dark:text-info-100',
     violet: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
   }
   return (

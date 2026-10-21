@@ -32,6 +32,11 @@ export const es = {
     expandSidebar: 'Expandir menú lateral',
     searchCommunity: 'Buscar comunidad',
     noCommunityResults: 'Sin resultados',
+    commandPalette: 'Buscar sección',
+    commandPlaceholder: 'Ir a… (busca una sección)',
+    commandNoResults: 'No hay secciones que coincidan',
+    commandTrigger: 'Buscar sección (Ctrl+K)',
+    tabs: 'Secciones',
   },
   nav: {
     dashboard: 'Panel',

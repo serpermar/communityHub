@@ -11,14 +11,16 @@ import {
   PageHeader,
   Pagination,
   Select,
-  SkeletonList,
+  SkeletonTable,
   useToast,
+  RESERVATION_STATUS_TONES,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
 import { cancelReservation, confirmReservation, listReservations } from '../api'
@@ -31,17 +33,21 @@ export function ReservationListPage() {
   const { user } = useAuth()
   const { active, role } = useCommunity()
   const { notify } = useToast()
-  const [view, setView] = useState<View>('list')
-  const [status, setStatus] = useState<ReservationStatus | ''>('')
-  const [date, setDate] = useState('')
-  const [page, setPage] = useState(1)
+  const { filters, page, setFilter, setPage } = useUrlFilters({
+    status: Object.keys(RESERVATION_STATUS_LABELS),
+    date: undefined,
+    view: ['list', 'calendar'] as const,
+  })
+  const { status, date } = filters
+  const view = (filters.view || 'list') as View
+  const setView = (next: View) => setFilter('view', next)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const result = useResource(
     () =>
       listReservations(active!.id, {
-        status: status || undefined,
+        status: (status || undefined) as ReservationStatus | undefined,
         date: date || undefined,
         page,
         limit: 20,
@@ -75,9 +81,7 @@ export function ReservationListPage() {
       key: 'status',
       header: 'Estado',
       render: (row) => (
-        <Badge
-          tone={row.status === 'CONFIRMED' ? 'green' : row.status === 'PENDING' ? 'amber' : 'slate'}
-        >
+        <Badge tone={RESERVATION_STATUS_TONES[row.status]}>
           {RESERVATION_STATUS_LABELS[row.status]}
         </Badge>
       ),
@@ -165,10 +169,7 @@ export function ReservationListPage() {
               <Select
                 aria-label="Estado"
                 value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as ReservationStatus | '')
-                  setPage(1)
-                }}
+                onChange={(event) => setFilter('status', event.target.value)}
               >
                 <option value="">Todos los estados</option>
                 {(Object.keys(RESERVATION_STATUS_LABELS) as ReservationStatus[]).map((value) => (
@@ -181,10 +182,7 @@ export function ReservationListPage() {
                 aria-label="Fecha"
                 type="date"
                 value={date}
-                onChange={(event) => {
-                  setDate(event.target.value)
-                  setPage(1)
-                }}
+                onChange={(event) => setFilter('date', event.target.value)}
               />
             </div>
           </Card>
@@ -192,7 +190,7 @@ export function ReservationListPage() {
           {actionError && <Alert variant="error">{actionError}</Alert>}
 
           {result.loading ? (
-            <SkeletonList />
+            <SkeletonTable columns={5} />
           ) : result.error ? (
             <ErrorState error={result.error} onRetry={result.reload} />
           ) : result.data ? (

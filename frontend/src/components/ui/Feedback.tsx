@@ -52,6 +52,37 @@ export function SkeletonList({ rows = 3 }: { rows?: number }) {
 }
 
 /**
+ * Esqueleto con la forma de una tabla real (cabecera + filas de celdas), para
+ * que la carga de un listado no salte de un bloque generico a una tabla con
+ * columnas. El numero de columnas se ajusta con `columns`.
+ */
+export function SkeletonTable({ rows = 5, columns = 5 }: { rows?: number; columns?: number }) {
+  return (
+    <div
+      role="status"
+      aria-label="Cargando"
+      className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+      data-testid="skeleton-table"
+    >
+      <div className="flex items-center gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+        {Array.from({ length: columns }).map((_, index) => (
+          <Skeleton key={index} className={cn('h-3', index === 0 ? 'w-1/4' : 'w-16')} />
+        ))}
+      </div>
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <div key={rowIndex} className="flex items-center gap-4 px-4 py-3">
+            {Array.from({ length: columns }).map((_, index) => (
+              <Skeleton key={index} className={cn('h-4', index === 0 ? 'w-1/4' : 'w-16')} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Esqueleto con la forma de una pantalla de detalle (cabecera + dos bloques),
  * para no saltar de un spinner centrado a un layout completamente distinto.
  */
@@ -115,13 +146,20 @@ export function EmptyState({
   title,
   description,
   action,
+  icon,
 }: {
   title: string
   description?: string
   action?: ReactNode
+  icon?: ReactNode
 }) {
   return (
     <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+      {icon && (
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 motion-safe:animate-fade-in dark:bg-slate-800 dark:text-slate-500">
+          {icon}
+        </div>
+      )}
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</p>
       {description && (
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
@@ -150,13 +188,13 @@ export function ErrorState({ error, onRetry }: { error: ApiError; onRetry?: () =
 type AlertVariant = 'info' | 'success' | 'warning' | 'error'
 
 const ALERT_STYLES: Record<AlertVariant, string> = {
-  info: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300',
+  info: 'border-info-200 bg-info-50 text-info-800 dark:border-info-900 dark:bg-info-950/40 dark:text-info-300',
   success:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
+    'border-success-200 bg-success-50 text-success-800 dark:border-success-900 dark:bg-success-950/40 dark:text-success-300',
   warning:
-    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
+    'border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-900 dark:bg-warning-950/40 dark:text-warning-300',
   error:
-    'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300',
+    'border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-900 dark:bg-danger-950/40 dark:text-danger-300',
 }
 
 export function Alert({

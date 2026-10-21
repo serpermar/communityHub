@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LoadingState, ErrorState, Button, ThemeToggle } from '@/components/ui'
+import { CommandPalette } from '@/components/ui'
 import { Logo } from '@/components/brand/Logo'
 import { NAV_ICONS } from '@/components/brand/NavIcons'
 import { useAuth } from '@/context/AuthContext'
@@ -8,28 +9,9 @@ import { CommunityProvider, useCommunity } from '@/context/CommunityContext'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { CommunitySwitcher } from '@/features/communities/components/CommunitySwitcher'
 import { t } from '@/i18n'
-import type { MemberRole } from '@/types/roles'
+import { NAV_ITEMS, visibleNavItems } from '@/routes/navItems'
+import { prefetchRoute } from '@/routes/prefetch'
 import { cn } from '@/utils/cn'
-
-interface NavItem {
-  segment: string
-  labelKey: string
-  roles?: MemberRole[]
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { segment: 'dashboard', labelKey: 'nav.dashboard' },
-  { segment: 'incidents', labelKey: 'nav.incidents' },
-  { segment: 'common-areas', labelKey: 'nav.commonAreas' },
-  { segment: 'reservations', labelKey: 'nav.reservations' },
-  { segment: 'announcements', labelKey: 'nav.announcements' },
-  { segment: 'documents', labelKey: 'nav.documents' },
-  { segment: 'finance', labelKey: 'nav.finance', roles: ['ADMIN'] },
-  { segment: 'votes', labelKey: 'nav.votes', roles: ['ADMIN', 'PRESIDENT', 'NEIGHBOR'] },
-  { segment: 'assistant', labelKey: 'nav.assistant' },
-  { segment: 'members', labelKey: 'nav.members' },
-  { segment: 'settings', labelKey: 'nav.settings', roles: ['ADMIN'] },
-]
 
 const SIDEBAR_KEY = 'communityhub.sidebar'
 
@@ -48,6 +30,7 @@ function AppLayoutInner() {
   const { user, logout } = useAuth()
   const { active, communities, role, loading, error, reload } = useCommunity()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== 'undefined' && window.localStorage.getItem(SIDEBAR_KEY) === 'collapsed',
   )
@@ -77,9 +60,7 @@ function AppLayoutInner() {
     )
   }
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roles || (role && item.roles.includes(role)),
-  )
+  const visibleItems = visibleNavItems(role)
 
   const navLinks = (compact: boolean) => (
     <nav className="space-y-1" aria-label={t('app.navigation')}>
@@ -90,6 +71,8 @@ function AppLayoutInner() {
             key={item.segment}
             to={`/c/${active!.id}/${item.segment}`}
             onClick={() => setMenuOpen(false)}
+            onMouseEnter={() => prefetchRoute(item.segment)}
+            onFocus={() => prefetchRoute(item.segment)}
             title={compact ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               cn(
@@ -141,6 +124,28 @@ function AppLayoutInner() {
         )}
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {active && (
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label={t('app.commandTrigger')}
+              title={t('app.commandTrigger')}
+              className="hidden items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 md:flex dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4 fill-none stroke-current"
+              >
+                <circle cx="11" cy="11" r="7" strokeWidth="1.7" />
+                <path strokeWidth="1.7" strokeLinecap="round" d="m20 20-3.5-3.5" />
+              </svg>
+              <span>{t('app.commandPalette')}</span>
+              <kbd className="rounded border border-slate-300 px-1 text-xs dark:border-slate-600">
+                Ctrl K
+              </kbd>
+            </button>
+          )}
           {user?.globalRole === 'ADMIN_SA' && (
             <NavLink
               to="/admin/communities/new"
@@ -214,13 +219,24 @@ function AppLayoutInner() {
           {active ? (
             <>
               <Breadcrumbs pathname={location.pathname} communityId={active.id} />
-              <Outlet />
+              <div key={location.pathname} className="motion-safe:animate-fade-in-up">
+                <Outlet />
+              </div>
             </>
           ) : (
             <NoCommunity />
           )}
         </main>
       </div>
+
+      {active && (
+        <CommandPalette
+          communityId={active.id}
+          role={role}
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+        />
+      )}
     </div>
   )
 }

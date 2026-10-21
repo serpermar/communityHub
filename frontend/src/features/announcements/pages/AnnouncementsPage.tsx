@@ -18,11 +18,13 @@ import {
   Select,
   SkeletonList,
   Textarea,
+  ANNOUNCEMENT_TYPE_TONES,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { isManager } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { formatDateTime } from '@/utils/format'
 import {
   createAnnouncement,
@@ -59,8 +61,8 @@ const toLocalInput = (iso: string | null): string => {
 export function AnnouncementsPage() {
   const { active, role } = useCommunity()
   const canManage = isManager(role)
-  const [page, setPage] = useState(1)
-  const [type, setType] = useState('')
+  const { filters, page, setFilter, setPage } = useUrlFilters({ type: ANNOUNCEMENT_TYPES })
+  const type = filters.type
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -152,10 +154,7 @@ export function AnnouncementsPage() {
         <Select
           aria-label="Tipo"
           value={type}
-          onChange={(event) => {
-            setType(event.target.value)
-            setPage(1)
-          }}
+          onChange={(event) => setFilter('type', event.target.value)}
           className="sm:w-64"
         >
           <option value="">Todos los tipos</option>
@@ -183,7 +182,7 @@ export function AnnouncementsPage() {
                   <span className="flex items-center gap-2">
                     {announcement.isPinned && <Badge tone="violet">Fijado</Badge>}
                     <span>{announcement.title}</span>
-                    <Badge tone={announcement.type === 'URGENT' ? 'red' : 'slate'}>
+                    <Badge tone={ANNOUNCEMENT_TYPE_TONES[announcement.type]}>
                       {ANNOUNCEMENT_TYPE_LABELS[announcement.type]}
                     </Badge>
                   </span>

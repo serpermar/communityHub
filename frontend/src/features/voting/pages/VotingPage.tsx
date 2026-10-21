@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Badge,
@@ -10,12 +9,15 @@ import {
   PageHeader,
   Pagination,
   Select,
-  SkeletonList,
+  SkeletonTable,
+  EmptyBoxIcon,
+  VOTE_STATUS_TONES,
   type Column,
 } from '@/components/ui'
 import { isManager } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { formatDateTime } from '@/utils/format'
 import { listVotes } from '../api'
 import { VOTE_STATUS_LABELS, VOTE_STATUSES, type Vote, type VoteStatus } from '../types'
@@ -23,11 +25,16 @@ import { VOTE_STATUS_LABELS, VOTE_STATUSES, type Vote, type VoteStatus } from '.
 export function VotingPage() {
   const navigate = useNavigate()
   const { active, role } = useCommunity()
-  const [status, setStatus] = useState<VoteStatus | ''>('')
-  const [page, setPage] = useState(1)
+  const { filters, page, setFilter, setPage } = useUrlFilters({ status: VOTE_STATUSES })
+  const status = filters.status
 
   const result = useResource(
-    () => listVotes(active!.id, { status: status || undefined, page, limit: 20 }),
+    () =>
+      listVotes(active!.id, {
+        status: (status || undefined) as VoteStatus | undefined,
+        page,
+        limit: 20,
+      }),
     [active?.id, status, page],
   )
 
@@ -35,6 +42,8 @@ export function VotingPage() {
     {
       key: 'title',
       header: 'Votación',
+      sortable: true,
+      sortValue: (vote) => vote.title,
       render: (vote) => (
         <Link
           to={`/c/${active!.id}/votes/${vote.id}`}
@@ -44,25 +53,31 @@ export function VotingPage() {
         </Link>
       ),
     },
-    { key: 'question', header: 'Pregunta', render: (vote) => vote.question },
+    {
+      key: 'question',
+      header: 'Pregunta',
+      sortable: true,
+      sortValue: (vote) => vote.question,
+      render: (vote) => vote.question,
+    },
     {
       key: 'status',
       header: 'Estado',
+      sortable: true,
+      sortValue: (vote) => vote.effectiveStatus,
       render: (vote) => (
-        <Badge
-          tone={
-            vote.effectiveStatus === 'OPEN'
-              ? 'green'
-              : vote.effectiveStatus === 'DRAFT'
-                ? 'slate'
-                : 'amber'
-          }
-        >
+        <Badge tone={VOTE_STATUS_TONES[vote.effectiveStatus]}>
           {VOTE_STATUS_LABELS[vote.effectiveStatus]}
         </Badge>
       ),
     },
-    { key: 'endsAt', header: 'Cierra', render: (vote) => formatDateTime(vote.endsAt) },
+    {
+      key: 'endsAt',
+      header: 'Cierra',
+      sortable: true,
+      sortValue: (vote) => vote.endsAt,
+      render: (vote) => formatDateTime(vote.endsAt),
+    },
   ]
 
   return (
@@ -80,10 +95,7 @@ export function VotingPage() {
         <Select
           aria-label="Estado"
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as VoteStatus | '')
-            setPage(1)
-          }}
+          onChange={(event) => setFilter('status', event.target.value)}
           className="sm:w-64"
         >
           <option value="">Todas</option>
@@ -96,7 +108,7 @@ export function VotingPage() {
       </Card>
 
       {result.loading ? (
-        <SkeletonList />
+        <SkeletonTable columns={4} />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
@@ -108,6 +120,7 @@ export function VotingPage() {
               rowKey={(row) => row.id}
               empty={
                 <EmptyState
+                  icon={<EmptyBoxIcon className="h-6 w-6" />}
                   title="No hay votaciones"
                   description="Crea una votación para consultar a la comunidad."
                   action={

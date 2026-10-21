@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Badge,
@@ -9,12 +8,15 @@ import {
   Select,
   Input,
   PageHeader,
+  INCIDENT_STATUS_TONES,
+  INCIDENT_PRIORITY_TONES,
   type Column,
 } from '@/components/ui'
-import { ErrorState, EmptyState, SkeletonList } from '@/components/ui'
+import { ErrorState, EmptyState, EmptySearchIcon, SkeletonTable } from '@/components/ui'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { formatDate } from '@/utils/format'
 import { listIncidents } from '../api'
 import {
@@ -30,36 +32,24 @@ import {
   type IncidentStatus,
 } from '../types'
 
-const STATUS_TONES: Record<IncidentStatus, 'blue' | 'amber' | 'green' | 'slate'> = {
-  OPEN: 'blue',
-  IN_PROGRESS: 'amber',
-  RESOLVED: 'green',
-  CANCELLED: 'slate',
-}
-
-const PRIORITY_TONES: Record<IncidentPriority, 'slate' | 'blue' | 'amber' | 'red'> = {
-  LOW: 'slate',
-  MEDIUM: 'blue',
-  HIGH: 'amber',
-  CRITICAL: 'red',
-}
-
 export function IncidentListPage() {
   const { active, role } = useCommunity()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<IncidentStatus | ''>('')
-  const [priority, setPriority] = useState<IncidentPriority | ''>('')
-  const [category, setCategory] = useState<IncidentCategory | ''>('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
+  const { filters, page, setFilter, setPage } = useUrlFilters({
+    status: INCIDENT_STATUSES,
+    priority: INCIDENT_PRIORITIES,
+    category: INCIDENT_CATEGORIES,
+    q: undefined,
+  })
+  const { status, priority, category, q } = filters
   const debouncedQ = useDebouncedValue(q)
 
   const result = useResource(
     () =>
       listIncidents(active!.id, {
-        status: status || undefined,
-        priority: priority || undefined,
-        category: category || undefined,
+        status: (status || undefined) as IncidentStatus | undefined,
+        priority: (priority || undefined) as IncidentPriority | undefined,
+        category: (category || undefined) as IncidentCategory | undefined,
         q: debouncedQ || undefined,
         page,
         limit: 20,
@@ -71,6 +61,8 @@ export function IncidentListPage() {
     {
       key: 'reference',
       header: 'Referencia',
+      sortable: true,
+      sortValue: (incident) => incident.referenceCode,
       render: (incident) => (
         <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
           {incident.referenceCode}
@@ -80,6 +72,8 @@ export function IncidentListPage() {
     {
       key: 'title',
       header: 'Título',
+      sortable: true,
+      sortValue: (incident) => incident.title,
       render: (incident) => (
         <button
           type="button"
@@ -90,20 +84,38 @@ export function IncidentListPage() {
         </button>
       ),
     },
-    { key: 'category', header: 'Categoría', render: (row) => CATEGORY_LABELS[row.category] },
+    {
+      key: 'category',
+      header: 'Categoría',
+      sortable: true,
+      sortValue: (row) => CATEGORY_LABELS[row.category],
+      render: (row) => CATEGORY_LABELS[row.category],
+    },
     {
       key: 'priority',
       header: 'Prioridad',
+      sortable: true,
+      sortValue: (row) => row.priority,
       render: (row) => (
-        <Badge tone={PRIORITY_TONES[row.priority]}>{PRIORITY_LABELS[row.priority]}</Badge>
+        <Badge tone={INCIDENT_PRIORITY_TONES[row.priority]}>{PRIORITY_LABELS[row.priority]}</Badge>
       ),
     },
     {
       key: 'status',
       header: 'Estado',
-      render: (row) => <Badge tone={STATUS_TONES[row.status]}>{STATUS_LABELS[row.status]}</Badge>,
+      sortable: true,
+      sortValue: (row) => row.status,
+      render: (row) => (
+        <Badge tone={INCIDENT_STATUS_TONES[row.status]}>{STATUS_LABELS[row.status]}</Badge>
+      ),
     },
-    { key: 'createdAt', header: 'Creada', render: (row) => formatDate(row.createdAt) },
+    {
+      key: 'createdAt',
+      header: 'Creada',
+      sortable: true,
+      sortValue: (row) => row.createdAt,
+      render: (row) => formatDate(row.createdAt),
+    },
   ]
 
   return (
@@ -124,10 +136,7 @@ export function IncidentListPage() {
           <Select
             aria-label="Estado"
             value={status}
-            onChange={(event) => {
-              setStatus(event.target.value as IncidentStatus | '')
-              setPage(1)
-            }}
+            onChange={(event) => setFilter('status', event.target.value)}
           >
             <option value="">Todos los estados</option>
             {INCIDENT_STATUSES.map((value) => (
@@ -139,10 +148,7 @@ export function IncidentListPage() {
           <Select
             aria-label="Prioridad"
             value={priority}
-            onChange={(event) => {
-              setPriority(event.target.value as IncidentPriority | '')
-              setPage(1)
-            }}
+            onChange={(event) => setFilter('priority', event.target.value)}
           >
             <option value="">Todas las prioridades</option>
             {INCIDENT_PRIORITIES.map((value) => (
@@ -154,10 +160,7 @@ export function IncidentListPage() {
           <Select
             aria-label="Categoría"
             value={category}
-            onChange={(event) => {
-              setCategory(event.target.value as IncidentCategory | '')
-              setPage(1)
-            }}
+            onChange={(event) => setFilter('category', event.target.value)}
           >
             <option value="">Todas las categorías</option>
             {INCIDENT_CATEGORIES.map((value) => (
@@ -170,16 +173,13 @@ export function IncidentListPage() {
             aria-label="Buscar"
             placeholder="Buscar por título…"
             value={q}
-            onChange={(event) => {
-              setQ(event.target.value)
-              setPage(1)
-            }}
+            onChange={(event) => setFilter('q', event.target.value)}
           />
         </div>
       </Card>
 
       {result.loading ? (
-        <SkeletonList />
+        <SkeletonTable columns={6} />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
@@ -191,6 +191,7 @@ export function IncidentListPage() {
               rowKey={(row) => row.id}
               empty={
                 <EmptyState
+                  icon={<EmptySearchIcon className="h-6 w-6" />}
                   title="No hay incidencias"
                   description="No se encontraron incidencias con estos filtros."
                   action={

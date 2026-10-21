@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Card, ErrorState, LoadingState } from '@/components/ui'
+import { Badge, Card, ErrorState, LoadingState, RESERVATION_STATUS_TONES } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { listReservations } from '../api'
@@ -138,15 +138,7 @@ export function ReservationCalendar() {
                             {HOUR_FORMAT.format(new Date(reservation.startsAt))}–
                             {HOUR_FORMAT.format(new Date(reservation.endsAt))}
                           </span>
-                          <Badge
-                            tone={
-                              reservation.status === 'CONFIRMED'
-                                ? 'green'
-                                : reservation.status === 'PENDING'
-                                  ? 'amber'
-                                  : 'slate'
-                            }
-                          >
+                          <Badge tone={RESERVATION_STATUS_TONES[reservation.status]}>
                             {RESERVATION_STATUS_LABELS[reservation.status]}
                           </Badge>
                         </div>

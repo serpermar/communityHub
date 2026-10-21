@@ -14,13 +14,15 @@ import {
   PageHeader,
   Pagination,
   Select,
-  SkeletonList,
+  SkeletonTable,
+  EmptyFolderIcon,
   type Column,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { MEMBER_ROLES, MEMBER_ROLE_LABELS, type MemberRole } from '@/types/roles'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { formatDate } from '@/utils/format'
 import { deleteDocument, getDownloadUrl, listDocuments, uploadDocument } from '../api'
 import {
@@ -36,9 +38,11 @@ const fileSize = (bytes: number): string =>
 export function DocumentsPage() {
   const { active, role } = useCommunity()
   const isAdmin = role === 'ADMIN'
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [category, setCategory] = useState<DocumentCategory | ''>('')
+  const { filters, page, pageSize, setFilter, setPage, setPageSize } = useUrlFilters(
+    { category: DOCUMENT_CATEGORIES },
+    { pageSizeOptions: [10, 20, 50], defaultPageSize: 20 },
+  )
+  const { category } = filters
   const [open, setOpen] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CommunityDocument | null>(null)
@@ -53,7 +57,7 @@ export function DocumentsPage() {
   const result = useResource(
     () =>
       listDocuments(active!.id, {
-        category: category || undefined,
+        category: (category || undefined) as DocumentCategory | undefined,
         page,
         limit: pageSize,
       }),
@@ -108,13 +112,27 @@ export function DocumentsPage() {
   }
 
   const columns: Column<CommunityDocument>[] = [
-    { key: 'title', header: 'Documento', render: (row) => row.title },
+    {
+      key: 'title',
+      header: 'Documento',
+      sortable: true,
+      sortValue: (row) => row.title,
+      render: (row) => row.title,
+    },
     {
       key: 'category',
       header: 'Categoría',
+      sortable: true,
+      sortValue: (row) => DOCUMENT_CATEGORY_LABELS[row.category],
       render: (row) => DOCUMENT_CATEGORY_LABELS[row.category],
     },
-    { key: 'size', header: 'Tamaño', render: (row) => fileSize(row.sizeBytes) },
+    {
+      key: 'size',
+      header: 'Tamaño',
+      sortable: true,
+      sortValue: (row) => row.sizeBytes,
+      render: (row) => fileSize(row.sizeBytes),
+    },
     {
       key: 'minRole',
       header: 'Visibilidad',
@@ -122,7 +140,13 @@ export function DocumentsPage() {
         <Badge tone="slate">{row.isPublic ? 'Todos' : MEMBER_ROLE_LABELS[row.minRole]}</Badge>
       ),
     },
-    { key: 'date', header: 'Subido', render: (row) => formatDate(row.createdAt) },
+    {
+      key: 'date',
+      header: 'Subido',
+      sortable: true,
+      sortValue: (row) => row.createdAt,
+      render: (row) => formatDate(row.createdAt),
+    },
     {
       key: 'actions',
       header: '',
@@ -152,10 +176,7 @@ export function DocumentsPage() {
         <Select
           aria-label="Categoría"
           value={category}
-          onChange={(event) => {
-            setCategory(event.target.value as DocumentCategory | '')
-            setPage(1)
-          }}
+          onChange={(event) => setFilter('category', event.target.value)}
           className="sm:w-64"
         >
           <option value="">Todas las categorías</option>
@@ -170,7 +191,7 @@ export function DocumentsPage() {
       {serverError && <Alert variant="error">{serverError}</Alert>}
 
       {result.loading ? (
-        <SkeletonList />
+        <SkeletonTable columns={5} />
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
@@ -182,6 +203,7 @@ export function DocumentsPage() {
               rowKey={(row) => row.id}
               empty={
                 <EmptyState
+                  icon={<EmptyFolderIcon className="h-6 w-6" />}
                   title="No hay documentos"
                   description="Sube el primer documento de la comunidad."
                   action={
@@ -200,10 +222,7 @@ export function DocumentsPage() {
             onPage={setPage}
             pageSize={pageSize}
             pageSizeOptions={[10, 20, 50]}
-            onPageSize={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
+            onPageSize={setPageSize}
           />
         </>
       ) : null}

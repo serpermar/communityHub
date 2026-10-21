@@ -1,9 +1,9 @@
 # Spec 15 — Frontend (SPA React)
 
 > **Estado: IMPLEMENTED — implementada (2026-10-16).** Bloque 15, el
-> primero y único de frontend. Decisiones `FE-1`…`FE-25` cerradas: ver §2 y §12
-> (`FE-16`…`FE-25` son revisiones posteriores de mejoras de UX, tema, rendimiento
-> y cuenta).
+> primero y único de frontend. Decisiones `FE-1`…`FE-31` cerradas: ver §2 y §12
+> (`FE-16`…`FE-31` son revisiones posteriores de mejoras de UX, tema, rendimiento,
+> consistencia visual, accesibilidad y detalle).
 > Este documento define **la SPA**
 > que consume el backend ya terminado (bloques `01`–`14`) y, con él, **la
 > plantilla de arquitectura de features** que el enunciado pide (§3 del PROMPT).
@@ -74,6 +74,12 @@ El objetivo de arquitectura es que `frontend/` demuestre la organización por
 | **FE-23** | **Sidebar colapsable y con iconos**: `NavIcons` da un icono a cada sección y el estado colapsado se persiste en `localStorage` (`communityhub.sidebar`); colapsado muestra `title` y el botón lleva `aria-pressed`. Selección de comunidad con **combobox con búsqueda** (`CommunitySwitcher`) | Sidebar fijo y un `<select>` nativo | Con muchas comunidades y secciones, un `<select>` y un sidebar rígido obligan a cambios de contexto; colapsar libera ancho y el buscador filtra por nombre |
 | **FE-24** | **Sin destello de tema (FOUC)**: un script *inline* en `index.html` aplica la clase `dark` **antes** del primer pintado, leyendo la misma clave (`communityhub.theme`) y `prefers-color-scheme` que `ThemeContext` | Aplicar el tema solo tras montar React | React monta tarde; sin el script, el primer fotograma es claro y luego salta a oscuro. La lógica se duplica a propósito (el script no puede importar el contexto) |
 | **FE-25** | **Paginación con números y tamaño de página** en `Pagination`: ventana de páginas alrededor de la actual (con extremos plegados), botones Anterior/Siguiente y selector de tamaño (`pageSizeOptions`) que reinicia a la página 1. Los `EmptyState` aceptan una **acción/CTA** contextual | Solo Anterior/Siguiente y vacíos sin salida | Navegar de una en una por muchas páginas es lento; un vacío sin CTA deja al usuario sin siguiente paso. El backend ya devuelve `meta.total`/`totalPages` |
+| **FE-26** | **Filtros, página y búsqueda persistidos en la URL** con el hook `useUrlFilters` (sincroniza cada filtro con `useSearchParams` en modo `replace`; los valores inválidos caen a vacío). Cableado en incidencias, documentos, reservas (con `view` lista/calendario), notificaciones, avisos, votaciones, finanzas (pestañas) y miembros | Estado local que se pierde al recargar o compartir | Poder enlazar "incidencias abiertas de la categoría X" o recargar sin perder el contexto es una expectativa básica; también hace el filtrado verificable por E2E |
+| **FE-27** | **`DataTable` con orden en cliente y selección**: `Column` admite `sortable`/`sortValue`; `DataTable` ordena de forma estable (`localeCompare('es')`) con ciclo asc→desc→sin orden, expone `aria-sort` y `initialSort`, y admite selección por fila con `selectable`/`selectedKeys`/`onSelectionChange` (checkbox con `aria-label`) | Solo orden por lo que devuelve la API | La API no soporta `sort`; ordenar donde el usuario espera (la cabecera) es mejor que reordenar en servidor. La selección habilita futuras acciones por lote sin reescribir la tabla |
+| **FE-28** | **Selectores de comandos (Cmd/Ctrl+K)** con `CommandPalette`, montado una sola vez en el shell y alimentado por `visibleNavItems` (los mismos destinos y permisos que el sidebar). Filtra por texto, navega con flechas/Enter, cierra con Escape y devuelve el foco. La cabecera ofrece un botón-trigger | Solo el sidebar | Saltar a una sección sin recorrer el menú acelera el uso con ratón y teclado; al compartir `navItems`, no puede desincronizarse del sidebar |
+| **FE-29** | **Feedback de formularios**: validación en modo `onTouched` (los errores salen tras tocar/blur, no al entrar) y aviso de **cambios sin guardar** con el hook `useUnsavedChanges` (`beforeunload` + `useBlocker` del data router, que degrada con seguridad fuera de un data router). Un `ConfirmDialog` pide confirmación antes de perder lo escrito | Validar al montar y perder cambios al navegar | Marcar campos en rojo antes de que el usuario los toque es ruido; salir sin querer y perder un formulario largo es lo peor de una SPA |
+| **FE-30** | **Accesibilidad estructural**: `h1` por página (auth y detalle de votación incluidos), combobox del selector de comunidad con `aria-activedescendant`/`id` por opción, pestañas accesibles (`Tabs`/`TabPanel` con roving tabindex y flechas), campana de notificaciones con `aria-haspopup`/`aria-expanded` y cierre con Escape/foco. `eslint-plugin-jsx-a11y` **no se añade**: su última versión (6.10.2) no soporta ESLint 10 (el del repo) | Confiar en que "se ve bien" | La a11y de teclado y de lector de pantalla no se ve en una revisión visual; un lint que no carga en CI sería peor que no tenerlo |
+| **FE-31** | **Detalle y movimiento**: `SkeletonTable` dibuja cabecera + filas (como la tabla real) en vez de bloques genéricos; `EmptyState` acepta `icon` (ilustraciones SVG en línea de `EmptyIllustrations`); transición `fade-in-up` al cambiar de ruta y una animación **propia** mínima en `tailwind.config.ts` (sin `tailwindcss-animate`), siempre bajo `motion-safe:`. La sección activa se **precarga al pasar el ratón/enfocar** (`prefetchRoute` de `routes/prefetch.ts`) y el análisis de bundle se activa con `npm run analyze` (`rollup-plugin-visualizer`) | Esqueletos genéricos, vacíos sin ilustración y descarga del chunk al navegar | Un esqueleto con la forma final evita el salto de layout; precargar en hover elimina el parpadeo del *fallback*; el analizador ayuda a vigilar el chunk de gráficos (Recharts) |
 
 ---
 
@@ -379,13 +385,13 @@ frontend/
 ├── src/
 │   ├── main.tsx
 │   ├── app/                       # router, providers, App
-│   ├── routes/                    # route tree + ProtectedRoute/RoleGate
+│   ├── routes/                    # route tree + ProtectedRoute/RoleGate + prefetch.ts
 │   ├── layouts/                   # AppLayout, AuthLayout
-│   ├── components/                # ui/ (Button, Input, Modal, Table…)
+│   ├── components/                # ui/ (Button, Input, Modal, Table, Tabs, CommandPalette…)
 │   ├── components/ErrorBoundary.tsx  # límite de render (FE-18)
 │   ├── services/                  # http.ts + api por dominio
 │   ├── context/                   # AuthContext, CommunityContext
-│   ├── hooks/                     # useAsync, useDebouncedValue, useMediaQuery…
+│   ├── hooks/                     # useResource, useUrlFilters, useUnsavedChanges, useDebouncedValue…
 │   ├── types/                     # api.ts, roles.ts
 │   ├── utils/                     # fechas, moneda, cn()
 │   └── features/
@@ -458,6 +464,26 @@ Cerrada tras la revisión de diseño/accesibilidad sobre FE-16…FE-19:
 - [x] **FE-24 — Sin FOUC**: script *inline* en `index.html` que fija el tema antes
       del primer pintado.
 - [x] **FE-25 — Paginación con números y tamaño** y `EmptyState` con CTA.
+
+### Revisión de mejoras (FE-26…FE-31)
+
+Segunda ronda de mejoras (consistencia visual, UX, accesibilidad, rendimiento y
+detalle), cerrada sobre FE-20…FE-25:
+
+- [x] **FE-26 — Filtros/página/búsqueda en la URL** (`useUrlFilters`) en las
+      pantallas de listado y las pestañas de finanzas.
+- [x] **FE-27 — `DataTable` con orden en cliente y selección** por fila
+      (`sortable`/`sortValue`, ciclo asc→desc→sin orden, `aria-sort`).
+- [x] **FE-28 — Selector de comandos Cmd/Ctrl+K** (`CommandPalette`) sobre el
+      `NAV_ITEMS` compartido, con trigger en la cabecera.
+- [x] **FE-29 — Feedback de formularios**: validación `onTouched` y aviso de
+      cambios sin guardar (`useUnsavedChanges` + `ConfirmDialog`).
+- [x] **FE-30 — Accesibilidad estructural**: `h1` por página, combobox con
+      `aria-activedescendant`, pestañas accesibles y campana mejorada. `jsx-a11y`
+      no se añade (no soporta ESLint 10).
+- [x] **FE-31 — Detalle y movimiento**: `SkeletonTable`, `EmptyState` con icono,
+      transición de ruta `motion-safe`, precarga al hover (`prefetchRoute`) y
+      `npm run analyze` (bundle visualizer).
 
 ---
 

@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, Card, Field, Input, LoadingState, PageHeader } from '@/components/ui'
+import {
+  Alert,
+  Button,
+  Card,
+  ConfirmDialog,
+  Field,
+  Input,
+  LoadingState,
+  PageHeader,
+} from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { geocodeCommunity, getCommunity, getCommunityWeather, updateCommunity } from '../api'
 import { updateCommunitySchema, type UpdateCommunityForm } from '../schemas'
 
@@ -20,8 +30,14 @@ export function CommunitySettingsPage() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
-  } = useForm<UpdateCommunityForm>({ resolver: zodResolver(updateCommunitySchema) })
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<UpdateCommunityForm>({
+    resolver: zodResolver(updateCommunitySchema),
+    // Los errores aparecen solo tras tocar/blur el campo, no nada mas entrar.
+    mode: 'onTouched',
+  })
+
+  const { blocked, confirm, cancel } = useUnsavedChanges(isDirty)
 
   useEffect(() => {
     if (community.data) {
@@ -46,6 +62,7 @@ export function CommunitySettingsPage() {
         isActive: values.isActive,
       })
       await community.reload()
+      // Al recargar, `reset` vuelve a marcar el formulario como limpio.
     } catch (caught) {
       setServerError(ApiError.from(caught).message)
     }
@@ -124,6 +141,16 @@ export function CommunitySettingsPage() {
           </p>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={blocked}
+        title="Cambios sin guardar"
+        description="Tienes cambios sin guardar en los ajustes. Si sales ahora, se perderán."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        onConfirm={confirm}
+        onCancel={cancel}
+      />
     </div>
   )
 }

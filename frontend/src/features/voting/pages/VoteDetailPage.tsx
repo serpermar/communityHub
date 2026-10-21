@@ -6,8 +6,10 @@ import {
   Button,
   Card,
   ErrorState,
+  PageHeader,
   SkeletonDetail,
   SkeletonList,
+  VOTE_STATUS_TONES,
 } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { isManager } from '@/types/roles'
@@ -67,14 +69,16 @@ export function VoteDetailPage() {
         ← Volver a votaciones
       </button>
 
-      <Card
+      <PageHeader
         title={item.title}
         actions={
-          <Badge tone={item.effectiveStatus === 'OPEN' ? 'green' : 'slate'}>
+          <Badge tone={VOTE_STATUS_TONES[item.effectiveStatus]}>
             {VOTE_STATUS_LABELS[item.effectiveStatus]}
           </Badge>
         }
-      >
+      />
+
+      <Card>
         <p className="text-sm text-slate-700 dark:text-slate-200">{item.question}</p>
         {item.description && (
           <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-300">
