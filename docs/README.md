@@ -17,7 +17,7 @@ Verifica las versiones con:
 node --version
 npm --version
 git --version
-
+```bash
 
 🚀 Guía de instalación paso a paso
 
