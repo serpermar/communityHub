@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
 import { LoadingState } from '@/components/ui'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { AppLayout } from '@/layouts/AppLayout'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
@@ -113,6 +114,7 @@ export const router = createBrowserRouter([
   {
     element: (
       <Suspense fallback={<RouteFallback />}>
+        <ScrollToTop />
         <Outlet />
       </Suspense>
     ),

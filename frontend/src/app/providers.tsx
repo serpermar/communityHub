@@ -4,7 +4,6 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/components/ui'
-import { ScrollToTop } from '@/components/ScrollToTop'
 import { router } from '@/routes/router'
 
 export function AppProviders({ children }: { children?: ReactNode }) {
@@ -13,12 +12,7 @@ export function AppProviders({ children }: { children?: ReactNode }) {
       <AuthProvider>
         <ToastProvider>
           <ErrorBoundary>
-            {children ?? (
-              <>
-                <ScrollToTop />
-                <RouterProvider router={router} />
-              </>
-            )}
+            {children ?? <RouterProvider router={router} />}
           </ErrorBoundary>
         </ToastProvider>
       </AuthProvider>
