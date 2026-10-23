@@ -33,12 +33,14 @@ import {
   type IncidentStatus,
 } from '../types'
 import { IncidentKanban } from '../components/IncidentKanban'
+import { IncidentCalendar } from '../components/IncidentCalendar'
 
 export function IncidentListPage() {
   const { active, role } = useCommunity()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = searchParams.get('view') === 'kanban' ? 'kanban' : 'list'
+  const viewParam = searchParams.get('view')
+  const view = viewParam === 'kanban' ? 'kanban' : viewParam === 'calendar' ? 'calendar' : 'list'
 
   const { filters, page, setFilter, setPage } = useUrlFilters({
     status: INCIDENT_STATUSES,
@@ -56,22 +58,22 @@ export function IncidentListPage() {
         priority: (priority || undefined) as IncidentPriority | undefined,
         category: (category || undefined) as IncidentCategory | undefined,
         q: debouncedQ || undefined,
-        page: view === 'kanban' ? 1 : page,
-        limit: view === 'kanban' ? 100 : 20,
+        page: view === 'list' ? page : 1,
+        limit: view === 'list' ? 20 : 100,
       }),
     [active?.id, status, priority, category, debouncedQ, page, view],
   )
 
-  const setView = (next: 'list' | 'kanban') => {
+  const setView = (next: 'list' | 'kanban' | 'calendar') => {
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev)
-        if (next === 'kanban') {
-          params.set('view', 'kanban')
-          params.delete('page')
-        } else {
+        if (next === 'list') {
           params.delete('view')
+        } else {
+          params.set('view', next)
         }
+        params.delete('page')
         return params
       },
       { replace: true },
@@ -149,9 +151,10 @@ export function IncidentListPage() {
               items={[
                 { value: 'list', label: 'Lista' },
                 { value: 'kanban', label: 'Tablero' },
+                { value: 'calendar', label: 'Calendario' },
               ]}
               value={view}
-              onChange={(v) => setView(v as 'list' | 'kanban')}
+              onChange={(v) => setView(v as 'list' | 'kanban' | 'calendar')}
               ariaLabel="Vista de incidencias"
             />
             {role !== 'PROVIDER' && (
@@ -217,6 +220,8 @@ export function IncidentListPage() {
       ) : result.data ? (
         view === 'kanban' ? (
           <IncidentKanban incidents={result.data.data} onChanged={result.reload} />
+        ) : view === 'calendar' ? (
+          <IncidentCalendar incidents={result.data.data} />
         ) : (
           <>
             <Card>

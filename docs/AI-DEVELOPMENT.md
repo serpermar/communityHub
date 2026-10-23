@@ -327,7 +327,22 @@ LLM_FAST_MODEL="openai/gpt-oss-20b"
 | **Drawer del asistente** | `frontend/src/components/ai/AiAssistantDrawer.tsx` | Chat reutilizable con historial de sesiones, streaming, herramientas ejecutadas y citas a entidades. Escucha el evento `open-ai-assistant`. |
 | **Resumir avisos** | `frontend/src/features/announcements/pages/AnnouncementsPage.tsx` | Botón "Resumir con IA" que envía los avisos visibles al asistente para generar un resumen claro en español. |
 
-### 8.3 Reglas de seguridad
+### 8.3 Integración en frontend
+
+| Lugar | Archivo | Descripción |
+|---|---|---|
+| **Página dedicada** | `frontend/src/features/assistant/pages/AssistantPage.tsx` | Chat completo con sesiones, streaming SSE, `tool_calls`, `citations` y borrado de conversaciones. Ruta `/c/:communityId/assistant`. |
+| **Borrador de incidencia** | `frontend/src/features/incidents/pages/IncidentCreatePage.tsx` | Usa `createIncidentDraft()` / `confirmIncidentDraft()`. Propone categoría/prioridad/título, requiere confirmación humana y crea con `createdVia: 'AI_SUGGESTION'`. |
+| **Botón flotante** | `frontend/src/components/ai/AiFloatingButton.tsx` | Visible en cualquier vista con comunidad activa. Abre el drawer del asistente. Montado en `AppLayout.tsx`. |
+| **Drawer del asistente** | `frontend/src/components/ai/AiAssistantDrawer.tsx` | Chat reutilizable con historial de sesiones, streaming, herramientas ejecutadas y citas a entidades. Escucha el evento `open-ai-assistant`. |
+| **Resumir avisos** | `frontend/src/features/announcements/pages/AnnouncementsPage.tsx` | Botón "Resumir con IA" que envía los avisos visibles al asistente para generar un resumen claro en español. |
+| **Cmd+K ampliado** | `frontend/src/components/ui/CommandPalette.tsx` | Búsqueda global de incidencias, documentos, avisos y miembros con debounce 300ms. |
+| **Vistas incidencias** | `frontend/src/features/incidents/pages/IncidentListPage.tsx`, `frontend/src/features/incidents/components/IncidentKanban.tsx`, `frontend/src/features/incidents/components/IncidentCalendar.tsx` | Toggle Lista/Tablero/Calendario con persistencia en URL. |
+| **Previsualización documentos** | `frontend/src/features/documents/components/DocumentPreviewModal.tsx`, `frontend/src/features/documents/pages/DocumentsPage.tsx` | Vista previa de imágenes/PDF con URLs firmadas. |
+| **Dashboard** | `frontend/src/features/dashboard/pages/DashboardPage.tsx` | Accesos rápidos a avisos, votaciones y reservas. |
+| **DataTable unificado** | `frontend/src/components/ui/DataTableView.tsx` | Componente unificado para listas con tabla/tarjetas, paginación, estados vacíos/error/skeleton. |
+
+### 8.4 Reglas de seguridad
 
 - **Sin claves expuestas:** Toda la lógica de proveedores vive en `backend/src/ai/llm/`.
 - **Scope forzado:** El `communityId` se deriva del contexto autenticado (AI-10).

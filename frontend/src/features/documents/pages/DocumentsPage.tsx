@@ -31,6 +31,7 @@ import {
   type CommunityDocument,
   type DocumentCategory,
 } from '../types'
+import { DocumentPreviewModal, isPreviewable } from '../components/DocumentPreviewModal'
 
 const fileSize = (bytes: number): string =>
   bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(0)} KB`
@@ -53,6 +54,7 @@ export function DocumentsPage() {
   const [minRole, setMinRole] = useState<MemberRole>('NEIGHBOR')
   const [isPublic, setIsPublic] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState<CommunityDocument | null>(null)
 
   const result = useResource(
     () =>
@@ -152,6 +154,11 @@ export function DocumentsPage() {
       header: '',
       render: (row) => (
         <div className="flex justify-end gap-2">
+          {isPreviewable(row.mimeType) && (
+            <Button size="sm" variant="ghost" onClick={() => setPreviewDoc(row)}>
+              Vista previa
+            </Button>
+          )}
           <Button size="sm" variant="secondary" onClick={() => void onDownload(row)}>
             Descargar
           </Button>
@@ -301,6 +308,8 @@ export function DocumentsPage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => (pendingDelete ? onDelete(pendingDelete) : undefined)}
       />
+
+      <DocumentPreviewModal document={previewDoc} open={previewDoc !== null} onClose={() => setPreviewDoc(null)} />
     </div>
   )
 }

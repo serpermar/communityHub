@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -14,7 +15,7 @@ import { Card, ErrorState, PageHeader, SkeletonDashboard } from '@/components/ui
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { t } from '@/i18n'
-import { formatDateTime } from '@/utils/format'
+import { formatDate, formatDateTime } from '@/utils/format'
 import { CATEGORY_LABELS } from '@/features/incidents/types'
 import { useChartColors } from '@/hooks/useChartColors'
 import { getDashboard } from '../api'
@@ -115,12 +116,30 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Últimos avisos">
+        <Card
+          title="Últimos avisos"
+          actions={
+            <Link
+              to={`/c/${active!.id}/announcements`}
+              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
+            >
+              Ver todos
+            </Link>
+          }
+        >
           {data.announcements.latest.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {data.announcements.latest.map((item) => (
-                <li key={item.id} className="text-slate-700 dark:text-slate-200">
-                  {item.title}
+                <li key={item.id}>
+                  <Link
+                    to={`/c/${active!.id}/announcements`}
+                    className="text-slate-700 hover:underline dark:text-slate-200"
+                  >
+                    {item.title}
+                  </Link>
+                  <span className="block text-xs text-slate-400 dark:text-slate-500">
+                    {formatDate(item.publishAt)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -129,12 +148,27 @@ export function DashboardPage() {
           )}
         </Card>
 
-        <Card title="Votaciones abiertas">
+        <Card
+          title="Votaciones abiertas"
+          actions={
+            <Link
+              to={`/c/${active!.id}/votes`}
+              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
+            >
+              Ver todas
+            </Link>
+          }
+        >
           {data.votes.open.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {data.votes.open.map((vote) => (
-                <li key={vote.id} className="text-slate-700 dark:text-slate-200">
-                  {vote.title}
+                <li key={vote.id}>
+                  <Link
+                    to={`/c/${active!.id}/votes/${vote.id}`}
+                    className="text-slate-700 hover:underline dark:text-slate-200"
+                  >
+                    {vote.title}
+                  </Link>
                   <span className="block text-xs text-slate-400 dark:text-slate-500">
                     Cierra {formatDateTime(vote.endsAt)}
                   </span>
@@ -148,12 +182,24 @@ export function DashboardPage() {
           )}
         </Card>
 
-        <Card title="Próximas reservas">
+        <Card
+          title="Próximas reservas"
+          actions={
+            <Link
+              to={`/c/${active!.id}/reservations`}
+              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
+            >
+              Ver todas
+            </Link>
+          }
+        >
           {data.reservations.upcoming.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {data.reservations.upcoming.map((item) => (
-                <li key={item.id} className="text-slate-700 dark:text-slate-200">
-                  {item.commonAreaName ?? 'Zona'}
+                <li key={item.id}>
+                  <span className="text-slate-700 dark:text-slate-200">
+                    {item.commonAreaName ?? 'Zona'}
+                  </span>
                   <span className="block text-xs text-slate-400 dark:text-slate-500">
                     {formatDateTime(item.startsAt)}
                   </span>
