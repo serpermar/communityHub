@@ -52,6 +52,16 @@ export function EmptyBellIcon({ className }: IllustrationProps) {
   )
 }
 
+export function EmptyAlertIcon({ className }: IllustrationProps) {
+  return (
+    <Frame className={className}>
+      <path d="M24 10 42 38H6L24 10Z" />
+      <path d="M24 20v8" />
+      <circle cx="24" cy="34" r="1" fill="currentColor" stroke="none" />
+    </Frame>
+  )
+}
+
 export function EmptyFolderIcon({ className }: IllustrationProps) {
   return (
     <Frame className={className}>

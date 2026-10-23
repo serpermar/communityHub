@@ -75,7 +75,7 @@ export function CommonAreaDetailPage() {
 
       <Card>
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{area.name}</h1>
+          <h1 className="text-page-title text-slate-800 dark:text-slate-100">{area.name}</h1>
           <Badge tone={area.isActive ? 'green' : 'slate'}>
             {area.isActive ? 'Activa' : 'Baja'}
           </Badge>

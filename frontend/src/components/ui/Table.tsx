@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 import { Button } from './Button'
 
@@ -14,10 +14,12 @@ export interface Column<T> {
 }
 
 type SortDirection = 'asc' | 'desc'
-interface SortState {
+export interface SortState {
   key: string
   direction: SortDirection
 }
+
+const TABLE_DENSITY_KEY = 'communityhub.tableDensity'
 
 /** Compara dos valores de forma estable y consciente de acentos/case. */
 function compare(a: unknown, b: unknown): number {
@@ -34,6 +36,10 @@ export function DataTable<T>({
   selectedKeys,
   onSelectionChange,
   initialSort,
+  sort: sortProp,
+  onSortChange,
+  dense: denseProp,
+  bulkActions: _bulkActions,
 }: {
   columns: Column<T>[]
   rows: T[]
@@ -47,21 +53,57 @@ export function DataTable<T>({
   onSelectionChange?: (keys: string[]) => void
   /** Orden inicial (no controlado). */
   initialSort?: SortState
+  /** Orden controlado (p. ej. desde la URL). */
+  sort?: SortState | null
+  /** Notifica cambios de orden cuando es controlado. */
+  onSortChange?: (sort: SortState | null) => void
+  /** Fuerza densidad (sino usa persistencia global). */
+  dense?: boolean
+  /** Barra de acciones masivas que se muestra al haber seleccionados. */
+  bulkActions?: (selected: string[]) => ReactNode
 }) {
-  const [sort, setSort] = useState<SortState | null>(initialSort ?? null)
+  const [sortState, setSortState] = useState<SortState | null>(initialSort ?? null)
+  const sort = sortProp !== undefined ? sortProp : sortState
+  // setSort mantenido por compatibilidad si se usa externamente; usar toggleSort
+
+  const [denseState, setDenseState] = useState(
+    () =>
+      typeof window !== 'undefined' && window.localStorage.getItem(TABLE_DENSITY_KEY) === 'compact',
+  )
+  const dense = denseProp !== undefined ? denseProp : denseState
+  useEffect(() => {
+    if (denseProp !== undefined) return
+    window.localStorage.setItem(TABLE_DENSITY_KEY, denseState ? 'compact' : 'comfortable')
+  }, [denseState, denseProp])
+
+  const cellPadding = dense ? 'px-2 py-1' : 'px-3 py-2'
 
   const sortedRows = useMemo(() => {
-    if (!sort) return rows
-    const column = columns.find((candidate) => candidate.key === sort.key)
+    const currentSort = sort
+    if (!currentSort) return rows
+    const column = columns.find((candidate) => candidate.key === currentSort.key)
     if (!column) return rows
     const valueOf = (row: T): string | number =>
       column.sortValue ? column.sortValue(row) : extractText(column.render(row))
-    const factor = sort.direction === 'asc' ? 1 : -1
+    const factor = currentSort.direction === 'asc' ? 1 : -1
     return [...rows].sort((a, b) => compare(valueOf(a), valueOf(b)) * factor)
   }, [rows, columns, sort])
 
   const toggleSort = (key: string) => {
-    setSort((current) => {
+    if (sortProp !== undefined) {
+      const current = sort
+      if (current?.key !== key) {
+        onSortChange?.({ key, direction: 'asc' })
+        return
+      }
+      if (current.direction === 'asc') {
+        onSortChange?.({ key, direction: 'desc' })
+        return
+      }
+      onSortChange?.(null)
+      return
+    }
+    setSortState((current) => {
       if (current?.key !== key) return { key, direction: 'asc' }
       if (current.direction === 'asc') return { key, direction: 'desc' }
       return null
@@ -87,83 +129,95 @@ export function DataTable<T>({
   if (rows.length === 0 && empty) return <>{empty}</>
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            {selectable && (
-              <th className="w-10 px-3 py-2 font-medium">
-                <input
-                  type="checkbox"
-                  aria-label="Seleccionar todo"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
-                />
-              </th>
-            )}
-            {columns.map((column) => {
-              const isSorted = sort?.key === column.key
-              return (
-                <th
-                  key={column.key}
-                  aria-sort={
-                    isSorted ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined
-                  }
-                  className={cn('px-3 py-2 font-medium', column.className)}
-                >
-                  {column.sortable ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200"
-                    >
-                      {column.header}
-                      <span aria-hidden="true" className="text-[0.65rem]">
-                        {isSorted ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}
-                      </span>
-                    </button>
-                  ) : (
-                    column.header
-                  )}
+    <div className="w-full">
+      <div className="mb-2 flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setDenseState((current) => !current)}
+          aria-pressed={dense}
+        >
+          {dense ? 'Densidad: compacta' : 'Densidad: cómoda'}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-meta uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              {selectable && (
+                <th className="w-10 px-3 py-2 font-medium">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todo"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="h-4 w-4 rounded-control border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
+                  />
                 </th>
+              )}
+              {columns.map((column) => {
+                const isSorted = sort?.key === column.key
+                return (
+                  <th
+                    key={column.key}
+                    aria-sort={
+                      isSorted ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined
+                    }
+                    className={cn(cellPadding, 'font-medium', column.className)}
+                  >
+                    {column.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(column.key)}
+                        className="inline-flex items-center gap-1 rounded-control hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:text-slate-200"
+                      >
+                        {column.header}
+                        <span aria-hidden="true" className="text-[0.65rem]">
+                          {isSorted ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}
+                        </span>
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map((row) => {
+              const key = rowKey(row)
+              const isSelected = selected.includes(key)
+              return (
+                <tr
+                  key={key}
+                  className={cn(
+                    'border-b border-slate-100 last:border-0 dark:border-slate-800',
+                    selectable && isSelected && 'bg-brand-50 dark:bg-brand-950/40',
+                  )}
+                >
+                  {selectable && (
+                    <td className={cn(cellPadding, 'align-top')}>
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar fila"
+                        checked={isSelected}
+                        onChange={() => toggleRow(key)}
+                        className="h-4 w-4 rounded-control border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
+                      />
+                    </td>
+                  )}
+                  {columns.map((column) => (
+                    <td key={column.key} className={cn(cellPadding, 'align-top', column.className)}>
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
               )
             })}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedRows.map((row) => {
-            const key = rowKey(row)
-            const isSelected = selected.includes(key)
-            return (
-              <tr
-                key={key}
-                className={cn(
-                  'border-b border-slate-100 last:border-0 dark:border-slate-800',
-                  selectable && isSelected && 'bg-brand-50 dark:bg-brand-950/40',
-                )}
-              >
-                {selectable && (
-                  <td className="px-3 py-2 align-top">
-                    <input
-                      type="checkbox"
-                      aria-label="Seleccionar fila"
-                      checked={isSelected}
-                      onChange={() => toggleRow(key)}
-                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
-                    />
-                  </td>
-                )}
-                {columns.map((column) => (
-                  <td key={column.key} className={cn('px-3 py-2 align-top', column.className)}>
-                    {column.render(row)}
-                  </td>
-                ))}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

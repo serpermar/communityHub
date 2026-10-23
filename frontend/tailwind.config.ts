@@ -67,12 +67,46 @@ export default {
           900: '#0c4a6e',
           950: '#082f49',
         },
+        // `accent` (violeta) cierra la escala semántica: hoy `Badge` usaba
+        // `violet-*` crudo para la pata que no tenía token propio.
+        accent: {
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
+          950: '#2e1065',
+        },
       },
       // Tokens semánticos: una sola fuente para los colores de superficie que
       // hoy se escribían a mano como `bg-white dark:bg-slate-900`, etc.
       backgroundColor: {
         surface: 'rgb(255 255 255)',
         'surface-muted': 'rgb(241 245 249)',
+      },
+      // Escala tipográfica con nombre: evita repetir `text-xl font-semibold` por
+      // página. `page-title` es el `h1` de `PageHeader`.
+      fontSize: {
+        'page-title': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        'section-title': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600' }],
+        'meta': ['0.75rem', { lineHeight: '1rem' }],
+      },
+      // Radios por nivel de componente: control (inputs/botones), card (tarjetas)
+      // y overlay (modales/desplegables), para que no se elijan al azar.
+      borderRadius: {
+        control: '0.375rem',
+        card: '0.5rem',
+        overlay: '0.75rem',
+      },
+      // Sombras por nivel: `card` para tarjetas, `overlay` para flotantes.
+      boxShadow: {
+        card: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        overlay: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
       },
       // Animaciones propias y mínimas (sin `tailwindcss-animate`). Se usan siempre
       // bajo `motion-safe:` para respetar `prefers-reduced-motion`.

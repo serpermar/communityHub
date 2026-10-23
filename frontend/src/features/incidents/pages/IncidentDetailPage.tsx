@@ -13,7 +13,9 @@ import {
   ErrorState,
   Textarea,
   INCIDENT_STATUS_TONES,
+  ConfirmDialog,
 } from '@/components/ui'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { useCommunity } from '@/context/CommunityContext'
@@ -54,8 +56,12 @@ export function IncidentDetailPage() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isDirty },
   } = useForm<CommentForm>({ resolver: zodResolver(commentSchema) })
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  void setIsSubmitting
+  const { blocked, confirm, cancel } = useUnsavedChanges(isDirty)
 
   const onTransition = useCallback(
     async (status: IncidentStatus) => {
@@ -103,9 +109,7 @@ export function IncidentDetailPage() {
             <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
               {item.referenceCode}
             </p>
-            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-              {item.title}
-            </h1>
+            <h1 className="text-page-title text-slate-800 dark:text-slate-100">{item.title}</h1>
           </div>
           <Badge tone={INCIDENT_STATUS_TONES[item.status]}>{STATUS_LABELS[item.status]}</Badge>
         </div>
@@ -187,6 +191,16 @@ export function IncidentDetailPage() {
           </div>
         </form>
       </Card>
+
+      <ConfirmDialog
+        open={blocked}
+        title="Cambios sin guardar"
+        description="Tienes un comentario sin enviar. ¿Quieres descartar los cambios y salir?"
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        onConfirm={confirm}
+        onCancel={cancel}
+      />
     </div>
   )
 }

@@ -62,8 +62,8 @@ function AppLayoutInner() {
 
   const visibleItems = visibleNavItems(role)
 
-  const navLinks = (compact: boolean) => (
-    <nav className="space-y-1" aria-label={t('app.navigation')}>
+  const navLinks = (compact: boolean, label: string) => (
+    <nav className="space-y-1" aria-label={label}>
       {visibleItems.map((item) => {
         const Icon = NAV_ICONS[item.segment]
         return (
@@ -76,7 +76,7 @@ function AppLayoutInner() {
             title={compact ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm',
+                'flex items-center gap-3 rounded-control px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900',
                 compact && 'justify-center px-2',
                 isActive
                   ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-950 dark:text-brand-300'
@@ -100,10 +100,13 @@ function AppLayoutInner() {
       >
         {t('app.skipToContent')}
       </a>
-      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+      <header
+        aria-label={t('app.header')}
+        className="flex items-center gap-3 border-b border-slate-200 bg-surface px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+      >
         <button
           type="button"
-          className="rounded-md p-2 text-slate-600 hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+          className="rounded-control p-2 text-slate-600 hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
           aria-label={menuOpen ? t('app.closeMenu') : t('app.openMenu')}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
@@ -170,20 +173,21 @@ function AppLayoutInner() {
 
       <div className="flex flex-1">
         <aside
+          aria-label={t('app.mainNavigation')}
           className={cn(
-            'hidden shrink-0 border-r border-slate-200 bg-white p-3 md:block dark:border-slate-800 dark:bg-slate-900',
+            'hidden shrink-0 border-r border-slate-200 bg-surface p-3 md:block dark:border-slate-800 dark:bg-slate-900',
             collapsed ? 'w-16' : 'w-56',
           )}
         >
           {active ? (
             <>
-              {navLinks(collapsed)}
+              {navLinks(collapsed, t('app.mainNavigation'))}
               <button
                 type="button"
                 onClick={() => setCollapsed((value) => !value)}
                 aria-label={collapsed ? t('app.expandSidebar') : t('app.collapseSidebar')}
                 aria-pressed={collapsed}
-                className="mt-2 flex w-full items-center justify-center rounded-md px-2 py-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="mt-2 flex w-full items-center justify-center rounded-control px-2 py-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <svg
                   aria-hidden="true"
@@ -209,8 +213,11 @@ function AppLayoutInner() {
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
             />
-            <aside className="relative z-10 h-full w-64 overflow-y-auto border-r border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-              {navLinks(false)}
+            <aside
+              aria-label={t('app.mobileNavigation')}
+              className="relative z-10 h-full w-64 overflow-y-auto border-r border-slate-200 bg-surface p-3 dark:border-slate-800 dark:bg-slate-900"
+            >
+              {navLinks(false, t('app.mobileNavigation'))}
             </aside>
           </div>
         )}
@@ -278,7 +285,7 @@ function NoCommunity() {
   const { user } = useAuth()
   const navigate = useNavigate()
   return (
-    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 bg-surface p-8 text-center dark:border-slate-700 dark:bg-slate-900">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
         {t('app.noCommunityTitle')}
       </p>

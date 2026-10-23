@@ -17,7 +17,7 @@ export function Badge({
     amber: 'bg-warning-100 text-warning-800 dark:bg-warning-950 dark:text-warning-100',
     red: 'bg-danger-100 text-danger-800 dark:bg-danger-950 dark:text-danger-100',
     blue: 'bg-info-100 text-info-800 dark:bg-info-950 dark:text-info-100',
-    violet: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
+    violet: 'bg-accent-100 text-accent-800 dark:bg-accent-950 dark:text-accent-100',
   }
   return (
     <span
@@ -46,14 +46,14 @@ export function Card({
   return (
     <section
       className={cn(
-        'rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900',
+        'rounded-card border border-slate-200 bg-surface shadow-card dark:border-slate-800 dark:bg-slate-900',
         className,
       )}
     >
       {(title || actions) && (
         <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           {typeof title === 'string' ? (
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
+            <h2 className="text-section-title text-slate-800 dark:text-slate-100">{title}</h2>
           ) : (
             title
           )}
@@ -142,10 +142,10 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl outline-none dark:bg-slate-900"
+        className="relative z-10 w-full max-w-lg rounded-overlay bg-surface shadow-overlay outline-none dark:bg-slate-900"
       >
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <h2 id={titleId} className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <h2 id={titleId} className="text-section-title text-slate-800 dark:text-slate-100">
             {title}
           </h2>
           <button

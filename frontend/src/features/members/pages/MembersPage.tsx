@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Alert,
@@ -25,7 +25,6 @@ import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { t } from '@/i18n'
 import { formatDate } from '@/utils/format'
 import { MEMBER_ROLES, MEMBER_ROLE_LABELS, type MemberRole } from '@/types/roles'
@@ -48,9 +47,9 @@ export function MembersPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [createdCode, setCreatedCode] = useState<string | null>(null)
-  const { filters, page, setFilter, setPage } = useUrlFilters({ q: undefined })
+  const { filters, page, sort, setFilter, setPage, setSort } = useUrlFilters({ q: undefined })
   const search = filters.q
-  const debouncedSearch = useDebouncedValue(search, 250)
+  const deferredSearch = useDeferredValue(search ?? '')
 
   const members = useResource(() => listMembers(active!.id), [active?.id])
   const invitations = useResource(
@@ -62,7 +61,7 @@ export function MembersPage() {
   // busqueda y el troceado en paginas se hacen en el cliente. `app_list_community_members`
   // no admite filtros, y no se toca SQL por una mejora de UI.
   const filtered = useMemo(() => {
-    const term = debouncedSearch.trim().toLowerCase()
+    const term = (deferredSearch ?? '').trim().toLowerCase()
     const all = members.data ?? []
     if (!term) return all
     return all.filter((member) =>
@@ -70,7 +69,7 @@ export function MembersPage() {
         .filter((value): value is string => typeof value === 'string')
         .some((value) => value.toLowerCase().includes(term)),
     )
-  }, [members.data, debouncedSearch])
+  }, [members.data, deferredSearch])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -197,6 +196,17 @@ export function MembersPage() {
           onChange={(event) => setFilter('q', event.target.value)}
           className="sm:max-w-sm"
         />
+        <p
+          role="status"
+          aria-live="polite"
+          className="mt-2 text-meta text-slate-500 dark:text-slate-400"
+        >
+          {members.loading
+            ? 'Cargando miembros…'
+            : `${filtered.length} ${filtered.length === 1 ? 'miembro' : 'miembros'}${
+                search ? ' coinciden con la búsqueda' : ''
+              }`}
+        </p>
       </Card>
 
       {members.loading ? (
@@ -210,6 +220,8 @@ export function MembersPage() {
               columns={columns}
               rows={paged}
               rowKey={(row) => row.id}
+              sort={sort}
+              onSortChange={setSort}
               empty={
                 <EmptyState icon={<EmptyBoxIcon className="h-6 w-6" />} title="No hay miembros" />
               }

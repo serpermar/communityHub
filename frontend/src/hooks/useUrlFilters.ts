@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 
 type FilterSpec = Record<string, readonly string[] | undefined>
 
+type UrlSort = { key: string; direction: 'asc' | 'desc' }
+
 interface UrlFiltersOptions {
   /** Tamanos de pagina permitidos en `?pageSize=`. Sin esto no se persiste. */
   pageSizeOptions?: readonly number[]
@@ -39,6 +41,14 @@ export function useUrlFilters(spec: FilterSpec, options: UrlFiltersOptions = {})
 
   const rawPage = Number(params.get('page'))
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+
+  // Orden de tabla en la URL (`?sort=email&dir=desc`), para que el estado sea
+  // compartible y sobreviva a la recarga igual que los filtros. `dir` ausente
+  // equivale a ascendente.
+  const rawSort = params.get('sort') ?? ''
+  const sort: UrlSort | null = rawSort
+    ? { key: rawSort, direction: params.get('dir') === 'desc' ? 'desc' : 'asc' }
+    : null
 
   const { pageSizeOptions } = options
   const defaultPageSize = options.defaultPageSize ?? pageSizeOptions?.[0] ?? 0
@@ -95,15 +105,34 @@ export function useUrlFilters(spec: FilterSpec, options: UrlFiltersOptions = {})
     [update, pageSizeOptions, defaultPageSize],
   )
 
+  const setSort = useCallback(
+    (next: UrlSort | null) => {
+      update((params) => {
+        if (next) {
+          params.set('sort', next.key)
+          if (next.direction === 'desc') params.set('dir', 'desc')
+          else params.delete('dir')
+        } else {
+          params.delete('sort')
+          params.delete('dir')
+        }
+        params.delete('page')
+      })
+    },
+    [update],
+  )
+
   const reset = useCallback(() => {
     update((next) => {
       for (const key of Object.keys(spec)) next.delete(key)
       next.delete('page')
       next.delete('pageSize')
+      next.delete('sort')
+      next.delete('dir')
     })
     // `spec` es un objeto literal estable por pagina (mapas module-level);
     // incluido para no capturar una version obsoleta.
   }, [update, spec])
 
-  return { filters, page, pageSize, setFilter, setPage, setPageSize, reset }
+  return { filters, page, pageSize, sort, setFilter, setPage, setPageSize, setSort, reset }
 }

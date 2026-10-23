@@ -11,7 +11,7 @@ export function AuthLayout() {
           <Logo className="text-brand-600 dark:text-brand-400" />
           <ThemeToggle />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <Outlet />
         </div>
       </div>

@@ -146,7 +146,7 @@ export function VoteDetailPage() {
       </Card>
 
       <Card
-        title="Resultados"
+        title={<span className="text-section-title">Resultados</span>}
         actions={
           results.data ? (
             <Button

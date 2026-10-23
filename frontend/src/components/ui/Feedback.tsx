@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { ApiError } from '@/services/ApiError'
 import { cn } from '@/utils/cn'
 import { Button } from './Button'
+import { EmptyAlertIcon } from './EmptyIllustrations'
 
 export function Spinner({ className }: { className?: string }) {
   return (
@@ -154,7 +155,7 @@ export function EmptyState({
   icon?: ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-card border border-dashed border-slate-300 bg-surface px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
       {icon && (
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 motion-safe:animate-fade-in dark:bg-slate-800 dark:text-slate-500">
           {icon}
@@ -169,11 +170,18 @@ export function EmptyState({
   )
 }
 
+/**
+ * Estado de error con ilustración sutil, para unificar el tono con los
+ * estados vacíos sin perder la información del `ApiError`.
+ */
 export function ErrorState({ error, onRetry }: { error: ApiError; onRetry?: () => void }) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-900 dark:bg-red-950/40">
-      <p className="text-sm font-medium text-red-800 dark:text-red-300">{error.message}</p>
-      <p className="mt-1 text-xs text-red-600 dark:text-red-400">Código: {error.code}</p>
+    <div className="rounded-card border border-danger-200 bg-danger-50 px-6 py-8 text-center dark:border-danger-900 dark:bg-danger-950/40">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-100 text-danger-500 dark:bg-danger-900/60 dark:text-danger-300">
+        <EmptyAlertIcon className="h-6 w-6" />
+      </div>
+      <p className="text-sm font-medium text-danger-800 dark:text-danger-300">{error.message}</p>
+      <p className="mt-1 text-meta text-danger-600 dark:text-danger-400">Código: {error.code}</p>
       {onRetry && (
         <div className="mt-4 flex justify-center">
           <Button variant="secondary" size="sm" onClick={onRetry}>

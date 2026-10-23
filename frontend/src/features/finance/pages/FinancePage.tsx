@@ -94,7 +94,7 @@ function SummaryTab({ communityId }: { communityId: string }) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Card title="Gastos">
+      <Card title={<span className="text-section-title">Gastos</span>}>
         <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
           {money(data.expenseTotal)}
         </p>
@@ -111,7 +111,7 @@ function SummaryTab({ communityId }: { communityId: string }) {
         </ul>
       </Card>
 
-      <Card title="Facturas">
+      <Card title={<span className="text-section-title">Facturas</span>}>
         <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
           {money(data.invoiceTotal)}
         </p>

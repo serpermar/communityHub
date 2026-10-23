@@ -27,7 +27,14 @@ export { ConfirmDialog } from './ConfirmDialog'
 export { PageHeader } from './PageHeader'
 export { CommandPalette } from './CommandPalette'
 export { Tabs, TabPanel } from './Tabs'
-export { EmptyBoxIcon, EmptySearchIcon, EmptyBellIcon, EmptyFolderIcon } from './EmptyIllustrations'
+export {
+  EmptyBoxIcon,
+  EmptySearchIcon,
+  EmptyBellIcon,
+  EmptyFolderIcon,
+  EmptyAlertIcon,
+} from './EmptyIllustrations'
+export { Tooltip } from './Tooltip'
 export { DataTable, Pagination, type Column } from './Table'
 export { ToastProvider, useToast } from './Toast'
 export { ThemeToggle } from './ThemeToggle'
