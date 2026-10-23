@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,7 +23,7 @@ import { useResource } from '@/hooks/useResource'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { formatDateTime } from '@/utils/format'
 import type { SessionView } from '@/types/auth'
-import { changePassword, listSessions, revokeSession, updateProfile } from '../api'
+import { changePassword, deleteAvatar, listSessions, revokeSession, updateProfile, uploadAvatar } from '../api'
 import { passwordSchema, profileSchema, type PasswordForm, type ProfileForm } from '../schemas'
 
 export function AccountPage() {
@@ -32,6 +32,8 @@ export function AccountPage() {
   const { notify } = useToast()
   const [error, setError] = useState<string | null>(null)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const sessions = useResource(() => listSessions(), [])
 
   const profileForm = useForm<ProfileForm>({
@@ -90,6 +92,35 @@ export function AccountPage() {
     }
   }
 
+  const onAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setAvatarLoading(true)
+    try {
+      await uploadAvatar(file)
+      await reload()
+      notify('Avatar actualizado.', 'success')
+    } catch (caught) {
+      notify(ApiError.from(caught).message, 'error')
+    } finally {
+      setAvatarLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const onAvatarDelete = async () => {
+    setAvatarLoading(true)
+    try {
+      await deleteAvatar()
+      await reload()
+      notify('Avatar eliminado.', 'success')
+    } catch (caught) {
+      notify(ApiError.from(caught).message, 'error')
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
+
   const columns: Column<SessionView>[] = [
     {
       key: 'device',
@@ -138,6 +169,32 @@ export function AccountPage() {
       <PageHeader title="Mi cuenta" />
 
       <Card title="Datos de la cuenta">
+        <div className="mb-4 flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-lg font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+            ) : (
+              (user?.fullName?.[0] || user?.email?.[0] || '?').toUpperCase()
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onAvatarChange}
+            />
+            <Button size="sm" onClick={() => fileInputRef.current?.click()} loading={avatarLoading}>
+              Cambiar avatar
+            </Button>
+            {user?.avatarUrl && (
+              <Button size="sm" variant="ghost" onClick={onAvatarDelete} loading={avatarLoading}>
+                Quitar avatar
+              </Button>
+            )}
+          </div>
+        </div>
         <form className="space-y-4" onSubmit={onSubmitProfile} noValidate>
           {profileForm.formState.errors.root && (
             <Alert variant="error">{profileForm.formState.errors.root.message}</Alert>

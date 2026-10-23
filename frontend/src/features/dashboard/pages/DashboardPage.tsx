@@ -18,12 +18,23 @@ import { t } from '@/i18n'
 import { formatDate, formatDateTime } from '@/utils/format'
 import { CATEGORY_LABELS } from '@/features/incidents/types'
 import { useChartColors } from '@/hooks/useChartColors'
-import { getDashboard } from '../api'
+import { getDashboard, getWeather } from '../api'
+import { useEffect, useState } from 'react'
+import type { CurrentWeather } from '../types'
 
 export function DashboardPage() {
   const { active } = useCommunity()
   const colors = useChartColors()
   const dashboard = useResource(() => getDashboard(active!.id), [active?.id])
+  const [weather, setWeather] = useState<CurrentWeather | null>(null)
+
+  useEffect(() => {
+    if (!active?.id) return
+    // Coordenadas opcionales - se puede extender con datos de comunidad
+    getWeather(active.id, { lat: 40.4168, lon: -3.7038 })
+      .then(setWeather)
+      .catch(() => setWeather(null))
+  }, [active?.id])
 
   if (dashboard.loading) return <SkeletonDashboard />
   if (dashboard.error) return <ErrorState error={dashboard.error} onRetry={dashboard.reload} />
@@ -50,7 +61,7 @@ export function DashboardPage() {
         description={`${data.community.city} · ${data.community.memberCount} miembros (${data.community.neighborCount} vecinos)`}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Incidencias abiertas" value={data.incidents.open} />
         <Stat label="En progreso" value={data.incidents.inProgress} />
         <Stat
@@ -59,6 +70,19 @@ export function DashboardPage() {
           tone="text-red-600 dark:text-red-400"
         />
         <Stat label="Reservas próximas" value={data.reservations.upcomingCount} />
+        <Card>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Clima</p>
+          {weather ? (
+            <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">
+              {Math.round(weather.temperature)}°C
+              <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+                (sensación {Math.round(weather.apparentTemperature)}°C)
+              </span>
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">No disponible</p>
+          )}
+        </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

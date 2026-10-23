@@ -162,6 +162,37 @@ export async function updateProfile(
   }
 }
 
+export async function uploadAvatar(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const file = req.file
+    if (!file) {
+      throw badRequest('El archivo es obligatorio.')
+    }
+    ok(res, await service.uploadAvatar(req.auth!.userId, {
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+    }))
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function deleteAvatar(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    ok(res, await service.deleteAvatar(req.auth!.userId))
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function changePassword(
   req: Request,
   res: Response,

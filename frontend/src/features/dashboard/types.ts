@@ -38,20 +38,42 @@ export interface DashboardView {
       title: string
       type: AnnouncementType
       priority: AnnouncementPriority
-      isPinned: boolean
       publishAt: string
     }[]
   }
   votes: {
-    openCount: number
-    open: { id: string; title: string; endsAt: string }[]
+    open: {
+      id: string
+      title: string
+      endsAt: string
+      status: string
+    }[]
   }
-  finance: {
+  finance?: {
     expenseTotal: number
-    expenseCount: number
     invoiceOpenAmount: number
-    invoicePendingCount: number
     invoiceOverdueCount: number
     expensesByMonth: { month: string; total: number }[]
-  } | null
+  }
+}
+
+export interface PublicHoliday {
+  date: string
+  localName: string
+  name: string
+  countryCode: string
+  fixed: boolean
+  global: boolean
+  counties: string[] | null
+  launchYear: number | null
+  types: string[]
+}
+
+export interface CurrentWeather {
+  temperature: number
+  apparentTemperature: number
+  weatherCode: number
+  windSpeed: number
+  precipitation: number
+  time: string
 }

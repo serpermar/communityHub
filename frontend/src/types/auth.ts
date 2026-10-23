@@ -40,4 +40,6 @@ export interface SessionView {
   ipAddress: string | null
 }
 
+export type PublicUser = AuthUser
+
 export type MemberRoleValue = MemberRole

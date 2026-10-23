@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Badge,
@@ -26,6 +26,8 @@ import { formatDateTime } from '@/utils/format'
 import { cancelReservation, confirmReservation, listReservations } from '../api'
 import { ReservationCalendar } from '../components/ReservationCalendar'
 import { RESERVATION_STATUS_LABELS, type Reservation, type ReservationStatus } from '../types'
+import { getHolidays } from '@/features/dashboard/api'
+import type { PublicHoliday } from '@/features/dashboard/types'
 
 type View = 'list' | 'calendar'
 
@@ -44,6 +46,8 @@ export function ReservationListPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
+  const [holidays, setHolidays] = useState<PublicHoliday[]>([])
+
   const result = useResource(
     () =>
       listReservations(active!.id, {
@@ -54,6 +58,14 @@ export function ReservationListPage() {
       }),
     [active?.id, status, date, page],
   )
+
+  useEffect(() => {
+    if (!active?.id) return
+    const year = new Date().getFullYear()
+    getHolidays(active.id, { year })
+      .then(setHolidays)
+      .catch(() => setHolidays([]))
+  }, [active?.id])
 
   const run = async (id: string, action: (reservationId: string) => Promise<unknown>) => {
     setActionError(null)
@@ -185,6 +197,11 @@ export function ReservationListPage() {
                 onChange={(event) => setFilter('date', event.target.value)}
               />
             </div>
+            {date && holidays.some((h) => h.date === date) && (
+              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                {holidays.find((h) => h.date === date)?.localName || 'Festivo'}
+              </p>
+            )}
           </Card>
 
           {actionError && <Alert variant="error">{actionError}</Alert>}

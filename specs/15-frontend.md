@@ -237,7 +237,8 @@ Cada feature consume endpoints ya existentes. La columna Â«endpointsÂ» remit
 
 - **Ver y editar** el perfil propio: `GET /auth/me` y `PATCH /auth/me`
   (`fullName`, `phone`; vaciar `phone` lo borra). Formulario RHF + zod con toast de
-  confirmaciÃ³n (FE-19).
+  confirmación (FE-19).
+- **Avatar**: POST /auth/me/avatar (imagen, max 2 MB) y DELETE /auth/me/avatar con vista previa en AccountPage.
 - **Cambiar contraseÃ±a**: `POST /auth/change-password` (`currentPassword`,
   `newPassword` â‰¥ 12). El error `CURRENT_PASSWORD_INVALID` se mapea al campo
   _contraseÃ±a actual_, no a un mensaje genÃ©rico. Al Ã©xito, se avisa de que las

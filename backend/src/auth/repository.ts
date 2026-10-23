@@ -147,6 +147,23 @@ export async function updateProfile(
   })
 }
 
+export async function updateAvatar(tx: Tx, userId: string, avatarUrl: string | null) {
+  return tx.users.update({
+    where: { id: userId },
+    data: { avatar_url: avatarUrl },
+    select: {
+      id: true,
+      email: true,
+      full_name: true,
+      phone: true,
+      avatar_url: true,
+      global_role: true,
+      email_verified_at: true,
+      created_at: true,
+    },
+  })
+}
+
 /** Hash de la contrasena propia, para verificar la actual antes de cambiarla. */
 export async function findUserPasswordHash(tx: Tx, userId: string) {
   return tx.users.findUnique({ where: { id: userId }, select: { password_hash: true } })

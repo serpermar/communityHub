@@ -447,3 +447,37 @@ export async function changePassword(input: {
     await repo.revokeOtherSessions(tx, input.userId, input.sessionId)
   })
 }
+
+export async function uploadAvatar(
+  userId: string,
+  file: { buffer: Buffer; mimetype: string },
+): Promise<PublicUser> {
+  const { getStorageGateway } = await import('../documents/storage/index.js')
+  const gateway = await getStorageGateway()
+  const ext = file.mimetype.split('/')[1] || 'jpg'
+  const path = `avatars/${userId}/${randomUUID()}.${ext}`
+  await gateway.upload(path, file.buffer, file.mimetype)
+  const url = await gateway.signedUrl(path, 60 * 60 * 24 * 7)
+
+  const row = await withContext({ userId, communityId: null }, (tx) =>
+    repo.updateAvatar(tx, userId, url),
+  )
+
+  if (!row) {
+    throw notFound('Usuario no encontrado.')
+  }
+
+  return toPublicUser(row)
+}
+
+export async function deleteAvatar(userId: string): Promise<PublicUser> {
+  const row = await withContext({ userId, communityId: null }, (tx) =>
+    repo.updateAvatar(tx, userId, null),
+  )
+
+  if (!row) {
+    throw notFound('Usuario no encontrado.')
+  }
+
+  return toPublicUser(row)
+}

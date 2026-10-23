@@ -58,6 +58,14 @@ y seguir usándolo durante la ventana del token.
 Cuerpo `{ fullName, phone? }`. Un `phone` vacío o ausente **borra** el teléfono.
 Devuelve el `PublicUser` actualizado.
 
+#### `POST /api/v1/auth/me/avatar`
+
+Subida de avatar (`multipart/form-data`, campo `avatar`, imagen, max 2 MB). Devuelve el `PublicUser` actualizado.
+
+#### `DELETE /api/v1/auth/me/avatar`
+
+Elimina el avatar. Devuelve el `PublicUser` actualizado.
+
 ```jsonc
 { "data": { "id": "uuid", "email": "ana@x.com", "fullName": "Ana", "phone": "+34600…" } }
 ```
