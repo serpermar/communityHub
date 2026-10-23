@@ -1,4 +1,62 @@
-# SQL para Supabase · CommunityHub
+# 🏘️ CommunityHub
+
+Plataforma integral para la gestión de comunidades. Centraliza la administración de miembros, incidencias, reservas de zonas comunes, comunicaciones, documentos y finanzas en un solo lugar, con una arquitectura segura basada en **Supabase**, **PostgreSQL**, **Prisma** y **React**.
+
+---
+
+## 🛠️ Requisitos previos
+
+Asegúrate de tener instalado en tu equipo:
+- **Node.js** (v20 o superior) → [nodejs.org](https://nodejs.org)
+- **npm** (incluido con Node.js)
+- **Git** → [git-scm.com](https://git-scm.com)
+- Una cuenta gratuita en **Supabase** → [supabase.com](https://supabase.com)
+
+Verifica las versiones con:
+```bash
+node --version
+npm --version
+git --version
+
+
+🚀 Guía de instalación paso a paso
+
+Sigue estos pasos en orden para clonar el repositorio y ejecutar el proyecto correctamente.
+
+1. Clonar el repositorio y preparar variables de entorno
+
+git clone https://github.com/serpermar/communityHub.git
+cd communityHub
+
+Dirígete al backend y prepara el archivo de configuración:
+
+cd backend
+copy .env.example .env
+cp .env.example .env
+
+
+2. Instalar dependencias
+
+Instala las dependencias tanto del backend como del frontend:
+
+cd backend
+npm install
+
+cd ../frontend
+npm install
+
+
+3. Configurar el proyecto en Supabase
+
+- Entra en supabase.com y crea un nuevo proyecto (plan Free).
+
+- Ve a Settings → API y anota dos datos:
+
+    Project URL
+    
+    service_role key (empieza por eyJ..., ubicada en el bloque service_role).
+
+🗄️ Configuración de la Base de Datos (SQL)
 
 Trece scripts para aplicar a la base de datos, **en este orden**.
 
