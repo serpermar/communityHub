@@ -147,7 +147,25 @@ export function AnnouncementsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Avisos"
-        actions={canManage && <Button onClick={openCreate}>Nuevo aviso</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            {result.data && result.data.data.length > 0 && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const titles = result.data!.data
+                    .map((a) => `- ${a.title}: ${a.body.slice(0, 200)}${a.body.length > 200 ? '...' : ''}`)
+                    .join('\n')
+                  const message = `Resume estos avisos de la comunidad de forma clara, concisa y en español. Incluye puntos clave y acciones si las hay:\n\n${titles}`
+                  window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { initialMessage: message } }))
+                }}
+              >
+                Resumir con IA
+              </Button>
+            )}
+            {canManage && <Button onClick={openCreate}>Nuevo aviso</Button>}
+          </div>
+        }
       />
 
       <Card>

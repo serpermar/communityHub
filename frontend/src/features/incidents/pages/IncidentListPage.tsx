@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Badge,
   Button,
@@ -8,6 +8,7 @@ import {
   Select,
   Input,
   PageHeader,
+  Tabs,
   INCIDENT_STATUS_TONES,
   INCIDENT_PRIORITY_TONES,
   type Column,
@@ -31,10 +32,14 @@ import {
   type IncidentPriority,
   type IncidentStatus,
 } from '../types'
+import { IncidentKanban } from '../components/IncidentKanban'
 
 export function IncidentListPage() {
   const { active, role } = useCommunity()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = searchParams.get('view') === 'kanban' ? 'kanban' : 'list'
+
   const { filters, page, setFilter, setPage } = useUrlFilters({
     status: INCIDENT_STATUSES,
     priority: INCIDENT_PRIORITIES,
@@ -51,11 +56,27 @@ export function IncidentListPage() {
         priority: (priority || undefined) as IncidentPriority | undefined,
         category: (category || undefined) as IncidentCategory | undefined,
         q: debouncedQ || undefined,
-        page,
-        limit: 20,
+        page: view === 'kanban' ? 1 : page,
+        limit: view === 'kanban' ? 100 : 20,
       }),
-    [active?.id, status, priority, category, debouncedQ, page],
+    [active?.id, status, priority, category, debouncedQ, page, view],
   )
+
+  const setView = (next: 'list' | 'kanban') => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next === 'kanban') {
+          params.set('view', 'kanban')
+          params.delete('page')
+        } else {
+          params.delete('view')
+        }
+        return params
+      },
+      { replace: true },
+    )
+  }
 
   const columns: Column<Incident>[] = [
     {
@@ -123,11 +144,22 @@ export function IncidentListPage() {
       <PageHeader
         title="Incidencias"
         actions={
-          role !== 'PROVIDER' && (
-            <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
-              Nueva incidencia
-            </Button>
-          )
+          <div className="flex items-center gap-2">
+            <Tabs
+              items={[
+                { value: 'list', label: 'Lista' },
+                { value: 'kanban', label: 'Tablero' },
+              ]}
+              value={view}
+              onChange={(v) => setView(v as 'list' | 'kanban')}
+              ariaLabel="Vista de incidencias"
+            />
+            {role !== 'PROVIDER' && (
+              <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+                Nueva incidencia
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -183,35 +215,39 @@ export function IncidentListPage() {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
-        <>
-          <Card>
-            <DataTable
-              columns={columns}
-              rows={result.data.data}
-              rowKey={(row) => row.id}
-              empty={
-                <EmptyState
-                  icon={<EmptySearchIcon className="h-6 w-6" />}
-                  title="No hay incidencias"
-                  description="No se encontraron incidencias con estos filtros."
-                  action={
-                    role !== 'PROVIDER' ? (
-                      <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
-                        Nueva incidencia
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              }
+        view === 'kanban' ? (
+          <IncidentKanban incidents={result.data.data} onChanged={result.reload} />
+        ) : (
+          <>
+            <Card>
+              <DataTable
+                columns={columns}
+                rows={result.data.data}
+                rowKey={(row) => row.id}
+                empty={
+                  <EmptyState
+                    icon={<EmptySearchIcon className="h-6 w-6" />}
+                    title="No hay incidencias"
+                    description="No se encontraron incidencias con estos filtros."
+                    action={
+                      role !== 'PROVIDER' ? (
+                        <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+                          Nueva incidencia
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                }
+              />
+            </Card>
+            <Pagination
+              page={result.data.meta.page}
+              totalPages={result.data.meta.totalPages}
+              total={result.data.meta.total}
+              onPage={setPage}
             />
-          </Card>
-          <Pagination
-            page={result.data.meta.page}
-            totalPages={result.data.meta.totalPages}
-            total={result.data.meta.total}
-            onPage={setPage}
-          />
-        </>
+          </>
+        )
       ) : null}
     </div>
   )

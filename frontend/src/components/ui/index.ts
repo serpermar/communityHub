@@ -35,6 +35,7 @@ export {
   EmptyAlertIcon,
 } from './EmptyIllustrations'
 export { Tooltip } from './Tooltip'
-export { DataTable, Pagination, type Column } from './Table'
+export { DataTable, Pagination, type Column, type SortState } from './Table'
+export { DataTableView, type DataTableViewPagination } from './DataTableView'
 export { ToastProvider, useToast } from './Toast'
 export { ThemeToggle } from './ThemeToggle'

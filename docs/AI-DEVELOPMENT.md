@@ -295,3 +295,41 @@ Si eres un agente (humano o IA) haciendo cambios aquí:
 | La auditoría compartida | `backend/src/audit/repository.ts` |
 | Las specs | `specs/` |
 | El roadmap | `ARCHITECTURE.md` §16 |
+
+## 8. Configuración y uso en frontend
+
+### 8.1 Variables de entorno
+
+El asistente se configura desde `backend/.env`. Las claves **nunca** van en el frontend.
+
+```env
+# Proveedor de IA
+GROQ_API_KEY="gsk_..."      # Principal (recomendado)
+GEMINI_API_KEY="AIza..."    # Respaldo opcional
+AI_ENABLED="true"
+
+# Modelos por defecto
+LLM_PRIMARY_MODEL="openai/gpt-oss-120b"
+LLM_FAST_MODEL="openai/gpt-oss-20b"
+```
+
+- **Orden de resolución:** Groq (primario) > Gemini (respaldo) > `null` (modo degradado).
+- **Modo degradado:** Con `AI_ENABLED="false"` o sin claves, el chat devuelve `503 AI_NOT_CONFIGURED` y la clasificación de incidencias usa heurística (AI-3).
+- **Sin SDKs:** Los clientes usan `fetch` nativo para mantener las dependencias al mínimo (D-02).
+
+### 8.2 Puntos de integración
+
+| Lugar | Archivo | Descripción |
+|---|---|---|
+| **Página dedicada** | `frontend/src/features/assistant/pages/AssistantPage.tsx` | Chat completo con sesiones, streaming SSE, `tool_calls`, `citations` y borrado de conversaciones. Ruta `/c/:communityId/assistant`. |
+| **Borrador de incidencia** | `frontend/src/features/incidents/pages/IncidentCreatePage.tsx` | Usa `createIncidentDraft()` / `confirmIncidentDraft()`. Propone categoría/prioridad/título, requiere confirmación humana y crea con `createdVia: 'AI_SUGGESTION'`. |
+| **Botón flotante** | `frontend/src/components/ai/AiFloatingButton.tsx` | Visible en cualquier vista con comunidad activa. Abre el drawer del asistente. |
+| **Drawer del asistente** | `frontend/src/components/ai/AiAssistantDrawer.tsx` | Chat reutilizable con historial de sesiones, streaming, herramientas ejecutadas y citas a entidades. Escucha el evento `open-ai-assistant`. |
+| **Resumir avisos** | `frontend/src/features/announcements/pages/AnnouncementsPage.tsx` | Botón "Resumir con IA" que envía los avisos visibles al asistente para generar un resumen claro en español. |
+
+### 8.3 Reglas de seguridad
+
+- **Sin claves expuestas:** Toda la lógica de proveedores vive en `backend/src/ai/llm/`.
+- **Scope forzado:** El `communityId` se deriva del contexto autenticado (AI-10).
+- **Auditoría:** Las ejecuciones de tools se registran en `audit_logs` (AI-13).
+- **Presupuesto:** Se aplica `AI_DAILY_*` por usuario vía `ai_usage` (AI-5).

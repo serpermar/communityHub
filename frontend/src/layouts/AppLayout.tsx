@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import { CommunityProvider, useCommunity } from '@/context/CommunityContext'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { CommunitySwitcher } from '@/features/communities/components/CommunitySwitcher'
+import { AiFloatingButton } from '@/components/ai/AiFloatingButton'
 import { t } from '@/i18n'
 import { NAV_ITEMS, visibleNavItems } from '@/routes/navItems'
 import { prefetchRoute } from '@/routes/prefetch'
@@ -244,6 +245,7 @@ function AppLayoutInner() {
           onOpenChange={setPaletteOpen}
         />
       )}
+      <AiFloatingButton />
     </div>
   )
 }

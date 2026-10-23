@@ -549,3 +549,26 @@ detalle), cerrada sobre FE-20…FE-25:
 - **PWA / offline**.
 - **Recuperación de contraseña olvidada** (ver `specs/01-authentication.md` §12):
   el cambio autenticado sí está (FE-19), la recuperación por correo no.
+
+## 16. Mejoras recientes (2026-10-23)
+
+### 16.1 DataTable unificado
+- **Componente:** `frontend/src/components/ui/DataTableView.tsx`
+- **Export:** `frontend/src/components/ui/index.ts` (`DataTableView`, `DataTableViewPagination`)
+- **Descripción:** Unifica `Card`, `DataTable`, `Pagination`, filtros y estados (`SkeletonTable`, `ErrorState`, `EmptyState`). Recomendado para nuevas listas.
+
+### 16.2 Vista Kanban para incidencias
+- **Componentes:** `frontend/src/features/incidents/components/IncidentKanban.tsx`, `frontend/src/features/incidents/pages/IncidentListPage.tsx`
+- **Descripción:** Toggle `Lista / Tablero` persistido en `?view=kanban` con `Tabs`. Agrupa por `OPEN/IN_PROGRESS/RESOLVED/CANCELLED`. Transiciones rápidas con `transitionIncident()` (ocultas para `NEIGHBOR`/`PROVIDER`). En vista tablero se cargan hasta 100 elementos filtrados.
+
+### 16.3 Asistente IA en frontend
+- **Botón flotante:** `frontend/src/components/ai/AiFloatingButton.tsx` integrado en `frontend/src/layouts/AppLayout.tsx`
+- **Drawer:** `frontend/src/components/ai/AiAssistantDrawer.tsx` con sesiones, streaming SSE, `tool_calls` y `citations`
+- **Resumir avisos:** Botón "Resumir con IA" en `frontend/src/features/announcements/pages/AnnouncementsPage.tsx` que envía los avisos visibles al asistente vía evento `open-ai-assistant`
+- **Configuración:** Ver `docs/AI-DEVELOPMENT.md` §8. Claves en `backend/.env`: `GROQ_API_KEY`, `GEMINI_API_KEY`, `AI_ENABLED`
+
+### 16.4 Correcciones de integración (2026-10-23)
+- `IncidentKanban` importa `INCIDENT_STATUS_TONES` e `INCIDENT_PRIORITY_TONES` desde `@/components/ui` (no desde `../types`).
+- `components/ui/index.ts` exporta `type SortState` para `DataTableView`.
+- `DataTableView` tipa `error` como `ApiError` y usa imports directos para evitar ciclos.
+- `AiAssistantDrawer` usa la firma `streamChat(body, { onEvent })` y no pasa `className` a `Modal` (no soportado).
