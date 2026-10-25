@@ -27,10 +27,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex items-center justify-center gap-2 rounded-control font-medium transition-all duration-150 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]',
         size === 'sm' && 'px-2.5 py-1.5 text-sm',
         size === 'md' && 'px-4 py-2 text-sm',
         size === 'icon' && 'h-9 w-9 p-0',
+        variant !== 'ghost' && 'hover:shadow-sm',
         VARIANTS[variant],
         className,
       )}

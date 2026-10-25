@@ -50,7 +50,7 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **Barra lateral (desktop)**: navegación principal con **icono por módulo**, disponible según tu rol. Se puede **contraer/expandir** (el estado se recuerda en `localStorage`). Landmarks accesibles con etiquetas únicas.
 - **Breadcrumbs**: bajo la cabecera se muestra la ruta de la sección activa (oculto en el panel).
 - **Menú móvil (hamburguesa)**: aparece en pantallas `md:hidden`. Se abre/cierra desde el icono de hamburguesa y se cierra automáticamente al navegar.
-- **Área principal**: ruta activa (`Outlet`) con fondo `slate-50`/`dark:slate-950`. Al cargar una ruta nueva se muestra un _skeleton_; si un componente falla al renderizar, un `ErrorBoundary` evita la pantalla en blanco. Al cambiar de ruta, el contenido entra con una transición suave (`motion-safe:fade-in-up`), desactivada si el sistema pide movimiento reducido. **Scroll al inicio** al cambiar de ruta.
+- **Área principal**: ruta activa (`Outlet`) con fondo `slate-50`/`dark:slate-950`. Al cargar una ruta nueva se muestra un _skeleton_; si un componente falla al renderizar, un `ErrorBoundary` evita la pantalla en blanco. Al cambiar de ruta, el contenido entra con una transición suave (`motion-safe:fade-in-up`). Animaciones propias (`fade-in`, `fade-in-up`, `scale-in`, `slide-in-right`) bajo `motion-safe:`. `Modal`/`ConfirmDialog` usan animaciones de overlay/contenido. `Button` (`transition-all`, `active:scale-[0.98]`, `hover:shadow-sm`), `Card`/`Display` (`transition-shadow`, `hover:shadow-md`). Transiciones coherentes en inputs/links. Respeta `prefers-reduced-motion`. **Scroll al inicio** al cambiar de ruta.
 - **Notificaciones globales**: el centro de notificaciones es `/notifications` (accesible desde la campana → "Ver todas").
 - **Accesibilidad**: primer elemento enfocable es un _skip link_ ("Saltar al contenido") que salta a `#main`.
 
@@ -138,9 +138,9 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **Toggle**: icono sol/luna en cabecera (cambia entre `light`/`dark`). También aparece en las pantallas de login/registro.
 - **Persistencia**: `localStorage.getItem('communityhub.theme')`.
 - **Preferencias del sistema**: si no hay valor, usa `prefers-color-scheme`.
-- **Aplicación**: añade clase `dark` a `<html>`; colores base definidos en `src/index.css` (`body` con `dark:bg-slate-950 dark:text-slate-100`).
+- **Aplicación**: añade clase `dark` a `<html>`; colores base definidos en `src/styles.css` (`body` con `dark:bg-slate-950 dark:text-slate-100`).
 - **Sin destello (FOUC)**: un script _inline_ en `index.html` aplica el tema **antes** del primer pintado (misma clave y misma lógica que `ThemeContext`), de modo que no se ve el salto claro→oscuro.
-- **Movimiento reducido**: `index.css` respeta `@media (prefers-reduced-motion: reduce)`.
+- **Movimiento reducido**: `styles.css` respeta `@media (prefers-reduced-motion: reduce)`.
 - **Cobertura**: las 18 páginas y los componentes compartidos (Button, Badge/Card/Modal, Feedback, Form, Table, Toast) tienen variantes `dark:` aplicadas.
 
 ---
@@ -172,7 +172,7 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 - **i18n ligero**: textos del shell (nav, app, common, notifications, toast) viven en `src/i18n/es.ts` (`t(path)`); preparado para añadir otros idiomas.
 - **Carga diferida**: cada ruta se importa con `React.lazy` y Vite parte el bundle por vendors (`vendor-react`, `vendor-charts`, `vendor-forms`); al navegar se ve un _skeleton_ hasta que llega el chunk. Los enlaces del sidebar y el selector de comandos **precargan** el chunk al pasar el ratón o enfocar (`routes/prefetch.ts`), y el chunk de gráficos (Recharts) solo se carga con el dashboard.
 - **Análisis de bundle**: `npm run analyze` genera `dist/stats.html` (treemap de `rollup-plugin-visualizer`) para revisar el tamaño de cada chunk; el modo normal no lo genera.
-- **Consistencia visual**: los colores de estado (incidencia, reserva, voto, factura, miembro, aviso) salen de un único mapa en `components/ui/status.ts` sobre tokens semánticos de Tailwind (`success`/`warning`/`danger`/`info`); no se elige el color a mano por página. El anillo de foco es único (clase global en `index.css`) y los controles de formulario comparten `CONTROL_BASE`.
+- **Consistencia visual**: los colores de estado (incidencia, reserva, voto, factura, miembro, aviso) salen de un único mapa en `components/ui/status.ts` sobre tokens semánticos de Tailwind (`success`/`warning`/`danger`/`info`); no se elige el color a mano por página. El anillo de foco es único (clase global en `styles.css`) y los controles de formulario comparten `CONTROL_BASE`.
 - **Datos en la URL**: `useUrlFilters` sincroniza filtros/página/búsqueda con la barra de direcciones (modo `replace`).
 - **Cambios sin guardar**: `useUnsavedChanges` combina `beforeunload` (cerrar/recargar) con `useBlocker` (navegación interna) y degrada con seguridad si la página no está bajo un _data router_.
 - **Accesibilidad**: `Modal` con _focus trap_, foco inicial, retorno de foco y cierre con Escape; pestañas `Tabs` con _roving tabindex_; combobox de comunidad con `aria-activedescendant`; un solo `h1` por página; _skip link_ a `#main`; `ErrorBoundary` en la raíz del router. `eslint-plugin-jsx-a11y` no se añade porque su última versión no soporta ESLint 10.

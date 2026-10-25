@@ -116,13 +116,27 @@ export default {
           to: { opacity: '1' },
         },
         'fade-in-up': {
-          from: { opacity: '0', transform: 'translateY(4px)' },
+          from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.98)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'slide-in-right': {
+          from: { opacity: '0', transform: 'translateX(12px)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
         },
       },
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'fade-in-up': 'fade-in-up 200ms ease-out',
+        'scale-in': 'scale-in 150ms ease-out',
+        'slide-in-right': 'slide-in-right 200ms ease-out',
+      },
+      transitionTimingFunction: {
+        'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'in-out-soft': 'cubic-bezier(0.25, 0.8, 0.25, 1)',
       },
     },
   },

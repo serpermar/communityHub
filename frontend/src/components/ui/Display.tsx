@@ -46,7 +46,7 @@ export function Card({
   return (
     <section
       className={cn(
-        'rounded-card border border-slate-200 bg-surface shadow-card dark:border-slate-800 dark:bg-slate-900',
+        'rounded-card border border-slate-200 bg-surface shadow-card transition-shadow duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900',
         className,
       )}
     >
@@ -135,14 +135,14 @@ export function Modal({
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg rounded-overlay bg-surface shadow-overlay outline-none dark:bg-slate-900"
+        className="relative z-10 w-full max-w-lg rounded-overlay bg-surface shadow-overlay outline-none motion-safe:animate-scale-in dark:bg-slate-900"
       >
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           <h2 id={titleId} className="text-section-title text-slate-800 dark:text-slate-100">

@@ -13,7 +13,11 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-150 dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200 ease-in-out dark:bg-slate-950 dark:text-slate-100;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /*
@@ -40,5 +44,15 @@ body {
 @layer base {
   :where(a, button, [role='button'], [role='option'], [role='tab'], summary):focus-visible {
     @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950;
+  }
+
+  a {
+    @apply transition-colors duration-150;
+  }
+
+  input,
+  select,
+  textarea {
+    @apply transition-colors duration-150 ease-in-out;
   }
 }
