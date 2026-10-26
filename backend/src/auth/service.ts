@@ -358,6 +358,23 @@ export async function revokeSessionById(input: {
   }
 }
 
+export async function revokeOtherSessions(input: {
+  userId: string
+  sessionId: string
+}): Promise<number> {
+  return withContext({ userId: input.userId, communityId: null }, (tx) =>
+    repo.revokeOtherSessions(tx, input.userId, input.sessionId),
+  )
+}
+
+export async function exportMyData(userId: string) {
+  const user = await getMe(userId)
+  return {
+    exportedAt: new Date().toISOString(),
+    user,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Usuario actual
 // ---------------------------------------------------------------------------

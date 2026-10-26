@@ -235,3 +235,34 @@ export async function revokeSession(
     next(error)
   }
 }
+
+export async function revokeOtherSessions(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    await service.revokeOtherSessions({ userId: req.auth!.userId, sessionId: req.auth!.sessionId })
+    noContent(res)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function exportMyData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await service.exportMyData(req.auth!.userId)
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="communityhub-datos-${req.auth!.userId}.json"`,
+    )
+    res.send(JSON.stringify(data, null, 2))
+  } catch (error) {
+    next(error)
+  }
+}

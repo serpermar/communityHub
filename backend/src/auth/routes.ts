@@ -68,6 +68,8 @@ export function createAuthRouter(): Router {
   router.delete('/me/avatar', requireAuth, controller.deleteAvatar)
   router.post('/change-password', requireAuth, controller.changePassword)
   router.get('/sessions', requireAuth, controller.listSessions)
+  router.post('/sessions/revoke-others', requireAuth, controller.revokeOtherSessions)
+  router.get('/me/export', requireAuth, controller.exportMyData)
   router.delete('/sessions/:id', requireAuth, controller.revokeSession)
 
   return router

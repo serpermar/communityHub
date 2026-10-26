@@ -1,0 +1,140 @@
+.container {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+  mix-blend-mode: multiply;
+}
+
+:global(.dark) .blob {
+  opacity: 0.18;
+  mix-blend-mode: screen;
+}
+
+.blob1 {
+  top: -10rem;
+  left: -12rem;
+  background: radial-gradient(circle, rgb(99 102 241), transparent 70%);
+  animation: float1 38s ease-in-out infinite;
+}
+
+.blob2 {
+  bottom: -14rem;
+  right: -10rem;
+  background: radial-gradient(circle, rgb(56 189 248), transparent 70%);
+  animation: float2 44s ease-in-out infinite;
+}
+
+.blob3 {
+  top: 20%;
+  right: -16rem;
+  background: radial-gradient(circle, rgb(168 85 247), transparent 70%);
+  animation: float3 36s ease-in-out infinite;
+}
+
+.mesh {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(1200px 800px at 20% 10%, rgb(99 102 241 / 0.12), transparent),
+    radial-gradient(1000px 700px at 80% 90%, rgb(56 189 248 / 0.1), transparent),
+    radial-gradient(800px 600px at 50% 50%, rgb(168 85 247 / 0.08), transparent);
+  background-size: 200% 200%;
+  animation: meshMove 60s ease infinite;
+  opacity: 0.9;
+}
+
+:global(.dark) .mesh {
+  background: radial-gradient(1200px 800px at 20% 10%, rgb(129 140 248 / 0.16), transparent),
+    radial-gradient(1000px 700px at 80% 90%, rgb(56 189 248 / 0.14), transparent),
+    radial-gradient(800px 600px at 50% 50%, rgb(192 132 252 / 0.12), transparent);
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgb(148 163 184 / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at 50% 20%, black, transparent 70%);
+  animation: gridMove 80s linear infinite;
+  opacity: 0.6;
+}
+
+:global(.dark) .grid {
+  background-image: linear-gradient(rgb(71 85 105 / 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(71 85 105 / 0.18) 1px, transparent 1px);
+  opacity: 0.4;
+}
+
+@keyframes float1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(60px, 40px) scale(1.05);
+  }
+  66% {
+    transform: translate(20px, 80px) scale(0.98);
+  }
+}
+
+@keyframes float2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-40px, -30px) scale(1.08);
+  }
+  75% {
+    transform: translate(-80px, -10px) scale(0.96);
+  }
+}
+
+@keyframes float3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 60px) scale(1.06);
+  }
+}
+
+@keyframes meshMove {
+  0%,
+  100% {
+    background-position: 0% 50%, 100% 50%, 50% 50%;
+  }
+  50% {
+    background-position: 100% 50%, 0% 50%, 50% 100%;
+  }
+}
+
+@keyframes gridMove {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 200px 100px, 200px 100px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .mesh,
+  .grid {
+    animation: none !important;
+  }
+}

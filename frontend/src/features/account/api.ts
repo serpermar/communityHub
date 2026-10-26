@@ -10,6 +10,14 @@ export function revokeSession(sessionId: string): Promise<void> {
   return api.delete<void>(`/auth/sessions/${sessionId}`)
 }
 
+export function revokeOtherSessions(): Promise<void> {
+  return api.post<void>('/auth/sessions/revoke-others')
+}
+
+export function exportMyData(): Promise<Blob> {
+  return api.get<Blob>('/auth/me/export', { responseType: 'blob' })
+}
+
 export function updateProfile(input: { fullName: string; phone?: string }): Promise<AuthUser> {
   return api.patch<AuthUser>('/auth/me', input)
 }
