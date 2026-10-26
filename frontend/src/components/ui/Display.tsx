@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 import type { BadgeTone } from './status'
+import styles from './Display.module.css'
 
 export function Badge({
   children,
@@ -44,23 +45,14 @@ export function Card({
   className?: string
 }) {
   return (
-    <section
-      className={cn(
-        'rounded-card border border-slate-200 bg-surface shadow-card transition-shadow duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900',
-        className,
-      )}
-    >
+    <section className={cn(styles.card, className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          {typeof title === 'string' ? (
-            <h2 className="text-section-title text-slate-800 dark:text-slate-100">{title}</h2>
-          ) : (
-            title
-          )}
+        <header className={styles.header}>
+          {typeof title === 'string' ? <h2 className={styles.title}>{title}</h2> : title}
           {actions}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className={styles.body}>{children}</div>
     </section>
   )
 }
@@ -134,35 +126,26 @@ export function Modal({
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" onClick={onClose} aria-hidden="true" />
+    <div className={styles.overlay}>
+      <div className={styles.backdrop} onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg rounded-overlay bg-surface shadow-overlay outline-none motion-safe:animate-scale-in dark:bg-slate-900"
+        className={styles.dialog}
       >
-        <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <h2 id={titleId} className="text-section-title text-slate-800 dark:text-slate-100">
+        <header className={styles.modalHeader}>
+          <h2 id={titleId} className={styles.modalTitle}>
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded px-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-          >
+          <button type="button" onClick={onClose} aria-label="Cerrar" className={styles.closeBtn}>
             ✕
           </button>
         </header>
-        <div className="px-4 py-4">{children}</div>
-        {footer && (
-          <footer className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
-            {footer}
-          </footer>
-        )}
+        <div className={styles.modalBody}>{children}</div>
+        {footer && <footer className={styles.modalFooter}>{footer}</footer>}
       </div>
     </div>
   )

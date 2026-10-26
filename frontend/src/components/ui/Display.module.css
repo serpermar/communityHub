@@ -1,0 +1,158 @@
+.card {
+  border-radius: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  background-color: rgb(255 255 255);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: box-shadow 200ms ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+:global(.dark) .card {
+  border-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  padding: 0.75rem 1rem;
+}
+
+:global(.dark) .header {
+  border-bottom-color: rgb(30 41 59);
+}
+
+.title {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: rgb(30 41 59);
+}
+
+:global(.dark) .title {
+  color: rgb(241 245 249);
+}
+
+.body {
+  padding: 1rem;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgb(15 23 42 / 0.4);
+}
+
+:global(.motion-safe) .backdrop {
+  animation: fade-in 150ms ease-out;
+}
+
+.dialog {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 32rem;
+  border-radius: 0.75rem;
+  background-color: rgb(255 255 255);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  outline: none;
+}
+
+:global(.dark) .dialog {
+  background-color: rgb(15 23 42);
+}
+
+:global(.motion-safe) .dialog {
+  animation: scale-in 150ms ease-out;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgb(241 245 249);
+  padding: 0.75rem 1rem;
+}
+
+:global(.dark) .modalHeader {
+  border-bottom-color: rgb(30 41 59);
+}
+
+.modalTitle {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: rgb(30 41 59);
+}
+
+:global(.dark) .modalTitle {
+  color: rgb(241 245 249);
+}
+
+.closeBtn {
+  border-radius: 0.25rem;
+  padding: 0 0.5rem;
+  color: rgb(148 163 184);
+}
+
+.closeBtn:hover {
+  background-color: rgb(241 245 249);
+  color: rgb(71 85 105);
+}
+
+:global(.dark) .closeBtn:hover {
+  background-color: rgb(30 41 59);
+  color: rgb(203 213 225);
+}
+
+.modalBody {
+  padding: 1rem;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid rgb(241 245 249);
+  padding: 0.75rem 1rem;
+}
+
+:global(.dark) .modalFooter {
+  border-top-color: rgb(30 41 59);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
