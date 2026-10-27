@@ -1,0 +1,170 @@
+.page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.backButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: #64748b;
+  transition: color 150ms ease-in-out;
+}
+
+.backButton:hover {
+  color: var(--brand-700, #1d4ed8);
+}
+
+:global(.dark) .backButton {
+  color: #94a3b8;
+}
+
+:global(.dark) .backButton:hover {
+  color: var(--brand-400, #60a5fa);
+}
+
+.question {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .question {
+  color: #e2e8f0;
+}
+
+.description {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .description {
+  color: #cbd5e1;
+}
+
+.endsAt {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .endsAt {
+  color: #64748b;
+}
+
+.errorWrapper {
+  margin-top: 0.75rem;
+}
+
+.optionsFieldset {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: none;
+  padding: 0;
+}
+
+.legend {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  padding: 0;
+}
+
+:global(.dark) .legend {
+  color: #e2e8f0;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+:global(.dark) .optionLabel {
+  border-color: #1e293b;
+}
+
+.actionsFooter {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cardTitle {
+  font-size: var(--text-section-title-size, 1.25rem);
+  line-height: var(--text-section-title-leading, 1.75rem);
+}
+
+.resultsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.participation {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .participation {
+  color: #cbd5e1;
+}
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .resultRow {
+  color: #e2e8f0;
+}
+
+.progressTrack {
+  margin-top: 0.25rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: #f1f5f9;
+}
+
+:global(.dark) .progressTrack {
+  background-color: #1e293b;
+}
+
+.progressBar {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--brand-500, #3b82f6);
+}
+
+.emptyResults {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptyResults {
+  color: #94a3b8;
+}

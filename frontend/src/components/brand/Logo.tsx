@@ -1,4 +1,5 @@
 import { cn } from '@/utils/cn'
+import styles from './Logo.module.css'
 
 /**
  * Marca de CommunityHub.
@@ -14,7 +15,12 @@ import { cn } from '@/utils/cn'
 
 function BrandGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 260 260" fill="none" aria-hidden="true" className={cn('h-8 w-8', className)}>
+    <svg
+      viewBox="0 0 260 260"
+      fill="none"
+      aria-hidden="true"
+      className={cn(styles.glyph, className)}
+    >
       <g stroke="currentColor" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round">
         <path d="M 62 208 L 62 100 L 130 44 L 198 100 L 198 134 C 198 118 184 110 170 110 L 158 110" />
         <path d="M 62 208 L 170 208" />
@@ -49,14 +55,14 @@ export function Logo({
   textClassName?: string
 }) {
   return (
-    <span className={cn('inline-flex items-center gap-2', className)}>
+    <span className={cn(styles.container, className)}>
       <BrandGlyph />
       {withText && (
-        <span className={cn('text-lg font-bold tracking-tight', textClassName)} aria-hidden="true">
-          Community<span className="opacity-60">Hub</span>
+        <span className={cn(styles.text, textClassName)} aria-hidden="true">
+          Community<span className={styles.hubText}>Hub</span>
         </span>
       )}
-      <span className="sr-only">CommunityHub</span>
+      <span className={styles.srOnly}>CommunityHub</span>
     </span>
   )
 }

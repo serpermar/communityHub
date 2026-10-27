@@ -39,6 +39,7 @@ import {
   ANNOUNCEMENT_TYPE_LABELS,
   type Announcement,
 } from '../types'
+import styles from './AnnouncementsPage.module.css'
 
 const schema = z.object({
   title: z.string().trim().min(3, 'Mínimo 3 caracteres.').max(120, 'Máximo 120.'),
@@ -144,20 +145,25 @@ export function AnnouncementsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Avisos"
         actions={
-          <div className="flex items-center gap-2">
+          <div className={styles.headerActions}>
             {result.data && result.data.data.length > 0 && (
               <Button
                 variant="secondary"
                 onClick={() => {
-                  const titles = result.data!.data
-                    .map((a) => `- ${a.title}: ${a.body.slice(0, 200)}${a.body.length > 200 ? '...' : ''}`)
+                  const titles = result
+                    .data!.data.map(
+                      (a) =>
+                        `- ${a.title}: ${a.body.slice(0, 200)}${a.body.length > 200 ? '...' : ''}`,
+                    )
                     .join('\n')
                   const message = `Resume estos avisos de la comunidad de forma clara, concisa y en español. Incluye puntos clave y acciones si las hay:\n\n${titles}`
-                  window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { initialMessage: message } }))
+                  window.dispatchEvent(
+                    new CustomEvent('open-ai-assistant', { detail: { initialMessage: message } }),
+                  )
                 }}
               >
                 Resumir con IA
@@ -173,7 +179,7 @@ export function AnnouncementsPage() {
           aria-label="Tipo"
           value={type}
           onChange={(event) => setFilter('type', event.target.value)}
-          className="sm:w-64"
+          className={styles.filterSelect}
         >
           <option value="">Todos los tipos</option>
           {ANNOUNCEMENT_TYPES.map((value) => (
@@ -192,12 +198,12 @@ export function AnnouncementsPage() {
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data && result.data.data.length > 0 ? (
         <>
-          <div className="space-y-3">
+          <div className={styles.list}>
             {result.data.data.map((announcement) => (
               <Card
                 key={announcement.id}
                 title={
-                  <span className="flex items-center gap-2">
+                  <span className={styles.cardTitle}>
                     {announcement.isPinned && <Badge tone="violet">Fijado</Badge>}
                     <span>{announcement.title}</span>
                     <Badge tone={ANNOUNCEMENT_TYPE_TONES[announcement.type]}>
@@ -207,7 +213,7 @@ export function AnnouncementsPage() {
                 }
                 actions={
                   canManage ? (
-                    <div className="flex gap-2">
+                    <div className={styles.cardActions}>
                       <Button size="sm" variant="secondary" onClick={() => openEdit(announcement)}>
                         Editar
                       </Button>
@@ -224,10 +230,8 @@ export function AnnouncementsPage() {
                   ) : undefined
                 }
               >
-                <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
-                  {announcement.body}
-                </p>
-                <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+                <p className={styles.body}>{announcement.body}</p>
+                <p className={styles.meta}>
                   {announcement.authorName ?? 'Comunidad'} ·{' '}
                   {formatDateTime(announcement.publishAt)}
                 </p>
@@ -254,14 +258,14 @@ export function AnnouncementsPage() {
         title={editing ? 'Editar aviso' : 'Nuevo aviso'}
         onClose={() => setOpen(false)}
       >
-        <form className="space-y-3" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Título" htmlFor="ann-title" error={errors.title?.message} required>
             <Input id="ann-title" {...register('title')} />
           </Field>
           <Field label="Mensaje" htmlFor="ann-body" error={errors.body?.message} required>
             <Textarea id="ann-body" rows={4} {...register('body')} />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Tipo" htmlFor="ann-type">
               <Select id="ann-type" {...register('type')}>
                 {ANNOUNCEMENT_TYPES.map((value) => (
@@ -284,12 +288,12 @@ export function AnnouncementsPage() {
           <Field label="Caduca (opcional)" htmlFor="ann-expires">
             <Input id="ann-expires" type="datetime-local" {...register('expiresAt')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <label className={styles.checkboxLabel}>
             <input type="checkbox" {...register('isPinned')} />
             Fijar en la parte superior
           </label>
           {serverError && <Alert variant="error">{serverError}</Alert>}
-          <div className="flex justify-end gap-2">
+          <div className={styles.modalFooter}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>

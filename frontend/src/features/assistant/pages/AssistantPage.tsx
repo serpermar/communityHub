@@ -5,6 +5,7 @@ import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { deleteSession, listMessages, listSessions, streamChat } from '../api'
 import type { ChatCitation, ChatMessage, ChatToolCall } from '../types'
+import styles from './AssistantPage.module.css'
 
 interface RenderedMessage {
   id: string
@@ -177,7 +178,7 @@ export function AssistantPage() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
+    <div className={styles.page}>
       <Card
         title="Conversaciones"
         actions={
@@ -189,16 +190,14 @@ export function AssistantPage() {
         {sessions.loading ? (
           <Spinner />
         ) : sessions.data && sessions.data.data.length > 0 ? (
-          <ul className="space-y-1">
+          <ul className={styles.sessionList}>
             {sessions.data.data.map((session) => (
-              <li key={session.id} className="flex items-center justify-between gap-2">
+              <li key={session.id} className={styles.sessionRow}>
                 <button
                   type="button"
                   onClick={() => void openSession(session.id)}
-                  className={`flex-1 truncate rounded-md px-2 py-1 text-left text-sm ${
-                    sessionId === session.id
-                      ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                      : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+                  className={`${styles.sessionButton} ${
+                    sessionId === session.id ? styles.sessionButtonActive : ''
                   }`}
                 >
                   {session.title ?? 'Conversación'}
@@ -206,7 +205,7 @@ export function AssistantPage() {
                 <button
                   type="button"
                   aria-label="Eliminar conversación"
-                  className="text-xs text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
+                  className={styles.deleteButton}
                   onClick={() => void removeSession(session.id)}
                 >
                   ✕
@@ -215,36 +214,33 @@ export function AssistantPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Sin conversaciones.</p>
+          <p className={styles.emptySessions}>Sin conversaciones.</p>
         )}
       </Card>
 
       <Card title="Asistente">
-        <div className="flex h-[28rem] flex-col">
-          <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+        <div className={styles.chatContainer}>
+          <div className={styles.messagesArea}>
             {messages.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className={styles.emptyChat}>
                 Pregunta sobre incidencias, reservas, avisos o votaciones de la comunidad.
               </p>
             ) : (
               messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                  className={`${styles.messageBubble} ${
                     message.role === 'user'
-                      ? 'ml-auto bg-brand-600 text-white'
-                      : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
+                      ? styles.messageBubbleUser
+                      : styles.messageBubbleAssistant
                   }`}
                 >
-                  {message.content || <span className="text-slate-400 dark:text-slate-500">…</span>}
+                  {message.content || <span className={styles.messagePlaceholder}>…</span>}
 
                   {message.role !== 'user' && message.toolCalls.length > 0 && (
-                    <ul className="mt-2 flex flex-wrap gap-1">
+                    <ul className={styles.toolList}>
                       {message.toolCalls.map((call, index) => (
-                        <li
-                          key={`${call.name}-${index}`}
-                          className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                        >
+                        <li key={`${call.name}-${index}`} className={styles.toolChip}>
                           🔧 {toolLabel(call.name)}
                         </li>
                       ))}
@@ -252,11 +248,9 @@ export function AssistantPage() {
                   )}
 
                   {message.role !== 'user' && message.citations.length > 0 && (
-                    <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
-                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                        Fuentes
-                      </span>
-                      <ul className="mt-1 flex flex-wrap gap-1">
+                    <div className={styles.citations}>
+                      <span className={styles.citationsLabel}>Fuentes</span>
+                      <ul className={styles.citationList}>
                         {message.citations.flatMap((citation, ci) =>
                           citation.ids.map((id) => (
                             <li key={`${citation.tool}-${ci}-${id}`}>
@@ -266,7 +260,7 @@ export function AssistantPage() {
                                   active &&
                                   window.open(citationLink(active.id, citation, id), '_self')
                                 }
-                                className="rounded-md bg-white px-2 py-0.5 text-[11px] text-brand-700 underline-offset-2 hover:underline dark:bg-slate-800 dark:text-brand-300"
+                                className={styles.citationButton}
                               >
                                 {toolLabel(citation.tool)} · {id.slice(0, 8)}
                               </button>
@@ -282,15 +276,15 @@ export function AssistantPage() {
           </div>
 
           {error && (
-            <div className="pt-2">
+            <div className={styles.errorWrapper}>
               <Alert variant="error">{error}</Alert>
             </div>
           )}
 
-          <form className="flex gap-2 pt-3" onSubmit={send}>
+          <form className={styles.form} onSubmit={send}>
             <input
               aria-label="Mensaje"
-              className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              className={styles.input}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder="Escribe tu pregunta…"

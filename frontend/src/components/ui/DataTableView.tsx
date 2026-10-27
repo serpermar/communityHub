@@ -3,6 +3,7 @@ import { Card } from './Display'
 import { DataTable, Pagination, type Column, type SortState } from './Table'
 import { ErrorState, EmptyState, SkeletonTable } from './Feedback'
 import type { ApiError } from '@/services/ApiError'
+import styles from './DataTableView.module.css'
 
 export interface DataTableViewPagination {
   page: number
@@ -68,7 +69,7 @@ export function DataTableView<T>({
   if (loading) {
     return (
       <div className={className}>
-        {filters && <Card className="mb-4">{filters}</Card>}
+        {filters && <Card className={styles.filtersCard}>{filters}</Card>}
         <Card title={title} actions={actions}>
           <SkeletonTable columns={columns.length} />
         </Card>
@@ -79,7 +80,7 @@ export function DataTableView<T>({
   if (error) {
     return (
       <div className={className}>
-        {filters && <Card className="mb-4">{filters}</Card>}
+        {filters && <Card className={styles.filtersCard}>{filters}</Card>}
         <ErrorState error={error} onRetry={onRetry} />
       </div>
     )
@@ -101,16 +102,12 @@ export function DataTableView<T>({
       {(title || actions || filters) && (
         <>
           {(title || actions) && (
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              {typeof title === 'string' ? (
-                <h2 className="text-section-title text-slate-800 dark:text-slate-100">{title}</h2>
-              ) : (
-                title
-              )}
+            <div className={styles.header}>
+              {typeof title === 'string' ? <h2 className={styles.title}>{title}</h2> : title}
               {actions}
             </div>
           )}
-          {filters && <Card className="mb-4">{filters}</Card>}
+          {filters && <Card className={styles.filtersCard}>{filters}</Card>}
         </>
       )}
       <Card>
@@ -129,7 +126,7 @@ export function DataTableView<T>({
         />
       </Card>
       {pagination && pagination.totalPages > 1 && (
-        <div className="mt-4">
+        <div className={styles.paginationWrapper}>
           <Pagination {...pagination} />
         </div>
       )}

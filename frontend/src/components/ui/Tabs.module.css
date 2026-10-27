@@ -1,0 +1,45 @@
+.tablist {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab {
+  border: none;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.tab:hover {
+  background-color: #e2e8f0;
+}
+
+:global(.dark) .tab {
+  background-color: #1e293b;
+  color: #cbd5e1;
+}
+
+:global(.dark) .tab:hover {
+  background-color: #334155;
+}
+
+.tabSelected {
+  background-color: var(--brand-600, #2563eb);
+  color: white;
+}
+
+.tabSelected:hover {
+  background-color: var(--brand-600, #2563eb);
+}
+
+:global(.dark) .tabSelected {
+  background-color: var(--brand-600, #2563eb);
+  color: white;
+}

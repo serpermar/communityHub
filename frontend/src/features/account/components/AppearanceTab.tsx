@@ -3,7 +3,7 @@ import { Button, Card, ThemeToggle, useToast } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/services/ApiError'
 import { exportMyData } from '../api'
-import styles from '../pages/AccountPage.module.css'
+import styles from './AppearanceTab.module.css'
 
 const roleLabel = (user: ReturnType<typeof useAuth>['user']) => {
   if (user?.globalRole === 'ADMIN_SA') return 'Administrador de plataforma'

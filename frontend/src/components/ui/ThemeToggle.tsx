@@ -2,11 +2,8 @@ import { useTheme } from '@/context/ThemeContext'
 import { t } from '@/i18n'
 import { cn } from '@/utils/cn'
 import { Tooltip } from './Tooltip'
+import styles from './ThemeToggle.module.css'
 
-/**
- * Botón de cambio de tema claro/oscuro. Reutilizable en layouts con y sin
- * sesión (`AppLayout`, `AuthLayout`), ya que el tema vive en `<html>`.
- */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggle } = useTheme()
   const label = theme === 'dark' ? t('app.themeLight') : t('app.themeDark')
@@ -17,12 +14,9 @@ export function ThemeToggle({ className }: { className?: string }) {
         type="button"
         onClick={toggle}
         aria-label={label}
-        className={cn(
-          'rounded-control p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-          className,
-        )}
+        className={cn(styles.button, className)}
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.icon}>
           {theme === 'dark' ? (
             <path
               strokeWidth="1.7"

@@ -4,6 +4,7 @@ import { Button, LoadingState } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { useResource } from '@/hooks/useResource'
 import { listCommunities } from '../api'
+import styles from './HomeRedirectPage.module.css'
 
 /** `/` redirige a la primera comunidad del usuario (decision FE-5). */
 export function HomeRedirectPage() {
@@ -20,14 +21,12 @@ export function HomeRedirectPage() {
   if (loading) return <LoadingState />
 
   return (
-    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        Aún no tienes ninguna comunidad
-      </p>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+    <div className={styles.emptyCard}>
+      <p className={styles.emptyTitle}>Aún no tienes ninguna comunidad</p>
+      <p className={styles.emptyDescription}>
         Entra con una invitación o crea una comunidad si eres administrador de plataforma.
       </p>
-      <div className="mt-4 flex justify-center gap-2">
+      <div className={styles.actions}>
         <Button variant="secondary" onClick={() => navigate('/invitations/redeem')}>
           Canjear invitación
         </Button>

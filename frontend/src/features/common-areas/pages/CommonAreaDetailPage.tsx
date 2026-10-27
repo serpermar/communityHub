@@ -20,6 +20,7 @@ import { formatDateTime } from '@/utils/format'
 import { getAvailability, listCommonAreas } from '../api'
 import { createReservation } from '@/features/reservations/api'
 import { COMMON_AREA_TYPE_LABELS, type AvailabilitySlot } from '../types'
+import styles from './CommonAreaDetailPage.module.css'
 
 export function CommonAreaDetailPage() {
   const { areaId } = useParams<{ commonAreaId?: string; areaId?: string }>()
@@ -64,23 +65,23 @@ export function CommonAreaDetailPage() {
   if (!area) return <EmptyState title="Zona no encontrada" />
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className={styles.page}>
       <button
         type="button"
         onClick={() => navigate(`/c/${active!.id}/common-areas`)}
-        className="text-sm text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-400"
+        className={styles.backButton}
       >
         ← Volver a zonas comunes
       </button>
 
       <Card>
-        <div className="flex items-center justify-between">
-          <h1 className="text-page-title text-slate-800 dark:text-slate-100">{area.name}</h1>
+        <div className={styles.headerRow}>
+          <h1 className={styles.title}>{area.name}</h1>
           <Badge tone={area.isActive ? 'green' : 'slate'}>
             {area.isActive ? 'Activa' : 'Baja'}
           </Badge>
         </div>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className={styles.meta}>
           {COMMON_AREA_TYPE_LABELS[area.type]} · franjas de {area.slotMinutes} min · {area.openTime}
           –{area.closeTime}
           {area.requiresApproval && ' · requiere aprobación'}
@@ -101,30 +102,30 @@ export function CommonAreaDetailPage() {
         </Field>
 
         {availability.loading ? (
-          <div className="mt-4">
+          <div className={styles.mt4}>
             <SkeletonList rows={2} />
           </div>
         ) : availability.error ? (
-          <div className="mt-4">
+          <div className={styles.mt4}>
             <ErrorState error={availability.error} onRetry={availability.reload} />
           </div>
         ) : availability.data && availability.data.slots.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className={styles.slotsGrid}>
             {availability.data.slots.map((slot) => {
               const isSelected = selected?.startsAt === slot.startsAt
+              const slotClass =
+                slot.status === 'OCCUPIED'
+                  ? styles.slotButtonOccupied
+                  : isSelected
+                    ? styles.slotButtonSelected
+                    : ''
               return (
                 <button
                   key={slot.startsAt}
                   type="button"
                   disabled={slot.status === 'OCCUPIED'}
                   onClick={() => setSelected(slot)}
-                  className={`rounded-md border px-2 py-1 text-sm ${
-                    slot.status === 'OCCUPIED'
-                      ? 'cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
-                      : isSelected
-                        ? 'border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300'
-                        : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-400'
-                  }`}
+                  className={`${styles.slotButton} ${slotClass}`}
                 >
                   {slot.startsAt.slice(11, 16)}
                 </button>
@@ -132,30 +133,30 @@ export function CommonAreaDetailPage() {
             })}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No hay franjas ese día.</p>
+          <p className={styles.emptySlots}>No hay franjas ese día.</p>
         )}
       </Card>
 
       {selected && (
         <Card title="Reservar franja">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className={styles.selectedRange}>
             {formatDateTime(selected.startsAt)} – {formatDateTime(selected.endsAt)}
           </p>
           {serverError && (
-            <div className="mt-3">
+            <div className={styles.mt3}>
               <Alert variant="error">{serverError}</Alert>
             </div>
           )}
           {!area.isActive ? (
-            <Alert variant="warning" className="mt-3">
+            <Alert variant="warning" className={styles.mt3}>
               La zona está dada de baja y no admite reservas nuevas.
             </Alert>
           ) : !canReserve ? (
-            <Alert variant="warning" className="mt-3">
+            <Alert variant="warning" className={styles.mt3}>
               Tu rol no permite reservar.
             </Alert>
           ) : (
-            <form className="mt-4 space-y-3" onSubmit={onReserve} noValidate>
+            <form className={styles.reserveForm} onSubmit={onReserve} noValidate>
               <Field label="Asistentes" htmlFor="attendees">
                 <Input
                   id="attendees"
@@ -173,7 +174,7 @@ export function CommonAreaDetailPage() {
                   onChange={(event) => setNotes(event.target.value)}
                 />
               </Field>
-              <div className="flex justify-end">
+              <div className={styles.formFooter}>
                 <Button type="submit" loading={submitting}>
                   Reservar
                 </Button>

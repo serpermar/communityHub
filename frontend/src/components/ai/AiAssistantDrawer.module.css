@@ -1,0 +1,231 @@
+/* Layout Principal */
+.gridLayout {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .gridLayout {
+    grid-template-columns: 220px 1fr;
+  }
+}
+
+/* Sidebar (Conversaciones) */
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: block;
+  }
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebarTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sessionList {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.emptyText {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  /* slate-400 */
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sessionItem {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.sessionItem:hover {
+  background-color: #f1f5f9;
+  /* slate-100 */
+}
+
+.sessionItemActive {
+  background-color: var(--brand-50, #eff6ff);
+  color: var(--brand-700, #1d4ed8);
+}
+
+:global(.dark) .sessionItem:hover {
+  background-color: #1e293b;
+  /* slate-800 */
+}
+
+:global(.dark) .sessionItemActive {
+  background-color: var(--brand-950, #172554);
+  color: var(--brand-300, #93c5fd);
+}
+
+/* Área de Chat */
+.chatContainer {
+  display: flex;
+  height: 60vh;
+  flex-direction: column;
+}
+
+.messagesArea {
+  flex: 1;
+  overflow-y: auto;
+  border-radius: var(--radius-card, 0.5rem);
+  border: 1px solid #e2e8f0;
+  /* slate-200 */
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+:global(.dark) .messagesArea {
+  border-color: #1e293b;
+  /* slate-800 */
+}
+
+.emptyChat {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  /* slate-400 */
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+/* Mensajes */
+.messageRow {
+  display: flex;
+}
+
+.messageRowUser {
+  justify-content: flex-end;
+}
+
+.messageRowAssistant {
+  justify-content: flex-start;
+}
+
+.messageBubble {
+  max-width: 80%;
+  border-radius: var(--radius-card, 0.5rem);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.messageBubbleUser {
+  background-color: var(--brand-600, #2563eb);
+  color: white;
+}
+
+.messageBubbleAssistant {
+  background-color: #f1f5f9;
+  /* slate-100 */
+  color: #1e293b;
+  /* slate-800 */
+}
+
+:global(.dark) .messageBubbleAssistant {
+  background-color: #1e293b;
+  /* slate-800 */
+  color: #f1f5f9;
+  /* slate-100 */
+}
+
+.messageText {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* Trazabilidad (Herramientas y Citas) */
+.traceContainer {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.traceItem {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.traceItemBold {
+  font-weight: 500;
+}
+
+.citationContainer {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.citationItem {
+  font-size: 0.75rem;
+  color: #64748b;
+  /* slate-500 */
+}
+
+:global(.dark) .citationItem {
+  color: #94a3b8;
+  /* slate-400 */
+}
+
+.citationIds {
+  font-family: monospace;
+}
+
+/* Estados de Carga y Error */
+.loadingRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.loadingBubble {
+  border-radius: var(--radius-card, 0.5rem);
+  background-color: #f1f5f9;
+  padding: 0.5rem 0.75rem;
+}
+
+:global(.dark) .loadingBubble {
+  background-color: #1e293b;
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: var(--danger-600, #dc2626);
+}
+
+/* Formulario */
+.inputForm {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}

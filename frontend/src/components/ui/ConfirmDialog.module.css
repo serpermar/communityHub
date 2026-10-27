@@ -1,0 +1,8 @@
+.description {
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .description {
+  color: #cbd5e1;
+}

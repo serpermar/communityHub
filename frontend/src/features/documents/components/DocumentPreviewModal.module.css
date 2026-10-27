@@ -1,0 +1,47 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loadingWrapper {
+  display: flex;
+  height: 20rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: var(--danger-600, #dc2626);
+}
+
+.imageWrapper {
+  display: flex;
+  max-height: 70vh;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.image {
+  max-height: 70vh;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.pdfFrame {
+  height: 70vh;
+  width: 100%;
+  border-radius: var(--radius-card, 0.5rem);
+  border: 1px solid #e2e8f0;
+}
+
+:global(.dark) .pdfFrame {
+  border-color: #1e293b;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}

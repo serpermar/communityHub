@@ -4,6 +4,7 @@ import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { deleteSession, listMessages, listSessions, streamChat } from '@/features/assistant/api'
 import type { ChatCitation, ChatEvent } from '@/features/assistant/types'
+import styles from './AiAssistantDrawer.module.css'
 
 interface RenderedMessage {
   id: string
@@ -43,11 +44,11 @@ function toolLabel(name: string): string {
 function renderCitations(citations: ChatCitation[] | undefined) {
   if (!citations || citations.length === 0) return null
   return (
-    <div className="mt-2 space-y-1">
+    <div className={styles.citationContainer}>
       {citations.map((citation, index) => (
-        <div key={index} className="text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-medium">{toolLabel(citation.tool)}:</span>{' '}
-          <span className="font-mono">{citation.ids.join(', ')}</span>
+        <div key={index} className={styles.citationItem}>
+          <span className={styles.traceItemBold}>{toolLabel(citation.tool)}:</span>{' '}
+          <span className={styles.citationIds}>{citation.ids.join(', ')}</span>
         </div>
       ))}
     </div>
@@ -157,7 +158,10 @@ export function AiAssistantDrawer({
                   message.id === assistantMessageId
                     ? {
                         ...message,
-                        toolCalls: [...(message.toolCalls ?? []), { name: event.name, args: event.args }],
+                        toolCalls: [
+                          ...(message.toolCalls ?? []),
+                          { name: event.name, args: event.args },
+                        ],
                       }
                     : message,
                 ),
@@ -215,20 +219,20 @@ export function AiAssistantDrawer({
 
   return (
     <Modal open={open} title="Asistente IA" onClose={onClose}>
-      <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-        <Card className="hidden md:block">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Conversaciones</p>
+      <div className={styles.gridLayout}>
+        <Card className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <p className={styles.sidebarTitle}>Conversaciones</p>
             <Button size="sm" variant="ghost" onClick={() => setSessionId(undefined)}>
               Nueva
             </Button>
           </div>
-          <div className="mt-2 space-y-1">
-            {sessions.length === 0 && <p className="text-xs text-slate-400">Sin conversaciones</p>}
+          <div className={styles.sessionList}>
+            {sessions.length === 0 && <p className={styles.emptyText}>Sin conversaciones</p>}
             {sessions.map((s) => (
-              <div key={s.id} className="flex items-center gap-1">
+              <div key={s.id} className={styles.sessionRow}>
                 <button
-                  className={`flex-1 truncate rounded px-2 py-1 text-left text-sm ${sessionId === s.id ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  className={`${styles.sessionItem} ${sessionId === s.id ? styles.sessionItemActive : ''}`}
                   onClick={() => setSessionId(s.id)}
                 >
                   {s.title || 'Sin título'}
@@ -240,29 +244,34 @@ export function AiAssistantDrawer({
             ))}
           </div>
         </Card>
-        <div className="flex h-[60vh] flex-col">
-          <div className="flex-1 space-y-3 overflow-y-auto rounded-card border border-slate-200 p-3 dark:border-slate-800">
+
+        <div className={styles.chatContainer}>
+          <div className={styles.messagesArea}>
             {messages.length === 0 && !sending && (
-              <p className="text-center text-sm text-slate-400">Pregunta lo que necesites sobre la comunidad.</p>
+              <p className={styles.emptyChat}>Pregunta lo que necesites sobre la comunidad.</p>
             )}
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`${styles.messageRow} ${
+                  message.role === 'user' ? styles.messageRowUser : styles.messageRowAssistant
+                }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${
+                  className={`${styles.messageBubble} ${
                     message.role === 'user'
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
+                      ? styles.messageBubbleUser
+                      : styles.messageBubbleAssistant
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <p className={styles.messageText}>{message.content}</p>
+
                   {message.role === 'assistant' && message.toolCalls.length > 0 && (
-                    <div className="mt-2 space-y-1">
+                    <div className={styles.traceContainer}>
                       {message.toolCalls.map((toolCall, index) => (
-                        <div key={index} className="text-xs opacity-80">
-                          <span className="font-medium">Herramienta:</span> {toolLabel(toolCall.name)}
+                        <div key={index} className={styles.traceItem}>
+                          <span className={styles.traceItemBold}>Herramienta:</span>{' '}
+                          {toolLabel(toolCall.name)}
                         </div>
                       ))}
                     </div>
@@ -272,16 +281,16 @@ export function AiAssistantDrawer({
               </div>
             ))}
             {sending && (
-              <div className="flex justify-start">
-                <div className="rounded-card bg-slate-100 px-3 py-2 dark:bg-slate-800">
+              <div className={styles.loadingRow}>
+                <div className={styles.loadingBubble}>
                   <Spinner />
                 </div>
               </div>
             )}
-            {error && <p className="text-sm text-danger-600">{error}</p>}
+            {error && <p className={styles.errorText}>{error}</p>}
           </div>
           <form
-            className="mt-2 flex gap-2"
+            className={styles.inputForm}
             onSubmit={(e) => {
               e.preventDefault()
               void send(input)

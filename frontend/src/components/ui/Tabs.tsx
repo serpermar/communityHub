@@ -1,18 +1,13 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { t } from '@/i18n'
 import { cn } from '@/utils/cn'
+import styles from './Tabs.module.css'
 
 export interface TabItem<T extends string> {
   value: T
   label: ReactNode
 }
 
-/**
- * Pestañas accesibles (patrón ARIA tabs) sobre botones. La navegacion con
- * flechas mueve el foco (roving tabindex) y selecciona al instante; `Inicio`/`Fin`
- * saltan a los extremos. El estado lo controla quien usa el componente, de modo
- * que la pestaña activa se pueda persistir en la URL.
- */
 export function Tabs<T extends string>({
   items,
   value,
@@ -55,7 +50,7 @@ export function Tabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel ?? t('app.tabs')}
-      className={cn('flex gap-2', className)}
+      className={cn(styles.tablist, className)}
     >
       {items.map((item, index) => {
         const selected = item.value === value
@@ -73,12 +68,7 @@ export function Tabs<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
-            className={cn(
-              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              selected
-                ? 'bg-brand-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
-            )}
+            className={cn(styles.tab, selected && styles.tabSelected)}
           >
             {item.label}
           </button>
@@ -88,7 +78,6 @@ export function Tabs<T extends string>({
   )
 }
 
-/** Panel asociado a una pestaña de `Tabs`. */
 export function TabPanel({
   value,
   active,

@@ -11,6 +11,7 @@ import {
 } from '../api'
 import { notificationLink } from '../links'
 import type { Notification } from '../types'
+import styles from './NotificationBell.module.css'
 
 const POLL_MS = 60000
 
@@ -121,7 +122,7 @@ export function NotificationBell() {
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={styles.container}>
       <button
         ref={triggerRef}
         type="button"
@@ -130,9 +131,9 @@ export function NotificationBell() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? 'notifications-panel' : undefined}
-        className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        className={styles.trigger}
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.icon}>
           <path
             strokeWidth="1.7"
             strokeLinecap="round"
@@ -140,11 +141,7 @@ export function NotificationBell() {
             d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h11m0 0a3 3 0 1 1-6 0"
           />
         </svg>
-        {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-            {count > 9 ? '9+' : count}
-          </span>
-        )}
+        {count > 0 && <span className={styles.badge}>{count > 9 ? '9+' : count}</span>}
       </button>
 
       {open && (
@@ -153,54 +150,46 @@ export function NotificationBell() {
           id="notifications-panel"
           role="dialog"
           aria-label={t('notifications.title')}
-          className="absolute right-0 z-40 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          className={styles.panel}
         >
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {t('notifications.title')}
-            </span>
+          <div className={styles.panelHeader}>
+            <span className={styles.panelTitle}>{t('notifications.title')}</span>
             <button
               type="button"
-              className="text-xs text-brand-700 hover:underline disabled:text-slate-400 dark:text-brand-400"
+              className={styles.markAllButton}
               onClick={() => void readAll()}
               disabled={count === 0}
             >
               {t('notifications.markAll')}
             </button>
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className={styles.listScroll}>
             {loading ? (
-              <div className="flex justify-center py-6">
+              <div className={styles.loadingContainer}>
                 <Spinner />
               </div>
             ) : items.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                {t('notifications.empty')}
-              </p>
+              <p className={styles.emptyText}>{t('notifications.empty')}</p>
             ) : (
-              <ul>
+              <ul className={styles.list}>
                 {items.map((notification) => (
                   <li key={notification.id}>
                     <button
                       type="button"
                       onClick={() => void openOne(notification)}
-                      className="flex w-full flex-col gap-0.5 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                      className={styles.itemButton}
                     >
-                      <span className="flex items-center gap-2">
+                      <span className={styles.itemHeader}>
                         {!notification.readAt && (
                           <span
-                            className="h-2 w-2 rounded-full bg-brand-600"
+                            className={styles.unreadDot}
                             aria-label={t('notifications.unread')}
                           />
                         )}
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                          {notification.title}
-                        </span>
+                        <span className={styles.itemTitle}>{notification.title}</span>
                       </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {notification.body}
-                      </span>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                      <span className={styles.itemBody}>{notification.body}</span>
+                      <span className={styles.itemDate}>
                         {formatDateTime(notification.createdAt)}
                       </span>
                     </button>
@@ -209,10 +198,10 @@ export function NotificationBell() {
               </ul>
             )}
           </div>
-          <div className="border-t border-slate-100 px-3 py-2 text-center dark:border-slate-800">
+          <div className={styles.panelFooter}>
             <button
               type="button"
-              className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-400"
+              className={styles.viewAllButton}
               onClick={() => {
                 setOpen(false)
                 navigate('/notifications')

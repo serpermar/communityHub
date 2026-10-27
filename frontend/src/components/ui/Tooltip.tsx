@@ -1,12 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
+import styles from './Tooltip.module.css'
 
-/**
- * Tooltip accesible para botones/iconos sin etiqueta visible. Se muestra al
- * pasar el ratón o al enfocar con el teclado, y se oculta con Escape. Usa
- * `role="tooltip"` + `aria-describedby` para que los lectores de pantalla lo
- * anuncien.
- */
 export function Tooltip({
   label,
   children,
@@ -21,7 +16,7 @@ export function Tooltip({
 
   return (
     <span
-      className={cn('relative inline-flex', className)}
+      className={cn(styles.wrapper, className)}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
@@ -32,11 +27,7 @@ export function Tooltip({
     >
       <span aria-describedby={open ? id : undefined}>{children}</span>
       {open && (
-        <span
-          id={id}
-          role="tooltip"
-          className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-control bg-slate-900 px-2 py-1 text-meta text-white shadow-overlay dark:bg-slate-100 dark:text-slate-900"
-        >
+        <span id={id} role="tooltip" className={styles.tooltip}>
           {label}
         </span>
       )}

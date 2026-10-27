@@ -1,0 +1,104 @@
+.page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 36rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Bloque IA */
+.aiHint {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .aiHint {
+  color: #94a3b8;
+}
+
+.aiActions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.aiActionsRight {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.aiActionsEnd {
+  margin-left: auto;
+}
+
+/* Tarjeta de propuesta IA */
+.proposal {
+  margin-top: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #ddd6fe;
+  background-color: #f5f3ff;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+:global(.dark) .proposal {
+  border-color: #4c1d95;
+  background-color: rgba(46, 16, 101, 0.4);
+}
+
+.proposalBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.proposalConfidence {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .proposalConfidence {
+  color: #94a3b8;
+}
+
+.proposalTitle {
+  margin: 0.5rem 0 0;
+  color: #334155;
+}
+
+:global(.dark) .proposalTitle {
+  color: #e2e8f0;
+}
+
+/* Formulario */
+.errorWrapper {
+  margin-bottom: 1rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.formRow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .formRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

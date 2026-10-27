@@ -36,6 +36,7 @@ import {
   updateMember,
 } from '../api'
 import { MEMBER_STATUS_LABELS, MEMBER_STATUSES, type Member, type MemberStatus } from '../types'
+import styles from './MembersPage.module.css'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PAGE_SIZE = 10
@@ -57,9 +58,6 @@ export function MembersPage() {
     [active?.id, isAdmin],
   )
 
-  // La API de miembros no pagina (devuelve el padron completo), asi que la
-  // busqueda y el troceado en paginas se hacen en el cliente. `app_list_community_members`
-  // no admite filtros, y no se toca SQL por una mejora de UI.
   const filtered = useMemo(() => {
     const term = (deferredSearch ?? '').trim().toLowerCase()
     const all = members.data ?? []
@@ -180,7 +178,7 @@ export function MembersPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title={t('nav.members')}
         actions={isAdmin && <Button onClick={() => setInviteOpen(true)}>Invitar</Button>}
@@ -194,13 +192,9 @@ export function MembersPage() {
           placeholder="Buscar por nombre, correo o vivienda…"
           value={search}
           onChange={(event) => setFilter('q', event.target.value)}
-          className="sm:max-w-sm"
+          className={styles.searchInput}
         />
-        <p
-          role="status"
-          aria-live="polite"
-          className="mt-2 text-meta text-slate-500 dark:text-slate-400"
-        >
+        <p role="status" aria-live="polite" className={styles.searchCount}>
           {members.loading
             ? 'Cargando miembros…'
             : `${filtered.length} ${filtered.length === 1 ? 'miembro' : 'miembros'}${
@@ -223,7 +217,10 @@ export function MembersPage() {
               sort={sort}
               onSortChange={setSort}
               empty={
-                <EmptyState icon={<EmptyBoxIcon className="h-6 w-6" />} title="No hay miembros" />
+                <EmptyState
+                  icon={<EmptyBoxIcon className={styles.emptyIcon} />}
+                  title="No hay miembros"
+                />
               }
             />
           </Card>
@@ -241,15 +238,12 @@ export function MembersPage() {
           {invitations.loading ? (
             <SkeletonList rows={1} />
           ) : invitations.data && invitations.data.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className={styles.invitationList}>
               {invitations.data.map((invitation) => (
-                <li
-                  key={invitation.id}
-                  className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2 text-sm dark:border-slate-800"
-                >
+                <li key={invitation.id} className={styles.invitationRow}>
                   <div>
-                    <p className="text-slate-700 dark:text-slate-200">{invitation.email}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                    <p className={styles.invitationEmail}>{invitation.email}</p>
+                    <p className={styles.invitationMeta}>
                       {invitation.acceptedAt
                         ? `Aceptada el ${formatDate(invitation.acceptedAt)}`
                         : `Caduca el ${formatDate(invitation.expiresAt)}`}
@@ -272,23 +266,19 @@ export function MembersPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              No hay invitaciones pendientes.
-            </p>
+            <p className={styles.emptyInvitations}>No hay invitaciones pendientes.</p>
           )}
         </Card>
       )}
 
       <Modal open={inviteOpen} title="Invitar a la comunidad" onClose={() => setInviteOpen(false)}>
         {createdCode ? (
-          <div className="space-y-3">
+          <div className={styles.inviteContent}>
             <Alert variant="success">
               Invitación creada. Copia el código y compártelo: solo se muestra una vez.
             </Alert>
-            <code className="block break-all rounded-md bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-100">
-              {createdCode}
-            </code>
-            <div className="flex justify-end">
+            <code className={styles.inviteCode}>{createdCode}</code>
+            <div className={styles.inviteFooter}>
               <Button
                 onClick={() => {
                   setCreatedCode(null)
@@ -300,7 +290,7 @@ export function MembersPage() {
             </div>
           </div>
         ) : (
-          <form className="space-y-3" onSubmit={onInvite} noValidate>
+          <form className={styles.inviteContent} onSubmit={onInvite} noValidate>
             <Field
               label="Correo del invitado"
               htmlFor="invite-email"
@@ -316,7 +306,7 @@ export function MembersPage() {
                 })}
               />
             </Field>
-            <div className="flex justify-end gap-2">
+            <div className={styles.inviteFooter}>
               <Button type="button" variant="secondary" onClick={() => setInviteOpen(false)}>
                 Cancelar
               </Button>

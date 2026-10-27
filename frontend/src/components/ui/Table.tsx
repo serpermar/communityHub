@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 import { Button } from './Button'
+import styles from './Table.module.css'
 
 export interface Column<T> {
   key: string
   header: ReactNode
   render: (row: T) => ReactNode
   className?: string
-  /** Habilita el orden por esta columna al pulsar su cabecera. */
   sortable?: boolean
-  /** Clave de orden; por defecto se intenta a partir de `render` (string). */
   sortValue?: (row: T) => string | number
 }
 
@@ -21,7 +20,6 @@ export interface SortState {
 
 const TABLE_DENSITY_KEY = 'communityhub.tableDensity'
 
-/** Compara dos valores de forma estable y consciente de acentos/case. */
 function compare(a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b
   return String(a ?? '').localeCompare(String(b ?? ''), 'es', { sensitivity: 'base' })
@@ -45,26 +43,17 @@ export function DataTable<T>({
   rows: T[]
   rowKey: (row: T) => string
   empty?: ReactNode
-  /** Muestra una columna de seleccion con checkboxes. */
   selectable?: boolean
-  /** Claves seleccionadas (controlado). */
   selectedKeys?: string[]
-  /** Notifica el nuevo conjunto de claves seleccionadas. */
   onSelectionChange?: (keys: string[]) => void
-  /** Orden inicial (no controlado). */
   initialSort?: SortState
-  /** Orden controlado (p. ej. desde la URL). */
   sort?: SortState | null
-  /** Notifica cambios de orden cuando es controlado. */
   onSortChange?: (sort: SortState | null) => void
-  /** Fuerza densidad (sino usa persistencia global). */
   dense?: boolean
-  /** Barra de acciones masivas que se muestra al haber seleccionados. */
   bulkActions?: (selected: string[]) => ReactNode
 }) {
   const [sortState, setSortState] = useState<SortState | null>(initialSort ?? null)
   const sort = sortProp !== undefined ? sortProp : sortState
-  // setSort mantenido por compatibilidad si se usa externamente; usar toggleSort
 
   const [denseState, setDenseState] = useState(
     () =>
@@ -76,7 +65,8 @@ export function DataTable<T>({
     window.localStorage.setItem(TABLE_DENSITY_KEY, denseState ? 'compact' : 'comfortable')
   }, [denseState, denseProp])
 
-  const cellPadding = dense ? 'px-2 py-1' : 'px-3 py-2'
+  const cellPadding = dense ? styles.bodyCellDense : styles.bodyCell
+  const headCellPadding = dense ? styles.headCellDense : styles.headCell
 
   const sortedRows = useMemo(() => {
     const currentSort = sort
@@ -129,8 +119,8 @@ export function DataTable<T>({
   if (rows.length === 0 && empty) return <>{empty}</>
 
   return (
-    <div className="w-full">
-      <div className="mb-2 flex justify-end">
+    <div className={styles.wrapper}>
+      <div className={styles.densityBar}>
         <Button
           variant="ghost"
           size="sm"
@@ -140,18 +130,18 @@ export function DataTable<T>({
           {dense ? 'Densidad: compacta' : 'Densidad: cómoda'}
         </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-sm">
+      <div className={styles.tableScroll}>
+        <table className={styles.table}>
           <thead>
-            <tr className="border-b border-slate-200 text-meta uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <tr className={styles.headRow}>
               {selectable && (
-                <th className="w-10 px-3 py-2 font-medium">
+                <th className={styles.checkboxCell}>
                   <input
                     type="checkbox"
                     aria-label="Seleccionar todo"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="h-4 w-4 rounded-control border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
+                    className={styles.checkbox}
                   />
                 </th>
               )}
@@ -163,16 +153,16 @@ export function DataTable<T>({
                     aria-sort={
                       isSorted ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined
                     }
-                    className={cn(cellPadding, 'font-medium', column.className)}
+                    className={cn(headCellPadding, column.className)}
                   >
                     {column.sortable ? (
                       <button
                         type="button"
                         onClick={() => toggleSort(column.key)}
-                        className="inline-flex items-center gap-1 rounded-control hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:text-slate-200"
+                        className={styles.sortButton}
                       >
                         {column.header}
-                        <span aria-hidden="true" className="text-[0.65rem]">
+                        <span aria-hidden="true" className={styles.sortIcon}>
                           {isSorted ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}
                         </span>
                       </button>
@@ -191,24 +181,21 @@ export function DataTable<T>({
               return (
                 <tr
                   key={key}
-                  className={cn(
-                    'border-b border-slate-100 last:border-0 dark:border-slate-800',
-                    selectable && isSelected && 'bg-brand-50 dark:bg-brand-950/40',
-                  )}
+                  className={cn(styles.bodyRow, selectable && isSelected && styles.bodyRowSelected)}
                 >
                   {selectable && (
-                    <td className={cn(cellPadding, 'align-top')}>
+                    <td className={dense ? styles.bodyCellCheckboxDense : styles.bodyCellCheckbox}>
                       <input
                         type="checkbox"
                         aria-label="Seleccionar fila"
                         checked={isSelected}
                         onChange={() => toggleRow(key)}
-                        className="h-4 w-4 rounded-control border-slate-300 text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-600"
+                        className={styles.checkbox}
                       />
                     </td>
                   )}
                   {columns.map((column) => (
-                    <td key={column.key} className={cn(cellPadding, 'align-top', column.className)}>
+                    <td key={column.key} className={cn(cellPadding, column.className)}>
                       {column.render(row)}
                     </td>
                   ))}
@@ -222,11 +209,6 @@ export function DataTable<T>({
   )
 }
 
-/**
- * Extrae texto plano de un nodo React para poder ordenar aunque la columna no
- * declare `sortValue`. Es una red de seguridad: lo ideal es declarar
- * `sortValue` en la columna (mas barato y mas preciso).
- */
 function extractText(node: ReactNode): string {
   if (node == null || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
@@ -255,10 +237,8 @@ export function Pagination({
   pageSizeOptions?: number[]
   onPageSize?: (size: number) => void
 }) {
-  // Con una sola página y sin control de tamaño no hay nada que mostrar.
   if (totalPages <= 1 && !onPageSize) return null
 
-  // Ventana de páginas alrededor de la actual, con "…" en los extremos.
   const windowSize = 5
   let start = Math.max(1, page - Math.floor(windowSize / 2))
   const end = Math.min(totalPages, start + windowSize - 1)
@@ -267,25 +247,22 @@ export function Pagination({
   for (let value = start; value <= end; value += 1) pages.push(value)
 
   return (
-    <nav
-      aria-label="Paginación"
-      className="flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-slate-600 dark:text-slate-300"
-    >
+    <nav aria-label="Paginación" className={styles.pagination}>
       <span>
         Página {page} de {totalPages}
         {typeof total === 'number' && (
-          <span className="text-slate-400 dark:text-slate-500"> · {total} en total</span>
+          <span className={styles.totalLabel}> · {total} en total</span>
         )}
       </span>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={styles.paginationControls}>
         {onPageSize && pageSizeOptions && pageSize && (
-          <label className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+          <label className={styles.pageSizeLabel}>
             Por página
             <select
               value={pageSize}
               onChange={(event) => onPageSize(Number(event.target.value))}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className={styles.pageSizeSelect}
             >
               {pageSizeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -297,7 +274,7 @@ export function Pagination({
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center gap-1">
+          <div className={styles.pageButtons}>
             <Button
               variant="secondary"
               size="sm"

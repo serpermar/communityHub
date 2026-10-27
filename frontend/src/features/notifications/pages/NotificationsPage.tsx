@@ -20,6 +20,7 @@ import { formatDateTime } from '@/utils/format'
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../api'
 import { notificationLink } from '../links'
 import type { Notification } from '../types'
+import styles from './NotificationsPage.module.css'
 
 /**
  * Bandeja completa de notificaciones (el punto 5 del listado de mejoras).
@@ -67,7 +68,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title={t('notifications.pageTitle')}
         actions={
@@ -82,7 +83,7 @@ export function NotificationsPage() {
           aria-label="Filtro"
           value={unread ? 'unread' : 'all'}
           onChange={(event) => setFilter('filter', event.target.value)}
-          className="sm:w-64"
+          className={styles.filterSelect}
         >
           <option value="all">{t('notifications.all')}</option>
           <option value="unread">{t('notifications.onlyUnread')}</option>
@@ -98,35 +99,31 @@ export function NotificationsPage() {
       ) : result.data ? (
         result.data.data.length === 0 ? (
           <EmptyState
-            icon={<EmptyBellIcon className="h-6 w-6" />}
+            icon={<EmptyBellIcon className={styles.emptyIcon} />}
             title={t('notifications.empty')}
           />
         ) : (
           <>
             <Card>
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              <ul className={styles.list}>
                 {result.data.data.map((notification) => (
-                  <li key={notification.id}>
+                  <li key={notification.id} className={styles.itemRow}>
                     <button
                       type="button"
                       onClick={() => void open(notification)}
-                      className="flex w-full flex-col gap-0.5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                      className={styles.itemButton}
                     >
-                      <span className="flex items-center gap-2">
+                      <span className={styles.itemHeader}>
                         {!notification.readAt && (
                           <span
-                            className="h-2 w-2 rounded-full bg-brand-600"
+                            className={styles.unreadDot}
                             aria-label={t('notifications.unread')}
                           />
                         )}
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                          {notification.title}
-                        </span>
+                        <span className={styles.itemTitle}>{notification.title}</span>
                       </span>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {notification.body}
-                      </span>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                      <span className={styles.itemBody}>{notification.body}</span>
+                      <span className={styles.itemDate}>
                         {formatDateTime(notification.createdAt)}
                       </span>
                     </button>

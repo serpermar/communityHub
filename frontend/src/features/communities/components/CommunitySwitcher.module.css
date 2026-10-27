@@ -1,0 +1,115 @@
+.wrapper {
+  position: relative;
+}
+
+.input {
+  width: 8rem;
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: inherit;
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
+}
+
+@media (min-width: 640px) {
+  .input {
+    width: 12rem;
+  }
+}
+
+:global(.dark) .input {
+  border-color: #334155;
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+.listbox {
+  position: absolute;
+  z-index: 50;
+  margin: 0.25rem 0 0;
+  max-height: 16rem;
+  width: 14rem;
+  overflow-y: auto;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  padding: 0.25rem 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+:global(.dark) .listbox {
+  border-color: #334155;
+  background-color: #1e293b;
+}
+
+.emptyItem {
+  padding: 0.5rem 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptyItem {
+  color: #94a3b8;
+}
+
+.optionButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.optionButton:hover {
+  background-color: #f8fafc;
+}
+
+:global(.dark) .optionButton:hover {
+  background-color: rgba(51, 65, 85, 0.5);
+}
+
+.optionHighlighted,
+.optionHighlighted:hover {
+  background-color: #f1f5f9;
+}
+
+:global(.dark) .optionHighlighted,
+:global(.dark) .optionHighlighted:hover {
+  background-color: #334155;
+}
+
+.optionActive {
+  font-weight: 500;
+  color: var(--brand-700, #1d4ed8);
+}
+
+:global(.dark) .optionActive {
+  color: var(--brand-300, #93c5fd);
+}
+
+.checkmark {
+  color: var(--brand-600, #2563eb);
+}
+
+:global(.dark) .checkmark {
+  color: var(--brand-400, #60a5fa);
+}

@@ -1,0 +1,74 @@
+.page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 42rem;
+}
+
+.card {
+  margin-top: 1rem;
+}
+
+.errorWrapper {
+  margin-bottom: 1rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formRow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .formRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .checkboxLabel {
+  color: #e2e8f0;
+}
+
+.optionsFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.legend {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  padding: 0;
+}
+
+:global(.dark) .legend {
+  color: #e2e8f0;
+}
+
+.optionRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

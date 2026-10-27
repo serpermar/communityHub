@@ -12,6 +12,7 @@ import {
   type IncidentStatus,
 } from '../types'
 import { formatDate } from '@/utils/format'
+import styles from './IncidentKanban.module.css'
 
 const KANBAN_COLUMNS: IncidentStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED']
 
@@ -45,54 +46,48 @@ export function IncidentKanban({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className={styles.board}>
       {grouped.map((col) => (
-        <section
-          key={col.status}
-          className="rounded-card border border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40"
-        >
-          <header className="flex items-center justify-between px-3 py-2">
-            <div className="flex items-center gap-2">
+        <section key={col.status} className={styles.column}>
+          <header className={styles.columnHeader}>
+            <div className={styles.columnTitle}>
               <Badge tone={INCIDENT_STATUS_TONES[col.status]}>{STATUS_LABELS[col.status]}</Badge>
-              <span className="text-xs text-slate-500">{col.items.length}</span>
+              <span className={styles.columnCount}>{col.items.length}</span>
             </div>
           </header>
-          <div className="flex flex-col gap-2 p-2">
-            {col.items.length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-slate-400">Sin incidencias</p>
-            )}
+          <div className={styles.columnBody}>
+            {col.items.length === 0 && <p className={styles.emptyColumn}>Sin incidencias</p>}
             {col.items.map((incident) => (
-              <article
-                key={incident.id}
-                className="rounded-card border border-slate-200 bg-surface p-3 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
-              >
+              <article key={incident.id} className={styles.card}>
                 <button
-                  className="text-left text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
+                  className={styles.cardTitle}
                   onClick={() => navigate(`/c/${active!.id}/incidents/${incident.id}`)}
                 >
                   {incident.title}
                 </button>
-                <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
-                  <span className="font-mono text-slate-400">{incident.referenceCode}</span>
+                <div className={styles.cardMeta}>
+                  <span className={styles.cardRef}>{incident.referenceCode}</span>
                   <Badge tone={INCIDENT_PRIORITY_TONES[incident.priority]}>
                     {PRIORITY_LABELS[incident.priority]}
                   </Badge>
-                  <span className="text-slate-400">{CATEGORY_LABELS[incident.category]}</span>
+                  <span className={styles.cardCategory}>{CATEGORY_LABELS[incident.category]}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{formatDate(incident.createdAt)}</p>
+                <p className={styles.cardDate}>{formatDate(incident.createdAt)}</p>
                 {canTransition && col.status !== 'CANCELLED' && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {INCIDENT_STATUSES.filter((s) => s !== col.status && s !== 'CANCELLED').map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant="ghost"
-                        loading={updating === incident.id}
-                        onClick={() => move(incident.id, s)}
-                      >
-                        → {STATUS_LABELS[s]}
-                      </Button>
-                    ))}
+                  <div className={styles.cardActions}>
+                    {INCIDENT_STATUSES.filter((s) => s !== col.status && s !== 'CANCELLED').map(
+                      (s) => (
+                        <Button
+                          key={s}
+                          size="sm"
+                          variant="ghost"
+                          loading={updating === incident.id}
+                          onClick={() => move(incident.id, s)}
+                        >
+                          → {STATUS_LABELS[s]}
+                        </Button>
+                      ),
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"

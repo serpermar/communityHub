@@ -5,7 +5,6 @@ import { t } from '@/i18n'
 import { visibleNavItems } from '@/routes/navItems'
 import { prefetchRoute } from '@/routes/prefetch'
 import type { MemberRole } from '@/types/roles'
-import { cn } from '@/utils/cn'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { listIncidents } from '@/features/incidents/api'
 import { listDocuments } from '@/features/documents/api'
@@ -15,6 +14,7 @@ import type { Incident } from '@/features/incidents/types'
 import type { CommunityDocument } from '@/features/documents/types'
 import type { Announcement } from '@/features/announcements/types'
 import type { Member } from '@/features/members/types'
+import styles from './CommandPalette.module.css'
 
 type CommandItem =
   | { type: 'nav'; segment: string; label: string }
@@ -91,7 +91,11 @@ export function CommandPalette({
           const lower = needle.toLowerCase()
           setMembers(
             memRes.value
-              .filter((m) => (m.fullName?.toLowerCase().includes(lower) ?? false) || (m.email?.toLowerCase().includes(lower) ?? false))
+              .filter(
+                (m) =>
+                  (m.fullName?.toLowerCase().includes(lower) ?? false) ||
+                  (m.email?.toLowerCase().includes(lower) ?? false),
+              )
               .slice(0, 5),
           )
         }
@@ -99,7 +103,6 @@ export function CommandPalette({
       .finally(() => setLoadingEntities(false))
   }, [open, communityId, debouncedQuery])
 
-  // Atajo global Cmd/Ctrl+K.
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -113,7 +116,6 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onOpenChange])
 
-  // Al abrir: guarda el foco previo, enfoca el input y resetea la busqueda.
   useEffect(() => {
     if (!open) return
     restoreRef.current = document.activeElement as HTMLElement | null
@@ -153,7 +155,6 @@ export function CommandPalette({
     return result
   }, [navItems, incidents, documents, announcements, members])
 
-  // Precarga el chunk de la opcion resaltada, para que Enter navegue sin espera.
   useEffect(() => {
     const item = allItems[highlight]
     if (item && item.type === 'nav') prefetchRoute(item.segment)
@@ -203,13 +204,13 @@ export function CommandPalette({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[15vh]">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={close} aria-hidden="true" />
+    <div className={styles.overlay}>
+      <div className={styles.backdrop} onClick={close} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t('app.commandPalette')}
-        className="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        className={styles.dialog}
       >
         <input
           ref={inputRef}
@@ -228,17 +229,19 @@ export function CommandPalette({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={onKeyDown}
-          className="w-full border-b border-slate-200 bg-transparent px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:border-slate-700 dark:text-slate-100"
+          className={styles.input}
         />
         <ul
           id="command-listbox"
           role="listbox"
           aria-label={t('app.commandPalette')}
-          className="max-h-72 overflow-y-auto py-1"
+          className={styles.list}
         >
           {allItems.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-              {query.trim().length >= 2 && loadingEntities ? 'Buscando...' : t('app.commandNoResults')}
+            <li className={styles.emptyItem}>
+              {query.trim().length >= 2 && loadingEntities
+                ? 'Buscando...'
+                : t('app.commandNoResults')}
             </li>
           ) : (
             allItems.map((item, index) => {
@@ -253,10 +256,7 @@ export function CommandPalette({
                       aria-selected={index === highlight}
                       onMouseEnter={() => setHighlight(index)}
                       onClick={() => choose(item)}
-                      className={cn(
-                        'flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200',
-                        index === highlight && 'bg-slate-100 dark:bg-slate-800',
-                      )}
+                      className={`${styles.navOption} ${index === highlight ? styles.optionHighlighted : ''}`}
                     >
                       {Icon && <Icon aria-hidden="true" />}
                       {item.label}
@@ -272,13 +272,10 @@ export function CommandPalette({
                     aria-selected={index === highlight}
                     onMouseEnter={() => setHighlight(index)}
                     onClick={() => choose(item)}
-                    className={cn(
-                      'flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200',
-                      index === highlight && 'bg-slate-100 dark:bg-slate-800',
-                    )}
+                    className={`${styles.entityOption} ${index === highlight ? styles.optionHighlighted : ''}`}
                   >
-                    <span className="font-medium">{item.title}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{item.subtitle}</span>
+                    <span className={styles.entityTitle}>{item.title}</span>
+                    <span className={styles.entitySubtitle}>{item.subtitle}</span>
                   </button>
                 </li>
               )

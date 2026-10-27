@@ -1,0 +1,184 @@
+/* Contenedor principal */
+.page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Botón "Volver" */
+.backButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  align-self: flex-start;
+  font-size: 0.875rem;
+  color: #64748b;
+  transition: color 150ms ease-in-out;
+}
+
+.backButton:hover {
+  color: var(--brand-700, #1d4ed8);
+}
+
+:global(.dark) .backButton {
+  color: #94a3b8;
+}
+
+:global(.dark) .backButton:hover {
+  color: var(--brand-400, #60a5fa);
+}
+
+/* Cabecera de la card */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Título principal */
+.title {
+  font-size: var(--text-page-title-size, 1.5rem);
+  line-height: var(--text-page-title-leading, 2rem);
+  color: #1e293b;
+  margin: 0;
+}
+
+:global(.dark) .title {
+  color: #f1f5f9;
+}
+
+/* Meta bajo el título */
+.meta {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .meta {
+  color: #94a3b8;
+}
+
+/* Envoltorio con margen superior */
+.mt4 {
+  margin-top: 1rem;
+}
+
+.mt3 {
+  margin-top: 0.75rem;
+}
+
+/* Grid de franjas horarias */
+.slotsGrid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .slotsGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Botón de franja base */
+.slotButton {
+  border-radius: 0.375rem;
+  border: 1px solid;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  background-color: white;
+  color: inherit;
+  border-color: #cbd5e1;
+  transition: border-color 150ms ease-in-out;
+}
+
+.slotButton:hover {
+  border-color: var(--brand-400, #60a5fa);
+}
+
+:global(.dark) .slotButton {
+  border-color: #334155;
+  background-color: #0f172a;
+}
+
+/* Franja ocupada (no clickable) */
+.slotButtonOccupied {
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  background-color: #f1f5f9;
+  color: #94a3b8;
+}
+
+.slotButtonOccupied:hover {
+  border-color: #e2e8f0;
+}
+
+:global(.dark) .slotButtonOccupied {
+  border-color: #1e293b;
+  background-color: #1e293b;
+  color: #64748b;
+}
+
+:global(.dark) .slotButtonOccupied:hover {
+  border-color: #1e293b;
+}
+
+/* Franja seleccionada */
+.slotButtonSelected {
+  border-color: var(--brand-600, #2563eb);
+  background-color: var(--brand-50, #eff6ff);
+  color: var(--brand-700, #1d4ed8);
+}
+
+.slotButtonSelected:hover {
+  border-color: var(--brand-600, #2563eb);
+}
+
+:global(.dark) .slotButtonSelected {
+  border-color: var(--brand-400, #60a5fa);
+  background-color: var(--brand-950, #172554);
+  color: var(--brand-300, #93c5fd);
+}
+
+/* Texto "no hay franjas" */
+.emptySlots {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptySlots {
+  color: #94a3b8;
+}
+
+/* Rango de fechas seleccionado */
+.selectedRange {
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .selectedRange {
+  color: #cbd5e1;
+}
+
+/* Formulario de reserva */
+.reserveForm {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+}

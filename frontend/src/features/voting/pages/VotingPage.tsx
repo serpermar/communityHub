@@ -21,6 +21,7 @@ import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { formatDateTime } from '@/utils/format'
 import { listVotes } from '../api'
 import { VOTE_STATUS_LABELS, VOTE_STATUSES, type Vote, type VoteStatus } from '../types'
+import styles from './VotingPage.module.css'
 
 export function VotingPage() {
   const navigate = useNavigate()
@@ -45,10 +46,7 @@ export function VotingPage() {
       sortable: true,
       sortValue: (vote) => vote.title,
       render: (vote) => (
-        <Link
-          to={`/c/${active!.id}/votes/${vote.id}`}
-          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
-        >
+        <Link to={`/c/${active!.id}/votes/${vote.id}`} className={styles.titleLink}>
           {vote.title}
         </Link>
       ),
@@ -81,7 +79,7 @@ export function VotingPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Votaciones"
         actions={
@@ -96,7 +94,7 @@ export function VotingPage() {
           aria-label="Estado"
           value={status}
           onChange={(event) => setFilter('status', event.target.value)}
-          className="sm:w-64"
+          className={styles.filterSelect}
         >
           <option value="">Todas</option>
           {VOTE_STATUSES.map((value) => (
@@ -120,7 +118,7 @@ export function VotingPage() {
               rowKey={(row) => row.id}
               empty={
                 <EmptyState
-                  icon={<EmptyBoxIcon className="h-6 w-6" />}
+                  icon={<EmptyBoxIcon className={styles.emptyIcon} />}
                   title="No hay votaciones"
                   description="Crea una votación para consultar a la comunidad."
                   action={

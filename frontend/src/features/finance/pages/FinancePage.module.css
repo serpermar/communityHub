@@ -1,0 +1,131 @@
+/* Layout principal de la página */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Layout de las pestañas de Expenses/Invoices */
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* --- Summary --- */
+
+.summaryGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cardTitle {
+  font-size: var(--text-section-title-size, 1.25rem);
+  line-height: var(--text-section-title-leading, 1.75rem);
+}
+
+.summaryValue {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+:global(.dark) .summaryValue {
+  color: #f1f5f9;
+}
+
+.summaryMeta {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .summaryMeta {
+  color: #94a3b8;
+}
+
+.summaryList {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .summaryList {
+  color: #cbd5e1;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* --- Acciones comunes (botones) --- */
+
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* --- Cabecera de la pestaña Invoices --- */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+:global(.dark) .sectionTitle {
+  color: #f1f5f9;
+}
+
+/* --- Formularios de modales --- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formRow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .formRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,53 @@
+/* Contenedor principal */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Enlace de la tabla (nombre de la zona) */
+.nameLink {
+  font-weight: 500;
+  color: var(--brand-700, #1d4ed8);
+  text-decoration: none;
+}
+
+.nameLink:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .nameLink {
+  color: var(--brand-400, #60a5fa);
+}
+
+/* Envoltorio del error del modal */
+.modalError {
+  margin-bottom: 0.75rem;
+}
+
+/* Formulario del modal */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Etiqueta del checkbox */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .checkboxLabel {
+  color: #e2e8f0;
+}
+
+/* Footer del modal */
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

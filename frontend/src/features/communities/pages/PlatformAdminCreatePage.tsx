@@ -6,6 +6,7 @@ import { Alert, Button, Card, Field, Input, PageHeader } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { createCommunity } from '../api'
 import { createCommunitySchema, type CreateCommunityForm } from '../schemas'
+import styles from './PlatformAdminCreatePage.module.css'
 
 export function PlatformAdminCreatePage() {
   const navigate = useNavigate()
@@ -34,19 +35,19 @@ export function PlatformAdminCreatePage() {
   })
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className={styles.page}>
       <PageHeader
         title="Nueva comunidad"
         description="Se te asignará como primer administrador de la comunidad creada."
       />
 
-      <Card className="mt-4">
+      <Card className={styles.card}>
         {serverError && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{serverError}</Alert>
           </div>
         )}
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Nombre" htmlFor="name" error={errors.name?.message} required>
             <Input id="name" {...register('name')} />
           </Field>
@@ -73,7 +74,7 @@ export function PlatformAdminCreatePage() {
           <Field label="Descripción" htmlFor="description" error={errors.description?.message}>
             <Input id="description" {...register('description')} />
           </Field>
-          <div className="flex justify-end gap-2">
+          <div className={styles.formFooter}>
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
               Cancelar
             </Button>

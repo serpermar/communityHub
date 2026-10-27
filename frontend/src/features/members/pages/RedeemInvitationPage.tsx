@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, Field, Input, PageHeader } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { redeemInvitation } from '../api'
+import styles from './RedeemInvitationPage.module.css'
 
 export function RedeemInvitationPage() {
   const navigate = useNavigate()
@@ -31,28 +32,28 @@ export function RedeemInvitationPage() {
   })
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className={styles.page}>
       <PageHeader
         title="Canjear invitación"
         description="Pega el código que te ha compartido el administrador de la comunidad."
       />
 
-      <Card className="mt-4">
+      <Card className={styles.card}>
         {serverError && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{serverError}</Alert>
           </div>
         )}
         {done && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="success">{done}</Alert>
           </div>
         )}
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Código de invitación" htmlFor="code" error={errors.code?.message} required>
             <Input id="code" {...register('code', { required: 'El código es obligatorio.' })} />
           </Field>
-          <div className="flex justify-end gap-2">
+          <div className={styles.formFooter}>
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
               Volver
             </Button>

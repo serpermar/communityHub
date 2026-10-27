@@ -34,6 +34,7 @@ import {
 } from '../types'
 import { IncidentKanban } from '../components/IncidentKanban'
 import { IncidentCalendar } from '../components/IncidentCalendar'
+import styles from './IncidentListPage.module.css'
 
 export function IncidentListPage() {
   const { active, role } = useCommunity()
@@ -86,11 +87,7 @@ export function IncidentListPage() {
       header: 'Referencia',
       sortable: true,
       sortValue: (incident) => incident.referenceCode,
-      render: (incident) => (
-        <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
-          {incident.referenceCode}
-        </span>
-      ),
+      render: (incident) => <span className={styles.refCell}>{incident.referenceCode}</span>,
     },
     {
       key: 'title',
@@ -100,7 +97,7 @@ export function IncidentListPage() {
       render: (incident) => (
         <button
           type="button"
-          className="text-left font-medium text-brand-700 dark:text-brand-400 hover:underline"
+          className={styles.titleButton}
           onClick={() => navigate(`/c/${active!.id}/incidents/${incident.id}`)}
         >
           {incident.title}
@@ -142,11 +139,11 @@ export function IncidentListPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Incidencias"
         actions={
-          <div className="flex items-center gap-2">
+          <div className={styles.headerActions}>
             <Tabs
               items={[
                 { value: 'list', label: 'Lista' },
@@ -167,7 +164,7 @@ export function IncidentListPage() {
       />
 
       <Card>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className={styles.filtersGrid}>
           <Select
             aria-label="Estado"
             value={status}
@@ -231,7 +228,7 @@ export function IncidentListPage() {
                 rowKey={(row) => row.id}
                 empty={
                   <EmptyState
-                    icon={<EmptySearchIcon className="h-6 w-6" />}
+                    icon={<EmptySearchIcon className={styles.emptyIcon} />}
                     title="No hay incidencias"
                     description="No se encontraron incidencias con estos filtros."
                     action={

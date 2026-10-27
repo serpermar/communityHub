@@ -1,0 +1,61 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Acciones del PageHeader */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Grid de filtros */
+.filtersGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .filtersGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Referencia monoespaciada en la tabla */
+.refCell {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .refCell {
+  color: #94a3b8;
+}
+
+/* Botón de título en la tabla */
+.titleButton {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--brand-700, #1d4ed8);
+}
+
+.titleButton:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .titleButton {
+  color: var(--brand-400, #60a5fa);
+}
+
+/* Icono del EmptyState */
+.emptyIcon {
+  height: 1.5rem;
+  width: 1.5rem;
+}

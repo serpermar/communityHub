@@ -24,6 +24,7 @@ import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { createCommonArea, listCommonAreas } from '../api'
 import { COMMON_AREA_TYPES, COMMON_AREA_TYPE_LABELS, type CommonArea } from '../types'
+import styles from './CommonAreaListPage.module.css'
 
 const createAreaSchema = z.object({
   name: z.string().trim().min(2, 'El nombre es obligatorio.').max(120),
@@ -84,10 +85,7 @@ export function CommonAreaListPage() {
       key: 'name',
       header: 'Zona',
       render: (area) => (
-        <Link
-          to={`/c/${active!.id}/common-areas/${area.id}`}
-          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
-        >
+        <Link to={`/c/${active!.id}/common-areas/${area.id}`} className={styles.nameLink}>
           {area.name}
         </Link>
       ),
@@ -109,7 +107,7 @@ export function CommonAreaListPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Zonas comunes"
         actions={role === 'ADMIN' && <Button onClick={() => setOpen(true)}>Nueva zona</Button>}
@@ -142,11 +140,11 @@ export function CommonAreaListPage() {
 
       <Modal open={open} title="Nueva zona común" onClose={() => setOpen(false)}>
         {serverError && (
-          <div className="mb-3">
+          <div className={styles.modalError}>
             <Alert variant="error">{serverError}</Alert>
           </div>
         )}
-        <form className="space-y-3" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Nombre" htmlFor="area-name" error={errors.name?.message} required>
             <Input id="area-name" {...register('name')} />
           </Field>
@@ -162,11 +160,11 @@ export function CommonAreaListPage() {
           <Field label="Franja (minutos)" htmlFor="slotMinutes" error={errors.slotMinutes?.message}>
             <Input id="slotMinutes" type="number" step={30} {...register('slotMinutes')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <label className={styles.checkboxLabel}>
             <input type="checkbox" {...register('requiresApproval')} />
             Requiere aprobación del administrador
           </label>
-          <div className="flex justify-end gap-2">
+          <div className={styles.modalFooter}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>

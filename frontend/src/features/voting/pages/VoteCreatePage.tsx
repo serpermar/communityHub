@@ -12,6 +12,7 @@ import {
   type VoteResultVisibility,
   type VoteType,
 } from '../types'
+import styles from './VoteCreatePage.module.css'
 
 const toInput = (date: Date): string => {
   const offset = date.getTimezoneOffset()
@@ -68,15 +69,15 @@ export function VoteCreatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className={styles.page}>
       <PageHeader title="Nueva votación" />
-      <Card className="mt-4">
+      <Card className={styles.card}>
         {error && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{error}</Alert>
           </div>
         )}
-        <form className="space-y-3" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Título" htmlFor="vote-title" required>
             <Input id="vote-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
@@ -95,7 +96,7 @@ export function VoteCreatePage() {
               onChange={(e) => setDescription(e.target.value)}
             />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Tipo" htmlFor="vote-type">
               <Select
                 id="vote-type"
@@ -123,7 +124,7 @@ export function VoteCreatePage() {
               </Select>
             </Field>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Inicio" htmlFor="vote-start" required>
               <Input
                 id="vote-start"
@@ -153,7 +154,7 @@ export function VoteCreatePage() {
               />
             </Field>
           )}
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
               checked={allowAbstention}
@@ -162,12 +163,10 @@ export function VoteCreatePage() {
             Permitir abstención
           </label>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Opciones
-            </legend>
+          <fieldset className={styles.optionsFieldset}>
+            <legend className={styles.legend}>Opciones</legend>
             {options.map((option, index) => (
-              <div key={index} className="flex gap-2">
+              <div key={index} className={styles.optionRow}>
                 <Input
                   aria-label={`Opción ${index + 1}`}
                   value={option}
@@ -194,7 +193,7 @@ export function VoteCreatePage() {
             </Button>
           </fieldset>
 
-          <div className="flex justify-end gap-2">
+          <div className={styles.formFooter}>
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
               Cancelar
             </Button>

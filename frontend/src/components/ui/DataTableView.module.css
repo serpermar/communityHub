@@ -1,0 +1,26 @@
+.filtersCard {
+  margin-bottom: 1rem;
+}
+
+.header {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: var(--text-section-title-size, 1.25rem);
+  line-height: var(--text-section-title-leading, 1.75rem);
+  color: #1e293b;
+}
+
+:global(.dark) .title {
+  color: #f1f5f9;
+}
+
+.paginationWrapper {
+  margin-top: 1rem;
+}

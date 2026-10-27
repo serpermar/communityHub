@@ -1,0 +1,196 @@
+.wrapper {
+  width: 100%;
+}
+
+.densityBar {
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.headRow {
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #64748b;
+}
+
+:global(.dark) .headRow {
+  border-bottom-color: #334155;
+  color: #94a3b8;
+}
+
+.checkboxCell {
+  width: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+}
+
+.checkbox {
+  height: 1rem;
+  width: 1rem;
+  border-radius: var(--radius-control, 0.375rem);
+  border: 1px solid #cbd5e1;
+  color: var(--brand-600, #2563eb);
+}
+
+.checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
+}
+
+:global(.dark) .checkbox {
+  border-color: #475569;
+}
+
+.headCell {
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+}
+
+.headCellDense {
+  padding: 0.25rem 0.5rem;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--radius-control, 0.375rem);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.sortButton:hover {
+  color: #334155;
+}
+
+:global(.dark) .sortButton:hover {
+  color: #e2e8f0;
+}
+
+.sortButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
+}
+
+.sortIcon {
+  font-size: 0.65rem;
+}
+
+.bodyRow {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.bodyRow:last-child {
+  border-bottom: none;
+}
+
+:global(.dark) .bodyRow {
+  border-bottom-color: #1e293b;
+}
+
+.bodyRowSelected {
+  background-color: var(--brand-50, #eff6ff);
+}
+
+:global(.dark) .bodyRowSelected {
+  background-color: rgba(23, 37, 84, 0.4);
+}
+
+.bodyCell {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.bodyCellDense {
+  padding: 0.25rem 0.5rem;
+}
+
+.bodyCellCheckbox {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.bodyCellCheckboxDense {
+  padding: 0.25rem 0.5rem;
+  vertical-align: top;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .pagination {
+  color: #cbd5e1;
+}
+
+.totalLabel {
+  color: #94a3b8;
+}
+
+:global(.dark) .totalLabel {
+  color: #64748b;
+}
+
+.paginationControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pageSizeLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+:global(.dark) .pageSizeLabel {
+  color: #94a3b8;
+}
+
+.pageSizeSelect {
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+:global(.dark) .pageSizeSelect {
+  border-color: #334155;
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+.pageButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}

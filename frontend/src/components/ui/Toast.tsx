@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { cn } from '@/utils/cn'
+import styles from './Toast.module.css'
 
 type ToastVariant = 'info' | 'success' | 'error'
 
@@ -25,12 +26,10 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-const TONES: Record<ToastVariant, string> = {
-  info: 'border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100',
-  success:
-    'border-success-200 bg-success-50 text-success-800 dark:border-success-900 dark:bg-success-950 dark:text-success-200',
-  error:
-    'border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-900 dark:bg-danger-950 dark:text-danger-200',
+const VARIANT_CLASSES: Record<ToastVariant, string> = {
+  info: styles.toastInfo,
+  success: styles.toastSuccess,
+  error: styles.toastError,
 }
 
 const DEFAULT_DURATION_MS = 4000
@@ -54,11 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div
-        aria-live="polite"
-        aria-atomic="false"
-        className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
-      >
+      <div aria-live="polite" aria-atomic="false" className={styles.viewport}>
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
         ))}
@@ -72,8 +67,6 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   const remaining = useRef(DEFAULT_DURATION_MS)
   const startedAt = useRef(Date.now())
 
-  // Auto-cierre pausable: al pasar el ratón o enfocar, el temporizador se
-  // detiene y guarda lo que faltaba, para reanudarlo donde estaba.
   useEffect(() => {
     if (paused) return
     startedAt.current = Date.now()
@@ -84,7 +77,6 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
     }
   }, [paused, onDismiss, toast.id])
 
-  // Los errores son `alert` (interrumpe), el resto `status` (espera al lector).
   return (
     <div
       role={toast.variant === 'error' ? 'alert' : 'status'}
@@ -92,17 +84,14 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className={cn(
-        'pointer-events-auto flex items-start gap-3 rounded-md border px-4 py-3 text-sm shadow-sm',
-        TONES[toast.variant],
-      )}
+      className={cn(styles.toast, VARIANT_CLASSES[toast.variant])}
     >
-      <span className="flex-1">{toast.message}</span>
+      <span className={styles.message}>{toast.message}</span>
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
         aria-label="Cerrar aviso"
-        className="-mr-1 -mt-0.5 rounded px-1.5 py-0.5 text-base leading-none text-current/70 hover:bg-black/5 hover:text-current dark:hover:bg-white/10"
+        className={styles.dismissButton}
       >
         ✕
       </button>

@@ -43,6 +43,7 @@ import {
   type ExpenseCategory,
   type Invoice,
 } from '../types'
+import styles from './FinancePage.module.css'
 
 const money = (value: number): string => `${value.toFixed(2)} €`
 const today = (): string => new Date().toISOString().slice(0, 10)
@@ -55,7 +56,7 @@ export function FinancePage() {
   const tab = (filters.tab || 'summary') as 'summary' | 'expenses' | 'invoices'
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Finanzas"
         actions={
@@ -93,17 +94,13 @@ function SummaryTab({ communityId }: { communityId: string }) {
   const data = summary.data
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Card title={<span className="text-section-title">Gastos</span>}>
-        <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
-          {money(data.expenseTotal)}
-        </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {data.expenseCount} gastos registrados.
-        </p>
-        <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+    <div className={styles.summaryGrid}>
+      <Card title={<span className={styles.cardTitle}>Gastos</span>}>
+        <p className={styles.summaryValue}>{money(data.expenseTotal)}</p>
+        <p className={styles.summaryMeta}>{data.expenseCount} gastos registrados.</p>
+        <ul className={styles.summaryList}>
           {data.expenseByCategory.map((item) => (
-            <li key={item.category} className="flex items-center justify-between">
+            <li key={item.category} className={styles.summaryRow}>
               <span>{EXPENSE_CATEGORY_LABELS[item.category]}</span>
               <span>{money(item.total)}</span>
             </li>
@@ -111,24 +108,22 @@ function SummaryTab({ communityId }: { communityId: string }) {
         </ul>
       </Card>
 
-      <Card title={<span className="text-section-title">Facturas</span>}>
-        <p className="text-2xl font-semibold text-slate-800 dark:text-slate-100">
-          {money(data.invoiceTotal)}
-        </p>
-        <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-          <li className="flex items-center justify-between">
+      <Card title={<span className={styles.cardTitle}>Facturas</span>}>
+        <p className={styles.summaryValue}>{money(data.invoiceTotal)}</p>
+        <ul className={styles.summaryList}>
+          <li className={styles.summaryRow}>
             <span>Pendiente de cobro/pago</span>
             <span>{money(data.invoiceOpenAmount)}</span>
           </li>
-          <li className="flex items-center justify-between">
+          <li className={styles.summaryRow}>
             <span>Pagado</span>
             <span>{money(data.invoicePaidAmount)}</span>
           </li>
-          <li className="flex items-center justify-between">
+          <li className={styles.summaryRow}>
             <span>Pendientes</span>
             <span>{data.invoicePendingCount}</span>
           </li>
-          <li className="flex items-center justify-between">
+          <li className={styles.summaryRow}>
             <span>Vencidas</span>
             <span>{data.invoiceOverdueCount}</span>
           </li>
@@ -230,7 +225,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
       key: 'actions',
       header: '',
       render: (row) => (
-        <div className="flex justify-end gap-2">
+        <div className={styles.rowActions}>
           <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
             Editar
           </Button>
@@ -243,8 +238,8 @@ function ExpensesTab({ communityId }: { communityId: string }) {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
+    <div className={styles.tabContent}>
+      <div className={styles.actionsRow}>
         <Button onClick={openCreate}>Nuevo gasto</Button>
       </div>
 
@@ -278,11 +273,11 @@ function ExpensesTab({ communityId }: { communityId: string }) {
         title={editing ? 'Editar gasto' : 'Nuevo gasto'}
         onClose={() => setOpen(false)}
       >
-        <form className="space-y-3" onSubmit={save} noValidate>
+        <form className={styles.form} onSubmit={save} noValidate>
           <Field label="Concepto" htmlFor="exp-concept" required>
             <Input id="exp-concept" value={concept} onChange={(e) => setConcept(e.target.value)} />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Importe (€)" htmlFor="exp-amount" required>
               <Input
                 id="exp-amount"
@@ -326,7 +321,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
             <Input id="exp-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
           {error && <Alert variant="error">{error}</Alert>}
-          <div className="flex justify-end gap-2">
+          <div className={styles.modalFooter}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
@@ -424,7 +419,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       header: '',
       render: (row) =>
         row.effectiveStatus === 'PENDING' || row.effectiveStatus === 'OVERDUE' ? (
-          <div className="flex justify-end">
+          <div className={styles.actionsRow}>
             <Button size="sm" onClick={() => void pay(row)}>
               Marcar pagada
             </Button>
@@ -434,9 +429,9 @@ function InvoicesTab({ communityId }: { communityId: string }) {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Facturas</h2>
+    <div className={styles.tabContent}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Facturas</h2>
         <Button onClick={() => setOpen(true)}>Nueva factura</Button>
       </div>
 
@@ -466,8 +461,8 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       ) : null}
 
       <Modal open={open} title="Nueva factura" onClose={() => setOpen(false)}>
-        <form className="space-y-3" onSubmit={save} noValidate>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <form className={styles.form} onSubmit={save} noValidate>
+          <div className={styles.formRow}>
             <Field label="Número" htmlFor="inv-number" required>
               <Input id="inv-number" value={number} onChange={(e) => setNumber(e.target.value)} />
             </Field>
@@ -482,7 +477,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
               />
             </Field>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Emisión" htmlFor="inv-issue" required>
               <Input
                 id="inv-issue"
@@ -511,7 +506,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
             />
           </Field>
           {error && <Alert variant="error">{error}</Alert>}
-          <div className="flex justify-end gap-2">
+          <div className={styles.modalFooter}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>

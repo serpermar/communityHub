@@ -1,0 +1,198 @@
+.page {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.backButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: #64748b;
+  transition: color 150ms ease-in-out;
+}
+
+.backButton:hover {
+  color: var(--brand-700, #1d4ed8);
+}
+
+:global(.dark) .backButton {
+  color: #94a3b8;
+}
+
+:global(.dark) .backButton:hover {
+  color: var(--brand-400, #60a5fa);
+}
+
+/* Cabecera de la card principal */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.refCode {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+:global(.dark) .refCode {
+  color: #64748b;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-page-title-size, 1.5rem);
+  line-height: var(--text-page-title-leading, 2rem);
+  color: #1e293b;
+}
+
+:global(.dark) .title {
+  color: #f1f5f9;
+}
+
+/* Grid de metadatos */
+.meta {
+  margin: 1rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.metaLabel {
+  color: #94a3b8;
+}
+
+:global(.dark) .metaLabel {
+  color: #64748b;
+}
+
+.metaValue {
+  margin: 0.125rem 0 0;
+  color: #334155;
+}
+
+:global(.dark) .metaValue {
+  color: #e2e8f0;
+}
+
+/* Texto de ubicación */
+.location {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+:global(.dark) .location {
+  color: #cbd5e1;
+}
+
+/* Descripción */
+.description {
+  margin: 1rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .description {
+  color: #e2e8f0;
+}
+
+/* Fecha de creación */
+.createdAt {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .createdAt {
+  color: #64748b;
+}
+
+/* Botones de transición de estado */
+.transitionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Lista de comentarios */
+.commentList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.commentItem {
+  border-radius: 0.375rem;
+  background-color: #f8fafc;
+  padding: 0.75rem;
+}
+
+:global(.dark) .commentItem {
+  background-color: #0f172a;
+}
+
+.commentMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .commentMeta {
+  color: #64748b;
+}
+
+.commentBody {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+:global(.dark) .commentBody {
+  color: #e2e8f0;
+}
+
+.emptyComments {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptyComments {
+  color: #94a3b8;
+}
+
+/* Formulario de comentario */
+.commentForm {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commentFooter {
+  display: flex;
+  justify-content: flex-end;
+}

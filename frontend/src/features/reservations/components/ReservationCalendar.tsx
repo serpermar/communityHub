@@ -4,6 +4,7 @@ import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { listReservations } from '../api'
 import { RESERVATION_STATUS_LABELS, type Reservation } from '../types'
+import styles from './ReservationCalendar.module.css'
 
 /**
  * Calendario semanal de reservas (punto 7 del listado de mejoras).
@@ -80,21 +81,21 @@ export function ReservationCalendar() {
   }, [active, days])
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className={styles.wrapper}>
+      <div className={styles.header}>
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+          className={styles.navButton}
           onClick={() => setWeekOffset((value) => value - 1)}
         >
           ← Semana anterior
         </button>
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        <span className={styles.rangeLabel}>
           {days[0].toLocaleDateString('es-ES')} – {days[6].toLocaleDateString('es-ES')}
         </span>
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+          className={styles.navButton}
           onClick={() => setWeekOffset((value) => value + 1)}
         >
           Semana siguiente →
@@ -106,7 +107,7 @@ export function ReservationCalendar() {
       ) : error ? (
         <ErrorState error={error} />
       ) : (
-        <div className="grid gap-3 md:grid-cols-7">
+        <div className={styles.weekGrid}>
           {days.map((day) => {
             const key = isoDate(day)
             const rows = byDay?.[key] ?? []
@@ -114,27 +115,22 @@ export function ReservationCalendar() {
             return (
               <Card
                 key={key}
-                className={isToday ? 'ring-2 ring-brand-400 dark:ring-brand-600' : undefined}
+                className={isToday ? styles.todayCard : undefined}
                 title={
-                  <span className="flex flex-col">
-                    <span className="capitalize">{WEEKDAY_FORMAT.format(day)}</span>
-                    <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
-                      {day.getDate()}
-                    </span>
+                  <span className={styles.cardTitle}>
+                    <span className={styles.weekdayLabel}>{WEEKDAY_FORMAT.format(day)}</span>
+                    <span className={styles.dayNumber}>{day.getDate()}</span>
                   </span>
                 }
               >
                 {rows.length === 0 ? (
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Sin reservas</p>
+                  <p className={styles.emptyText}>Sin reservas</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className={styles.list}>
                     {rows.map((reservation) => (
-                      <li
-                        key={reservation.id}
-                        className="rounded-md border border-slate-100 p-2 text-xs dark:border-slate-800"
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                      <li key={reservation.id} className={styles.item}>
+                        <div className={styles.itemHeader}>
+                          <span className={styles.timeRange}>
                             {HOUR_FORMAT.format(new Date(reservation.startsAt))}–
                             {HOUR_FORMAT.format(new Date(reservation.endsAt))}
                           </span>
@@ -142,9 +138,7 @@ export function ReservationCalendar() {
                             {RESERVATION_STATUS_LABELS[reservation.status]}
                           </Badge>
                         </div>
-                        <p className="mt-1 truncate text-slate-600 dark:text-slate-300">
-                          {reservation.commonAreaName}
-                        </p>
+                        <p className={styles.areaName}>{reservation.commonAreaName}</p>
                       </li>
                     ))}
                   </ul>

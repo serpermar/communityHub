@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from './Button'
 import { Modal } from './Display'
+import styles from './ConfirmDialog.module.css'
 
 /**
  * Confirmación destructiva sobre el `Modal` accesible (FE-18). Sustituye al
@@ -55,7 +56,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      {description && <p className="text-sm text-slate-600 dark:text-slate-300">{description}</p>}
+      {description && <p className={styles.description}>{description}</p>}
     </Modal>
   )
 }

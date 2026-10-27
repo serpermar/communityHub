@@ -17,6 +17,7 @@ import { useResource } from '@/hooks/useResource'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { geocodeCommunity, getCommunity, getCommunityWeather, updateCommunity } from '../api'
 import { updateCommunitySchema, type UpdateCommunityForm } from '../schemas'
+import styles from './CommunitySettingsPage.module.css'
 
 export function CommunitySettingsPage() {
   const { active } = useCommunity()
@@ -33,7 +34,6 @@ export function CommunitySettingsPage() {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<UpdateCommunityForm>({
     resolver: zodResolver(updateCommunitySchema),
-    // Los errores aparecen solo tras tocar/blur el campo, no nada mas entrar.
     mode: 'onTouched',
   })
 
@@ -62,7 +62,6 @@ export function CommunitySettingsPage() {
         isActive: values.isActive,
       })
       await community.reload()
-      // Al recargar, `reset` vuelve a marcar el formulario como limpio.
     } catch (caught) {
       setServerError(ApiError.from(caught).message)
     }
@@ -85,16 +84,16 @@ export function CommunitySettingsPage() {
   if (community.error) return <Alert variant="error">{community.error.message}</Alert>
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={styles.page}>
       <PageHeader title="Ajustes de la comunidad" />
 
       <Card title="Datos generales">
         {serverError && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{serverError}</Alert>
           </div>
         )}
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Nombre" htmlFor="name" error={errors.name?.message} required>
             <Input id="name" {...register('name')} />
           </Field>
@@ -112,11 +111,11 @@ export function CommunitySettingsPage() {
           <Field label="Descripción" htmlFor="description" error={errors.description?.message}>
             <Input id="description" {...register('description')} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <label className={styles.checkboxLabel}>
             <input type="checkbox" {...register('isActive')} />
             Comunidad activa
           </label>
-          <div className="flex justify-between gap-2">
+          <div className={styles.formFooter}>
             <Button type="button" variant="secondary" loading={geocoding} onClick={onGeocode}>
               Localizar por dirección
             </Button>
@@ -129,13 +128,13 @@ export function CommunitySettingsPage() {
 
       <Card title="Meteorología del barrio">
         {weather.data ? (
-          <p className="text-sm text-slate-700 dark:text-slate-200">
+          <p className={styles.weatherText}>
             {weather.data.current.temperatureC} °C (sensación{' '}
             {weather.data.current.apparentTemperatureC} °C) · {weather.data.current.condition}. Máx{' '}
             {weather.data.today.maxC} °C / Mín {weather.data.today.minC} °C.
           </p>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className={styles.emptyWeather}>
             No hay datos meteorológicos (la comunidad aún no tiene coordenadas o el proveedor no
             responde).
           </p>

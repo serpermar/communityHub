@@ -32,6 +32,7 @@ import {
   type DocumentCategory,
 } from '../types'
 import { DocumentPreviewModal, isPreviewable } from '../components/DocumentPreviewModal'
+import styles from './DocumentsPage.module.css'
 
 const fileSize = (bytes: number): string =>
   bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(0)} KB`
@@ -153,7 +154,7 @@ export function DocumentsPage() {
       key: 'actions',
       header: '',
       render: (row) => (
-        <div className="flex justify-end gap-2">
+        <div className={styles.rowActions}>
           {isPreviewable(row.mimeType) && (
             <Button size="sm" variant="ghost" onClick={() => setPreviewDoc(row)}>
               Vista previa
@@ -173,7 +174,7 @@ export function DocumentsPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title="Documentos"
         actions={isAdmin && <Button onClick={() => setOpen(true)}>Subir documento</Button>}
@@ -184,7 +185,7 @@ export function DocumentsPage() {
           aria-label="Categoría"
           value={category}
           onChange={(event) => setFilter('category', event.target.value)}
-          className="sm:w-64"
+          className={styles.filterSelect}
         >
           <option value="">Todas las categorías</option>
           {DOCUMENT_CATEGORIES.map((value) => (
@@ -210,7 +211,7 @@ export function DocumentsPage() {
               rowKey={(row) => row.id}
               empty={
                 <EmptyState
-                  icon={<EmptyFolderIcon className="h-6 w-6" />}
+                  icon={<EmptyFolderIcon className={styles.emptyIcon} />}
                   title="No hay documentos"
                   description="Sube el primer documento de la comunidad."
                   action={
@@ -235,12 +236,12 @@ export function DocumentsPage() {
       ) : null}
 
       <Modal open={open} title="Subir documento" onClose={() => setOpen(false)}>
-        <form className="space-y-3" onSubmit={onUpload} noValidate>
+        <form className={styles.form} onSubmit={onUpload} noValidate>
           <Field label="Archivo" htmlFor="doc-file" required>
             <input
               id="doc-file"
               type="file"
-              className="block w-full text-sm"
+              className={styles.fileInput}
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
           </Field>
@@ -251,7 +252,7 @@ export function DocumentsPage() {
               onChange={(event) => setTitle(event.target.value)}
             />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Categoría" htmlFor="doc-category">
               <Select
                 id="doc-category"
@@ -279,7 +280,7 @@ export function DocumentsPage() {
               </Select>
             </Field>
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
               checked={isPublic}
@@ -288,7 +289,7 @@ export function DocumentsPage() {
             Visible para todos
           </label>
           {serverError && <Alert variant="error">{serverError}</Alert>}
-          <div className="flex justify-end gap-2">
+          <div className={styles.modalFooter}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
@@ -309,7 +310,11 @@ export function DocumentsPage() {
         onConfirm={() => (pendingDelete ? onDelete(pendingDelete) : undefined)}
       />
 
-      <DocumentPreviewModal document={previewDoc} open={previewDoc !== null} onClose={() => setPreviewDoc(null)} />
+      <DocumentPreviewModal
+        document={previewDoc}
+        open={previewDoc !== null}
+        onClose={() => setPreviewDoc(null)}
+      />
     </div>
   )
 }

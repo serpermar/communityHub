@@ -1,0 +1,33 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Selector de estado */
+@media (min-width: 640px) {
+  .filterSelect {
+    width: 16rem;
+  }
+}
+
+/* Link del título en la tabla */
+.titleLink {
+  font-weight: 500;
+  color: var(--brand-700, #1d4ed8);
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .titleLink {
+  color: var(--brand-400, #60a5fa);
+}
+
+/* Icono del EmptyState */
+.emptyIcon {
+  height: 1.5rem;
+  width: 1.5rem;
+}

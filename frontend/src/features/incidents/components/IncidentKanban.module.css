@@ -1,0 +1,140 @@
+.board {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.column {
+  border-radius: var(--radius-card, 0.5rem);
+  border: 1px solid #e2e8f0;
+  background-color: rgba(248, 250, 252, 0.6);
+}
+
+:global(.dark) .column {
+  border-color: #1e293b;
+  background-color: rgba(15, 23, 42, 0.4);
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+}
+
+.columnTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.columnCount {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .columnCount {
+  color: #94a3b8;
+}
+
+.columnBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.emptyColumn {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Tarjeta de incidencia */
+.card {
+  border-radius: var(--radius-card, 0.5rem);
+  border: 1px solid #e2e8f0;
+  background-color: var(--surface-color, #ffffff);
+  padding: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: box-shadow 150ms ease-in-out;
+}
+
+.card:hover {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+:global(.dark) .card {
+  border-color: #334155;
+  background-color: #0f172a;
+}
+
+.cardTitle {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--brand-700, #1d4ed8);
+}
+
+.cardTitle:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .cardTitle {
+  color: var(--brand-400, #60a5fa);
+}
+
+.cardMeta {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.cardRef {
+  font-family: monospace;
+  color: #94a3b8;
+}
+
+.cardCategory {
+  color: #94a3b8;
+}
+
+.cardDate {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .cardDate {
+  color: #94a3b8;
+}
+
+.cardActions {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}

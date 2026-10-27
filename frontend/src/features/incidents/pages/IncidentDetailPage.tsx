@@ -24,6 +24,7 @@ import { formatDateTime } from '@/utils/format'
 import { addComment, getIncident, listComments, transitionIncident } from '../api'
 import { commentSchema, type CommentForm } from '../schemas'
 import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, type IncidentStatus } from '../types'
+import styles from './IncidentDetailPage.module.css'
 
 function nextStatuses(
   status: IncidentStatus,
@@ -94,65 +95,53 @@ export function IncidentDetailPage() {
   const targets = nextStatuses(item.status, role, item.assignedToId === user?.id)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className={styles.page}>
       <button
         type="button"
         onClick={() => navigate(`/c/${active!.id}/incidents`)}
-        className="text-sm text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-400"
+        className={styles.backButton}
       >
         ← Volver a incidencias
       </button>
 
       <Card>
-        <div className="flex items-start justify-between gap-4">
+        <div className={styles.header}>
           <div>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
-              {item.referenceCode}
-            </p>
-            <h1 className="text-page-title text-slate-800 dark:text-slate-100">{item.title}</h1>
+            <p className={styles.refCode}>{item.referenceCode}</p>
+            <h1 className={styles.title}>{item.title}</h1>
           </div>
           <Badge tone={INCIDENT_STATUS_TONES[item.status]}>{STATUS_LABELS[item.status]}</Badge>
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <dl className={styles.meta}>
           <div>
-            <dt className="text-slate-400 dark:text-slate-500">Categoría</dt>
-            <dd className="text-slate-700 dark:text-slate-200">{CATEGORY_LABELS[item.category]}</dd>
+            <dt className={styles.metaLabel}>Categoría</dt>
+            <dd className={styles.metaValue}>{CATEGORY_LABELS[item.category]}</dd>
           </div>
           <div>
-            <dt className="text-slate-400 dark:text-slate-500">Prioridad</dt>
-            <dd className="text-slate-700 dark:text-slate-200">{PRIORITY_LABELS[item.priority]}</dd>
+            <dt className={styles.metaLabel}>Prioridad</dt>
+            <dd className={styles.metaValue}>{PRIORITY_LABELS[item.priority]}</dd>
           </div>
           <div>
-            <dt className="text-slate-400 dark:text-slate-500">Reportada por</dt>
-            <dd className="text-slate-700 dark:text-slate-200">{item.reporterName ?? '—'}</dd>
+            <dt className={styles.metaLabel}>Reportada por</dt>
+            <dd className={styles.metaValue}>{item.reporterName ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-slate-400 dark:text-slate-500">Asignada a</dt>
-            <dd className="text-slate-700 dark:text-slate-200">
-              {item.assignedToName ?? 'Sin asignar'}
-            </dd>
+            <dt className={styles.metaLabel}>Asignada a</dt>
+            <dd className={styles.metaValue}>{item.assignedToName ?? 'Sin asignar'}</dd>
           </div>
         </dl>
 
-        {item.location && (
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-            Ubicación: {item.location}
-          </p>
-        )}
-        <p className="mt-4 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
-          {item.description}
-        </p>
-        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-          Creada el {formatDateTime(item.createdAt)}
-        </p>
+        {item.location && <p className={styles.location}>Ubicación: {item.location}</p>}
+        <p className={styles.description}>{item.description}</p>
+        <p className={styles.createdAt}>Creada el {formatDateTime(item.createdAt)}</p>
       </Card>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
 
       {targets.length > 0 && (
         <Card title="Cambiar estado">
-          <div className="flex flex-wrap gap-2">
+          <div className={styles.transitionActions}>
             {targets.map((target) => (
               <Button key={target} variant="secondary" onClick={() => void onTransition(target)}>
                 {STATUS_LABELS[target]}
@@ -166,25 +155,25 @@ export function IncidentDetailPage() {
         {comments.loading ? (
           <LoadingState />
         ) : comments.data && comments.data.length > 0 ? (
-          <ul className="space-y-3">
+          <ul className={styles.commentList}>
             {comments.data.map((comment) => (
-              <li key={comment.id} className="rounded-md bg-slate-50 dark:bg-slate-900 p-3">
-                <p className="text-xs text-slate-400 dark:text-slate-500">
+              <li key={comment.id} className={styles.commentItem}>
+                <p className={styles.commentMeta}>
                   {comment.authorName ?? 'Usuario'} · {formatDateTime(comment.createdAt)}
                 </p>
-                <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{comment.body}</p>
+                <p className={styles.commentBody}>{comment.body}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Todavía no hay comentarios.</p>
+          <p className={styles.emptyComments}>Todavía no hay comentarios.</p>
         )}
 
-        <form className="mt-4 space-y-2" onSubmit={onComment} noValidate>
+        <form className={styles.commentForm} onSubmit={onComment} noValidate>
           <Field label="Añadir comentario" htmlFor="body" error={errors.body?.message}>
             <Textarea id="body" rows={2} {...register('body')} />
           </Field>
-          <div className="flex justify-end">
+          <div className={styles.commentFooter}>
             <Button type="submit" size="sm" loading={isSubmitting}>
               Comentar
             </Button>

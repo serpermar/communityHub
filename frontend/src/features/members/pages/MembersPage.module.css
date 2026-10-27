@@ -1,0 +1,121 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Input de búsqueda */
+@media (min-width: 640px) {
+  .searchInput {
+    max-width: 24rem;
+  }
+}
+
+/* Selects de rol y estado (solo visibles para admin) */
+.roleSelect {
+  width: 10rem;
+}
+
+.statusSelect {
+  width: 9rem;
+}
+
+/* Contador de miembros */
+.searchCount {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+:global(.dark) .searchCount {
+  color: #94a3b8;
+}
+
+/* Icono del EmptyState */
+.emptyIcon {
+  height: 1.5rem;
+  width: 1.5rem;
+}
+
+/* Lista de invitaciones */
+.invitationList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.invitationRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #f1f5f9;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+:global(.dark) .invitationRow {
+  border-color: #1e293b;
+}
+
+.invitationEmail {
+  margin: 0;
+  color: #334155;
+}
+
+:global(.dark) .invitationEmail {
+  color: #e2e8f0;
+}
+
+.invitationMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .invitationMeta {
+  color: #64748b;
+}
+
+.emptyInvitations {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptyInvitations {
+  color: #94a3b8;
+}
+
+/* Modal de invitación */
+.inviteContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inviteCode {
+  display: block;
+  word-break: break-all;
+  border-radius: 0.375rem;
+  background-color: #f1f5f9;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+:global(.dark) .inviteCode {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+.inviteFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

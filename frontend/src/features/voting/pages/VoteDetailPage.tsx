@@ -25,6 +25,7 @@ import {
   publishVote,
 } from '../api'
 import { VOTE_STATUS_LABELS } from '../types'
+import styles from './VoteDetailPage.module.css'
 
 export function VoteDetailPage() {
   const { voteId } = useParams<{ voteId: string }>()
@@ -60,11 +61,11 @@ export function VoteDetailPage() {
   const manager = isManager(role)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className={styles.page}>
       <button
         type="button"
         onClick={() => navigate(`/c/${active!.id}/votes`)}
-        className="text-sm text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-400"
+        className={styles.backButton}
       >
         ← Volver a votaciones
       </button>
@@ -79,31 +80,20 @@ export function VoteDetailPage() {
       />
 
       <Card>
-        <p className="text-sm text-slate-700 dark:text-slate-200">{item.question}</p>
-        {item.description && (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-300">
-            {item.description}
-          </p>
-        )}
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Cierra el {formatDateTime(item.endsAt)}
-        </p>
+        <p className={styles.question}>{item.question}</p>
+        {item.description && <p className={styles.description}>{item.description}</p>}
+        <p className={styles.endsAt}>Cierra el {formatDateTime(item.endsAt)}</p>
 
         {error && (
-          <div className="mt-3">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{error}</Alert>
           </div>
         )}
 
-        <fieldset className="mt-4 space-y-2">
-          <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Opciones
-          </legend>
+        <fieldset className={styles.optionsFieldset}>
+          <legend className={styles.legend}>Opciones</legend>
           {item.options.map((option) => (
-            <label
-              key={option.id}
-              className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm"
-            >
+            <label key={option.id} className={styles.optionLabel}>
               <input
                 type="radio"
                 name="vote-option"
@@ -118,7 +108,7 @@ export function VoteDetailPage() {
           ))}
         </fieldset>
 
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className={styles.actionsFooter}>
           {manager && item.effectiveStatus === 'DRAFT' && (
             <Button loading={busy} onClick={() => void run(() => publishVote(item.id))}>
               Publicar
@@ -146,7 +136,7 @@ export function VoteDetailPage() {
       </Card>
 
       <Card
-        title={<span className="text-section-title">Resultados</span>}
+        title={<span className={styles.cardTitle}>Resultados</span>}
         actions={
           results.data ? (
             <Button
@@ -173,8 +163,8 @@ export function VoteDetailPage() {
         {results.loading ? (
           <SkeletonList rows={2} />
         ) : results.data ? (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+          <div className={styles.resultsContent}>
+            <p className={styles.participation}>
               Participación: {results.data.turnout} de {results.data.eligibleCount} (
               {results.data.participationPercent.toFixed(1)}%)
               {results.data.quorumRequired &&
@@ -184,25 +174,20 @@ export function VoteDetailPage() {
             </p>
             {results.data.options.map((option) => (
               <div key={option.id}>
-                <div className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-200">
+                <div className={styles.resultRow}>
                   <span>{option.label}</span>
                   <span>
                     {option.votes} ({option.percent.toFixed(1)}%)
                   </span>
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div
-                    className="h-2 rounded-full bg-brand-500"
-                    style={{ width: `${option.percent}%` }}
-                  />
+                <div className={styles.progressTrack}>
+                  <div className={styles.progressBar} style={{ width: `${option.percent}%` }} />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Los resultados no están disponibles todavía.
-          </p>
+          <p className={styles.emptyResults}>Los resultados no están disponibles todavía.</p>
         )}
       </Card>
     </div>

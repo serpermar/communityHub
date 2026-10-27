@@ -1,0 +1,149 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Barra de navegación */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.navButton {
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.navButton:hover {
+  background-color: #f1f5f9;
+}
+
+:global(.dark) .navButton {
+  border-color: #475569;
+}
+
+:global(.dark) .navButton:hover {
+  background-color: #1e293b;
+}
+
+.rangeLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  text-align: center;
+}
+
+:global(.dark) .rangeLabel {
+  color: #e2e8f0;
+}
+
+/* Grid semanal */
+.weekGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .weekGrid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+/* Tarjeta del día */
+.todayCard {
+  outline: 2px solid var(--brand-400, #60a5fa);
+  outline-offset: 0;
+}
+
+:global(.dark) .todayCard {
+  outline-color: var(--brand-600, #2563eb);
+}
+
+/* Cabecera del título de la Card */
+.cardTitle {
+  display: flex;
+  flex-direction: column;
+}
+
+.weekdayLabel {
+  text-transform: capitalize;
+}
+
+.dayNumber {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: #94a3b8;
+}
+
+:global(.dark) .dayNumber {
+  color: #64748b;
+}
+
+/* Texto "Sin reservas" */
+.emptyText {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .emptyText {
+  color: #64748b;
+}
+
+/* Lista de reservas */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item {
+  border-radius: 0.375rem;
+  border: 1px solid #f1f5f9;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+}
+
+:global(.dark) .item {
+  border-color: #1e293b;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.timeRange {
+  font-weight: 500;
+  color: #334155;
+}
+
+:global(.dark) .timeRange {
+  color: #e2e8f0;
+}
+
+.areaName {
+  margin: 0.25rem 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #475569;
+}
+
+:global(.dark) .areaName {
+  color: #cbd5e1;
+}

@@ -21,6 +21,8 @@ import { useChartColors } from '@/hooks/useChartColors'
 import { getDashboard, getWeather } from '../api'
 import { useEffect, useState } from 'react'
 import type { CurrentWeather } from '../types'
+import { axisTickStyle, tooltipContentStyle, tooltipLabelStyle } from './dashboardChartStyles'
+import styles from './DashboardPage.module.css'
 
 export function DashboardPage() {
   const { active } = useCommunity()
@@ -54,61 +56,53 @@ export function DashboardPage() {
     total: item.total,
   }))
 
+  const tickStyle = axisTickStyle(colors)
+  const tooltipContent = tooltipContentStyle(colors)
+  const tooltipLabel = tooltipLabelStyle(colors)
+
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title={data.community.name}
         description={`${data.community.city} · ${data.community.memberCount} miembros (${data.community.neighborCount} vecinos)`}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className={styles.statsGrid}>
         <Stat label="Incidencias abiertas" value={data.incidents.open} />
         <Stat label="En progreso" value={data.incidents.inProgress} />
-        <Stat
-          label="Críticas"
-          value={data.incidents.critical}
-          tone="text-red-600 dark:text-red-400"
-        />
+        <Stat label="Críticas" value={data.incidents.critical} tone="danger" />
         <Stat label="Reservas próximas" value={data.reservations.upcomingCount} />
         <Card>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Clima</p>
+          <p className={styles.statLabel}>Clima</p>
           {weather ? (
-            <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">
+            <p className={styles.weatherValue}>
               {Math.round(weather.temperature)}°C
-              <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+              <span className={styles.weatherFeels}>
                 (sensación {Math.round(weather.apparentTemperature)}°C)
               </span>
             </p>
           ) : (
-            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">No disponible</p>
+            <p className={styles.weatherEmpty}>No disponible</p>
           )}
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className={styles.chartsGrid}>
         <Card title="Incidencias por categoría">
           {categoryData.length > 0 ? (
             <ChartFigure caption="Incidencias por categoría" data={categoryData}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: colors.axis }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: colors.tooltipBg,
-                      border: `1px solid ${colors.tooltipBorder}`,
-                      borderRadius: 8,
-                      color: colors.tooltipText,
-                    }}
-                    labelStyle={{ color: colors.tooltipText }}
-                  />
+                  <XAxis dataKey="name" tick={tickStyle} />
+                  <YAxis allowDecimals={false} tick={tickStyle} />
+                  <Tooltip contentStyle={tooltipContent} labelStyle={tooltipLabel} />
                   <Bar dataKey="total" fill={colors.bars.incidents} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartFigure>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Sin datos de incidencias.</p>
+            <p className={styles.emptyText}>Sin datos de incidencias.</p>
           )}
         </Card>
 
@@ -118,127 +112,94 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={reservationData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: colors.axis }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: colors.tooltipBg,
-                      border: `1px solid ${colors.tooltipBorder}`,
-                      borderRadius: 8,
-                      color: colors.tooltipText,
-                    }}
-                    labelStyle={{ color: colors.tooltipText }}
-                  />
+                  <XAxis dataKey="name" tick={tickStyle} />
+                  <YAxis allowDecimals={false} tick={tickStyle} />
+                  <Tooltip contentStyle={tooltipContent} labelStyle={tooltipLabel} />
                   <Bar dataKey="total" fill={colors.bars.reservations} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartFigure>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Sin datos de reservas.</p>
+            <p className={styles.emptyText}>Sin datos de reservas.</p>
           )}
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className={styles.listsGrid}>
         <Card
           title="Últimos avisos"
           actions={
-            <Link
-              to={`/c/${active!.id}/announcements`}
-              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
-            >
+            <Link to={`/c/${active!.id}/announcements`} className={styles.viewAllLink}>
               Ver todos
             </Link>
           }
         >
           {data.announcements.latest.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className={styles.list}>
               {data.announcements.latest.map((item) => (
                 <li key={item.id}>
-                  <Link
-                    to={`/c/${active!.id}/announcements`}
-                    className="text-slate-700 hover:underline dark:text-slate-200"
-                  >
+                  <Link to={`/c/${active!.id}/announcements`} className={styles.listLink}>
                     {item.title}
                   </Link>
-                  <span className="block text-xs text-slate-400 dark:text-slate-500">
-                    {formatDate(item.publishAt)}
-                  </span>
+                  <span className={styles.listMeta}>{formatDate(item.publishAt)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No hay avisos.</p>
+            <p className={styles.emptyText}>No hay avisos.</p>
           )}
         </Card>
 
         <Card
           title="Votaciones abiertas"
           actions={
-            <Link
-              to={`/c/${active!.id}/votes`}
-              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
-            >
+            <Link to={`/c/${active!.id}/votes`} className={styles.viewAllLink}>
               Ver todas
             </Link>
           }
         >
           {data.votes.open.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className={styles.list}>
               {data.votes.open.map((vote) => (
                 <li key={vote.id}>
-                  <Link
-                    to={`/c/${active!.id}/votes/${vote.id}`}
-                    className="text-slate-700 hover:underline dark:text-slate-200"
-                  >
+                  <Link to={`/c/${active!.id}/votes/${vote.id}`} className={styles.listLink}>
                     {vote.title}
                   </Link>
-                  <span className="block text-xs text-slate-400 dark:text-slate-500">
-                    Cierra {formatDateTime(vote.endsAt)}
-                  </span>
+                  <span className={styles.listMeta}>Cierra {formatDateTime(vote.endsAt)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              No hay votaciones abiertas.
-            </p>
+            <p className={styles.emptyText}>No hay votaciones abiertas.</p>
           )}
         </Card>
 
         <Card
           title="Próximas reservas"
           actions={
-            <Link
-              to={`/c/${active!.id}/reservations`}
-              className="text-sm text-brand-600 hover:underline dark:text-brand-400"
-            >
+            <Link to={`/c/${active!.id}/reservations`} className={styles.viewAllLink}>
               Ver todas
             </Link>
           }
         >
           {data.reservations.upcoming.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className={styles.list}>
               {data.reservations.upcoming.map((item) => (
                 <li key={item.id}>
-                  <span className="text-slate-700 dark:text-slate-200">
-                    {item.commonAreaName ?? 'Zona'}
-                  </span>
-                  <span className="block text-xs text-slate-400 dark:text-slate-500">
-                    {formatDateTime(item.startsAt)}
-                  </span>
+                  <span className={styles.listText}>{item.commonAreaName ?? 'Zona'}</span>
+                  <span className={styles.listMeta}>{formatDateTime(item.startsAt)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No hay reservas próximas.</p>
+            <p className={styles.emptyText}>No hay reservas próximas.</p>
           )}
         </Card>
       </div>
 
       {data.finance && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={styles.financeGrid}>
             <Stat label="Gasto total" value={`${data.finance.expenseTotal.toFixed(2)} €`} />
             <Stat
               label="Pendiente de pago"
@@ -247,7 +208,7 @@ export function DashboardPage() {
             <Stat
               label="Facturas vencidas"
               value={data.finance.invoiceOverdueCount}
-              tone="text-red-600 dark:text-red-400"
+              tone="danger"
             />
           </div>
 
@@ -257,17 +218,9 @@ export function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={expenseData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.axis }} />
-                    <YAxis tick={{ fontSize: 11, fill: colors.axis }} />
-                    <Tooltip
-                      contentStyle={{
-                        background: colors.tooltipBg,
-                        border: `1px solid ${colors.tooltipBorder}`,
-                        borderRadius: 8,
-                        color: colors.tooltipText,
-                      }}
-                      labelStyle={{ color: colors.tooltipText }}
-                    />
+                    <XAxis dataKey="name" tick={tickStyle} />
+                    <YAxis tick={tickStyle} />
+                    <Tooltip contentStyle={tooltipContent} labelStyle={tooltipLabel} />
                     <Line
                       type="monotone"
                       dataKey="total"
@@ -279,9 +232,7 @@ export function DashboardPage() {
                 </ResponsiveContainer>
               </ChartFigure>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Sin datos de gastos todavía.
-              </p>
+              <p className={styles.emptyText}>Sin datos de gastos todavía.</p>
             )}
           </Card>
         </>
@@ -290,11 +241,11 @@ export function DashboardPage() {
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
+function Stat({ label, value, tone }: { label: string; value: number | string; tone?: 'danger' }) {
   return (
     <Card>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold ${tone ?? 'text-slate-800 dark:text-slate-100'}`}>
+      <p className={styles.statLabel}>{label}</p>
+      <p className={`${styles.statValue} ${tone === 'danger' ? styles.statValueDanger : ''}`}>
         {value}
       </p>
     </Card>
@@ -317,9 +268,9 @@ function ChartFigure({
   children: ReactNode
 }) {
   return (
-    <figure className="m-0">
-      <div className="h-64">{children}</div>
-      <table className="sr-only">
+    <figure className={styles.figure}>
+      <div className={styles.chartContainer}>{children}</div>
+      <table className={styles.srOnly}>
         <caption>{caption}</caption>
         <thead>
           <tr>

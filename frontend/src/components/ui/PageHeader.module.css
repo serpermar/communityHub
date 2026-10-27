@@ -1,0 +1,40 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  /* Preservamos las utilidades text-page-title via CSS custom properties */
+  font-size: var(--text-page-title-size, 1.5rem);
+  line-height: var(--text-page-title-leading, 2rem);
+  color: #1e293b;
+}
+
+:global(.dark) .title {
+  color: #f1f5f9;
+}
+
+.description {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .description {
+  color: #94a3b8;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

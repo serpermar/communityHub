@@ -3,6 +3,7 @@ import { Button, Modal, Spinner } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { getDownloadUrl } from '../api'
 import type { CommunityDocument } from '../types'
+import styles from './DocumentPreviewModal.module.css'
 
 function isPreviewable(mimeType: string): boolean {
   return mimeType.startsWith('image/') || mimeType === 'application/pdf'
@@ -47,26 +48,26 @@ export function DocumentPreviewModal({
 
   return (
     <Modal open={open} title={document?.title ?? 'Vista previa'} onClose={onClose}>
-      <div className="space-y-3">
+      <div className={styles.content}>
         {loading && (
-          <div className="flex h-80 items-center justify-center">
+          <div className={styles.loadingWrapper}>
             <Spinner />
           </div>
         )}
-        {!loading && error && <p className="text-sm text-danger-600">{error}</p>}
+        {!loading && error && <p className={styles.errorText}>{error}</p>}
         {!loading && url && isImage && (
-          <div className="flex max-h-[70vh] items-center justify-center overflow-auto">
-            <img src={url} alt={document?.title} className="max-h-[70vh] max-w-full object-contain" />
+          <div className={styles.imageWrapper}>
+            <img src={url} alt={document?.title} className={styles.image} />
           </div>
         )}
         {!loading && url && isPdf && (
           <iframe
             src={url}
             title={document?.title ?? 'Documento PDF'}
-            className="h-[70vh] w-full rounded-card border border-slate-200 dark:border-slate-800"
+            className={styles.pdfFrame}
           />
         )}
-        <div className="flex justify-end">
+        <div className={styles.footer}>
           <Button variant="secondary" onClick={onClose}>
             Cerrar
           </Button>

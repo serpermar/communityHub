@@ -1,4 +1,5 @@
 import type { ReactElement, SVGProps } from 'react'
+import styles from './NavIcons.module.css'
 
 /**
  * Iconos del menú lateral, en línea (sin librería). Comparten el grosor y el
@@ -14,7 +15,7 @@ const base = {
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
-  className: 'h-5 w-5 shrink-0',
+  className: styles.icon,
 }
 
 function DashboardIcon(props: SVGProps<SVGSVGElement>) {

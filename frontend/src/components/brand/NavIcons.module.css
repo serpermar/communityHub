@@ -1,0 +1,6 @@
+/* Estilo base compartido por todos los iconos del menú lateral */
+.icon {
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
+}

@@ -28,6 +28,7 @@ import { ReservationCalendar } from '../components/ReservationCalendar'
 import { RESERVATION_STATUS_LABELS, type Reservation, type ReservationStatus } from '../types'
 import { getHolidays } from '@/features/dashboard/api'
 import type { PublicHoliday } from '@/features/dashboard/types'
+import styles from './ReservationListPage.module.css'
 
 type View = 'list' | 'calendar'
 
@@ -108,7 +109,7 @@ export function ReservationListPage() {
         const canConfirm = role === 'ADMIN' && row.status === 'PENDING'
         if (!canCancel && !canConfirm) return null
         return (
-          <div className="flex justify-end gap-2">
+          <div className={styles.rowActions}>
             {canConfirm && (
               <Button
                 size="sm"
@@ -135,24 +136,16 @@ export function ReservationListPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className={styles.page}>
       <PageHeader
         title={t('nav.reservations')}
         actions={
-          <div
-            role="group"
-            aria-label="Vista"
-            className="inline-flex overflow-hidden rounded-md border border-slate-300 dark:border-slate-600"
-          >
+          <div role="group" aria-label="Vista" className={styles.viewGroup}>
             <button
               type="button"
               onClick={() => setView('list')}
               aria-pressed={view === 'list'}
-              className={`px-3 py-1 text-sm ${
-                view === 'list'
-                  ? 'bg-brand-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-              }`}
+              className={`${styles.viewButton} ${view === 'list' ? styles.viewButtonActive : ''}`}
             >
               Lista
             </button>
@@ -160,10 +153,8 @@ export function ReservationListPage() {
               type="button"
               onClick={() => setView('calendar')}
               aria-pressed={view === 'calendar'}
-              className={`px-3 py-1 text-sm ${
-                view === 'calendar'
-                  ? 'bg-brand-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              className={`${styles.viewButton} ${
+                view === 'calendar' ? styles.viewButtonActive : ''
               }`}
             >
               Calendario
@@ -177,7 +168,7 @@ export function ReservationListPage() {
       ) : (
         <>
           <Card>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className={styles.filtersGrid}>
               <Select
                 aria-label="Estado"
                 value={status}
@@ -198,7 +189,7 @@ export function ReservationListPage() {
               />
             </div>
             {date && holidays.some((h) => h.date === date) && (
-              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              <p className={styles.holidayText}>
                 {holidays.find((h) => h.date === date)?.localName || 'Festivo'}
               </p>
             )}

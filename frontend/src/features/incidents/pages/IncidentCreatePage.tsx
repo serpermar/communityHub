@@ -29,19 +29,8 @@ import {
   type IncidentCategory,
   type IncidentPriority,
 } from '../types'
+import styles from './IncidentCreatePage.module.css'
 
-/**
- * Alta de incidencia con ayuda de IA (punto 4 del listado de mejoras).
- *
- * Dos caminos:
- *   - Manual: rellena el formulario y `createIncident` como siempre.
- *   - Con IA: describe el problema, el asistente propone titulo/categoria/prioridad.
- *     La propuesta se crea como *borrador* en el backend (`/ai/incidents/drafts`) y
- *     al enviar el formulario se confirma el borrador, no se crea a mano. Asi el
- *     backend conserva la trazabilidad de que la incidencia nacio de una sugerencia
- *     (AI_SUGGESTION) y aplica sus propias reglas (revision humana forzada si es
- *     CRITICAL o la confianza es baja).
- */
 export function IncidentCreatePage() {
   const { active } = useCommunity()
   const navigate = useNavigate()
@@ -118,11 +107,11 @@ export function IncidentCreatePage() {
   })
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
+    <div className={styles.page}>
       <PageHeader title="Nueva incidencia" />
 
       <Card title="Asistente IA (opcional)">
-        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+        <p className={styles.aiHint}>
           Describe el problema en tus palabras y la IA propondrá título, categoría y prioridad. Tú
           revisas y ajustas antes de crear la incidencia.
         </p>
@@ -133,11 +122,11 @@ export function IncidentCreatePage() {
           onChange={(event) => setDescription(event.target.value)}
           placeholder="Ej.: El ascensor del portal B lleva dos días parado entre la planta 1 y la 2."
         />
-        <div className="mt-3 flex items-center justify-between gap-2">
+        <div className={styles.aiActions}>
           {draftId ? (
             <>
               <Badge tone="violet">Borrador IA</Badge>
-              <div className="flex gap-2">
+              <div className={styles.aiActionsRight}>
                 <Button variant="ghost" size="sm" onClick={discardDraft}>
                   Descartar
                 </Button>
@@ -148,7 +137,7 @@ export function IncidentCreatePage() {
             </>
           ) : (
             <Button
-              className="ml-auto"
+              className={styles.aiActionsEnd}
               variant="secondary"
               loading={analyzing}
               onClick={() => void analyze()}
@@ -159,27 +148,27 @@ export function IncidentCreatePage() {
         </div>
 
         {proposal && (
-          <div className="mt-3 rounded-md border border-violet-200 bg-violet-50 p-3 text-sm dark:border-violet-900 dark:bg-violet-950/40">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className={styles.proposal}>
+            <div className={styles.proposalBadges}>
               <Badge tone="violet">{CATEGORY_LABELS[proposal.category as IncidentCategory]}</Badge>
               <Badge tone="amber">{PRIORITY_LABELS[proposal.priority as IncidentPriority]}</Badge>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className={styles.proposalConfidence}>
                 Confianza {Math.round(proposal.confidence * 100)}%
               </span>
               {proposal.needsHumanReview && <Badge tone="red">Requiere revisión humana</Badge>}
             </div>
-            <p className="mt-2 text-slate-700 dark:text-slate-200">{proposal.title}</p>
+            <p className={styles.proposalTitle}>{proposal.title}</p>
           </div>
         )}
       </Card>
 
       <Card>
         {serverError && (
-          <div className="mb-4">
+          <div className={styles.errorWrapper}>
             <Alert variant="error">{serverError}</Alert>
           </div>
         )}
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
           <Field label="Título" htmlFor="title" error={errors.title?.message} required>
             <Input id="title" {...register('title')} />
           </Field>
@@ -191,7 +180,7 @@ export function IncidentCreatePage() {
           >
             <Textarea id="description" rows={5} {...register('description')} />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.formRow}>
             <Field label="Categoría" htmlFor="category" error={errors.category?.message}>
               <Select id="category" {...register('category')} value={watch('category') ?? 'OTHER'}>
                 {INCIDENT_CATEGORIES.flatMap((value) => (
@@ -214,7 +203,7 @@ export function IncidentCreatePage() {
           <Field label="Ubicación" htmlFor="location" error={errors.location?.message}>
             <Input id="location" placeholder="Portal, planta, zona…" {...register('location')} />
           </Field>
-          <div className="flex justify-end gap-2">
+          <div className={styles.formFooter}>
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
               Cancelar
             </Button>

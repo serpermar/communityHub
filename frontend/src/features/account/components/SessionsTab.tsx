@@ -14,7 +14,7 @@ import { useResource } from '@/hooks/useResource'
 import { formatDateTime } from '@/utils/format'
 import type { SessionView } from '@/types/auth'
 import { listSessions, revokeOtherSessions, revokeSession } from '../api'
-import styles from '../pages/AccountPage.module.css'
+import styles from './SessionsTab.module.css'
 
 export function SessionsTab() {
   const { notify } = useToast()

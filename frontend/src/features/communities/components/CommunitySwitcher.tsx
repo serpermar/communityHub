@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { t } from '@/i18n'
 import { cn } from '@/utils/cn'
 import type { CommunitySummary } from '@/types/community'
+import styles from './CommunitySwitcher.module.css'
 
 /**
  * Selector de comunidad con búsqueda. Con muchas comunidades, un `<select>`
@@ -76,7 +77,7 @@ export function CommunitySwitcher({
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={styles.wrapper}>
       <input
         type="text"
         role="combobox"
@@ -95,19 +96,17 @@ export function CommunitySwitcher({
           setOpen(true)
         }}
         onKeyDown={onKeyDown}
-        className="w-32 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+        className={styles.input}
       />
       {open && (
         <ul
           id="community-listbox"
           role="listbox"
           aria-label={t('app.switchCommunity')}
-          className="absolute z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
+          className={styles.listbox}
         >
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-slate-500 dark:text-slate-400">
-              {t('app.noCommunityResults')}
-            </li>
+            <li className={styles.emptyItem}>{t('app.noCommunityResults')}</li>
           ) : (
             filtered.map((community, index) => (
               <li key={community.id}>
@@ -119,16 +118,14 @@ export function CommunitySwitcher({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => choose(community.id)}
                   className={cn(
-                    'flex w-full items-center justify-between gap-2 px-3 py-2 text-left',
-                    index === highlight
-                      ? 'bg-slate-100 dark:bg-slate-700'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50',
-                    community.id === activeId && 'font-medium text-brand-700 dark:text-brand-300',
+                    styles.optionButton,
+                    index === highlight && styles.optionHighlighted,
+                    community.id === activeId && styles.optionActive,
                   )}
                 >
                   <span>{community.name}</span>
                   {community.id === activeId && (
-                    <span aria-hidden="true" className="text-brand-600 dark:text-brand-400">
+                    <span aria-hidden="true" className={styles.checkmark}>
                       ✓
                     </span>
                   )}
