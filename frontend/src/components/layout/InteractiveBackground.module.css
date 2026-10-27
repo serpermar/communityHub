@@ -1,0 +1,182 @@
+.wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.blobs {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+/* Contenedor del parallax. Aplica translate() con las variables del cursor. */
+.blobOuter {
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  pointer-events: none;
+  transform: translate(var(--mx, 0), var(--my, 0));
+  will-change: transform;
+}
+
+/* El gradiente y el blur viven aquí, junto con la animación de flotación. */
+.blobInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.45;
+  will-change: transform;
+}
+
+/* Blob 1 — arriba a la izquierda (azul de marca) */
+.blob1 {
+  top: -20%;
+  left: -15%;
+}
+
+.blob1 .blobInner {
+  background: radial-gradient(circle at 30% 30%, var(--brand-500, #3b82f6), transparent 70%);
+  animation: float1 38s ease-in-out infinite alternate;
+}
+
+/* Blob 2 — abajo a la derecha (verde del logo) */
+.blob2 {
+  bottom: -25%;
+  right: -15%;
+}
+
+.blob2 .blobInner {
+  background: radial-gradient(circle at 70% 70%, #86b98a, transparent 70%);
+  animation: float2 46s ease-in-out infinite alternate-reverse;
+}
+
+/* Blob 3 — centrado, más tenue (violeta suave) */
+.blob3 {
+  top: 20%;
+  left: 25%;
+}
+
+.blob3 .blobInner {
+  background: radial-gradient(circle at 50% 50%, var(--brand-400, #60a5fa), transparent 75%);
+  opacity: 0.25;
+  animation: float3 54s ease-in-out infinite alternate;
+}
+
+@keyframes float1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(6vw, 4vh) scale(1.08);
+  }
+
+  100% {
+    transform: translate(-4vw, 8vh) scale(0.95);
+  }
+}
+
+@keyframes float2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(-8vw, -6vh) scale(1.12);
+  }
+
+  100% {
+    transform: translate(4vw, -4vh) scale(0.92);
+  }
+}
+
+@keyframes float3 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(4vw, -5vh) scale(1.06);
+  }
+
+  100% {
+    transform: translate(-5vw, 3vh) scale(0.97);
+  }
+}
+
+/* Pausa manual: detenemos animación y parallax (WCAG 2.2.2) */
+.wrapper[data-paused='true'] .blobInner {
+  animation-play-state: paused;
+}
+
+.wrapper[data-paused='true'] .blobOuter {
+  transform: none;
+}
+
+/* Preferencia del sistema: sin animación, sin parallax */
+@media (prefers-reduced-motion: reduce) {
+  .blobInner {
+    animation: none;
+  }
+
+  .blobOuter {
+    transform: none;
+  }
+}
+
+/* Modo oscuro: menos opacidad para no deslumbrar */
+@media (prefers-color-scheme: dark) {
+  .blobInner {
+    opacity: 0.2;
+  }
+}
+
+/* Botón de pausa (el único elemento interactivo del fondo) */
+.toggle {
+  pointer-events: auto;
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  color: #475569;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease-in-out,
+    color 150ms ease-in-out;
+}
+
+.toggle:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
+}
+
+:global(.dark) .toggle {
+  border-color: #334155;
+  background-color: rgba(15, 23, 42, 0.6);
+  color: #cbd5e1;
+}
+
+:global(.dark) .toggle:hover {
+  background-color: rgba(15, 23, 42, 0.9);
+}
+
+.toggleIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+}

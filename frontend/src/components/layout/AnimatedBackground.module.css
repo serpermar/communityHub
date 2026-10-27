@@ -6,6 +6,19 @@
   pointer-events: none;
 }
 
+/* --- NUEVO: wrapper de parallax --- */
+.parallax {
+  position: absolute;
+  inset: 0;
+  transform: translate(
+    calc(var(--mx, 0px) * var(--depth, 1)),
+    calc(var(--my, 0px) * var(--depth, 1))
+  );
+  will-change: transform;
+}
+
+/* --- Capas originales --- */
+
 .blob {
   position: absolute;
   width: 28rem;
@@ -45,7 +58,8 @@
 .mesh {
   position: absolute;
   inset: 0;
-  background: radial-gradient(1200px 800px at 20% 10%, rgb(99 102 241 / 0.12), transparent),
+  background:
+    radial-gradient(1200px 800px at 20% 10%, rgb(99 102 241 / 0.12), transparent),
     radial-gradient(1000px 700px at 80% 90%, rgb(56 189 248 / 0.1), transparent),
     radial-gradient(800px 600px at 50% 50%, rgb(168 85 247 / 0.08), transparent);
   background-size: 200% 200%;
@@ -54,7 +68,8 @@
 }
 
 :global(.dark) .mesh {
-  background: radial-gradient(1200px 800px at 20% 10%, rgb(129 140 248 / 0.16), transparent),
+  background:
+    radial-gradient(1200px 800px at 20% 10%, rgb(129 140 248 / 0.16), transparent),
     radial-gradient(1000px 700px at 80% 90%, rgb(56 189 248 / 0.14), transparent),
     radial-gradient(800px 600px at 50% 50%, rgb(192 132 252 / 0.12), transparent);
 }
@@ -62,7 +77,8 @@
 .grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgb(148 163 184 / 0.08) 1px, transparent 1px),
+  background-image:
+    linear-gradient(rgb(148 163 184 / 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgb(148 163 184 / 0.08) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: radial-gradient(circle at 50% 20%, black, transparent 70%);
@@ -71,7 +87,8 @@
 }
 
 :global(.dark) .grid {
-  background-image: linear-gradient(rgb(71 85 105 / 0.18) 1px, transparent 1px),
+  background-image:
+    linear-gradient(rgb(71 85 105 / 0.18) 1px, transparent 1px),
     linear-gradient(90deg, rgb(71 85 105 / 0.18) 1px, transparent 1px);
   opacity: 0.4;
 }
@@ -81,9 +98,11 @@
   100% {
     transform: translate(0, 0) scale(1);
   }
+
   33% {
     transform: translate(60px, 40px) scale(1.05);
   }
+
   66% {
     transform: translate(20px, 80px) scale(0.98);
   }
@@ -94,9 +113,11 @@
   100% {
     transform: translate(0, 0) scale(1);
   }
+
   25% {
     transform: translate(-40px, -30px) scale(1.08);
   }
+
   75% {
     transform: translate(-80px, -10px) scale(0.96);
   }
@@ -107,6 +128,7 @@
   100% {
     transform: translate(0, 0) scale(1);
   }
+
   50% {
     transform: translate(-50px, 60px) scale(1.06);
   }
@@ -115,26 +137,103 @@
 @keyframes meshMove {
   0%,
   100% {
-    background-position: 0% 50%, 100% 50%, 50% 50%;
+    background-position:
+      0% 50%,
+      100% 50%,
+      50% 50%;
   }
+
   50% {
-    background-position: 100% 50%, 0% 50%, 50% 100%;
+    background-position:
+      100% 50%,
+      0% 50%,
+      50% 100%;
   }
 }
 
 @keyframes gridMove {
   from {
-    background-position: 0 0, 0 0;
+    background-position:
+      0 0,
+      0 0;
   }
+
   to {
-    background-position: 200px 100px, 200px 100px;
+    background-position:
+      200px 100px,
+      200px 100px;
   }
 }
 
+/* --- NUEVO: pausa manual (WCAG 2.2.2) --- */
+.container[data-paused='true'] .blob,
+.container[data-paused='true'] .mesh,
+.container[data-paused='true'] .grid {
+  animation-play-state: paused;
+}
+
+.container[data-paused='true'] .parallax {
+  transform: none;
+}
+
+/* --- Accesibilidad: preferencia del sistema --- */
 @media (prefers-reduced-motion: reduce) {
   .blob,
   .mesh,
   .grid {
     animation: none !important;
   }
+
+  .parallax {
+    transform: none;
+  }
+}
+
+/* --- NUEVO: botón de pausa --- */
+.pauseButton {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  color: #475569;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.pauseButton:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #1e293b;
+}
+
+.pauseButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
+}
+
+:global(.dark) .pauseButton {
+  background-color: rgba(15, 23, 42, 0.6);
+  border-color: rgba(51, 65, 85, 0.6);
+  color: #cbd5e1;
+}
+
+:global(.dark) .pauseButton:hover {
+  background-color: rgba(15, 23, 42, 0.9);
+  color: #f1f5f9;
+}
+
+.pauseIcon {
+  width: 0.875rem;
+  height: 0.875rem;
 }
