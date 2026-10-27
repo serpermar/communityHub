@@ -6,6 +6,7 @@ import { Alert, Button, Field, Input } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { registerSchema, type RegisterForm } from '../schemas'
+import styles from './RegisterPage.module.css'
 
 export function RegisterPage() {
   const { register: createAccount } = useAuth()
@@ -36,24 +37,22 @@ export function RegisterPage() {
   })
 
   return (
-    <div>
-      <h1 className="text-page-title text-slate-800 dark:text-slate-100">Crear cuenta</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Regístrate y accede con tus credenciales.
-      </p>
+    <div className={styles.root}>
+      <h1 className={styles.title}>Crear cuenta</h1>
+      <p className={styles.subtitle}>Regístrate y accede con tus credenciales.</p>
 
       {serverError && (
-        <div className="mt-4">
+        <div className={styles.alertWrap}>
           <Alert variant="error">{serverError}</Alert>
         </div>
       )}
       {done && (
-        <div className="mt-4">
+        <div className={styles.alertWrap}>
           <Alert variant="success">{done} Redirigiendo al inicio de sesión…</Alert>
         </div>
       )}
 
-      <form className="mt-4 space-y-4" onSubmit={onSubmit} noValidate>
+      <form className={styles.form} onSubmit={onSubmit} noValidate>
         <Field label="Nombre completo" htmlFor="fullName" error={errors.fullName?.message} required>
           <Input id="fullName" autoComplete="name" {...register('fullName')} />
         </Field>
@@ -81,17 +80,14 @@ export function RegisterPage() {
           <Input id="phone" autoComplete="tel" {...register('phone')} />
         </Field>
 
-        <Button type="submit" loading={isSubmitting} className="w-full">
+        <Button type="submit" loading={isSubmitting} className={styles.submit}>
           Crear cuenta
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className={styles.footer}>
         ¿Ya tienes cuenta?{' '}
-        <Link
-          to="/login"
-          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
-        >
+        <Link to="/login" className={styles.link}>
           Inicia sesión
         </Link>
       </p>

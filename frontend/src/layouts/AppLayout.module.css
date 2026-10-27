@@ -1,0 +1,504 @@
+.loadingWrap {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorWrap {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 32rem;
+  padding: 2rem;
+}
+
+.skipLink {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.skipLink:focus {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  left: 1rem;
+  top: 1rem;
+  z-index: 50;
+  border-radius: 0.375rem;
+  background-color: rgb(79 70 229);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: rgb(255 255 255);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  background-color: var(--surface, rgb(255 255 255));
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+:global(.dark) .header {
+  border-bottom-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
+}
+
+.menuButton {
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  color: rgb(71 85 105);
+}
+
+.menuButton:hover {
+  background-color: rgb(241 245 249);
+}
+
+:global(.dark) .menuButton {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .menuButton:hover {
+  background-color: rgb(30 41 59);
+}
+
+.menuIcon {
+  height: 1.25rem;
+  width: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+}
+
+.logoText {
+  display: none;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .logoText {
+    display: inline;
+  }
+}
+
+.headerActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .headerActions {
+    gap: 0.75rem;
+  }
+}
+
+.commandButton {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgb(226 232 240);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(100 116 139);
+}
+
+.commandButton:hover {
+  background-color: rgb(241 245 249);
+}
+
+:global(.dark) .commandButton {
+  border-color: rgb(51 65 85);
+  color: rgb(148 163 184);
+}
+
+:global(.dark) .commandButton:hover {
+  background-color: rgb(30 41 59);
+}
+
+@media (min-width: 768px) {
+  .commandButton {
+    display: flex;
+  }
+}
+
+.commandIcon {
+  height: 1rem;
+  width: 1rem;
+  fill: none;
+  stroke: currentColor;
+}
+
+.kbd {
+  border-radius: 0.25rem;
+  border: 1px solid rgb(203 213 225);
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+:global(.dark) .kbd {
+  border-color: rgb(71 85 105);
+}
+
+.newCommunity {
+  display: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(71 85 105);
+}
+
+.newCommunity:hover {
+  color: rgb(67 56 202);
+}
+
+:global(.dark) .newCommunity {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .newCommunity:hover {
+  color: rgb(129 140 248);
+}
+
+@media (min-width: 640px) {
+  .newCommunity {
+    display: inline;
+  }
+}
+
+.accountLink {
+  display: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(71 85 105);
+}
+
+.accountLink:hover {
+  color: rgb(67 56 202);
+}
+
+:global(.dark) .accountLink {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .accountLink:hover {
+  color: rgb(129 140 248);
+}
+
+@media (min-width: 640px) {
+  .accountLink {
+    display: inline;
+  }
+}
+
+.body {
+  display: flex;
+  flex: 1 1 0%;
+}
+
+.sidebar {
+  display: none;
+  flex-shrink: 0;
+  border-right: 1px solid rgb(226 232 240);
+  background-color: var(--surface, rgb(255 255 255));
+  padding: 0.75rem;
+}
+
+:global(.dark) .sidebar {
+  border-right-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: block;
+  }
+}
+
+.sidebarExpanded {
+  width: 14rem;
+}
+
+.sidebarCollapsed {
+  width: 4rem;
+}
+
+.collapseButton {
+  margin-top: 0.5rem;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  color: rgb(100 116 139);
+}
+
+.collapseButton:hover {
+  background-color: rgb(241 245 249);
+}
+
+:global(.dark) .collapseButton {
+  color: rgb(148 163 184);
+}
+
+:global(.dark) .collapseButton:hover {
+  background-color: rgb(30 41 59);
+}
+
+.collapseIcon {
+  height: 1rem;
+  width: 1rem;
+  fill: none;
+  stroke: currentColor;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.collapseIconRotated {
+  transform: rotate(180deg);
+}
+
+.mobileOverlay {
+  position: fixed;
+  inset: 0px;
+  z-index: 40;
+}
+
+@media (min-width: 768px) {
+  .mobileOverlay {
+    display: none;
+  }
+}
+
+.mobileBackdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: rgb(15 23 42 / 0.4);
+}
+
+.mobileSidebar {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  width: 16rem;
+  overflow-y: auto;
+  border-right: 1px solid rgb(226 232 240);
+  background-color: var(--surface, rgb(255 255 255));
+  padding: 0.75rem;
+}
+
+:global(.dark) .mobileSidebar {
+  border-right-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
+}
+
+.main {
+  flex: 1 1 0%;
+  background-color: rgb(248 250 252);
+  padding: 1rem;
+}
+
+:global(.dark) .main {
+  background-color: rgb(2 6 23);
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: 1.5rem;
+  }
+}
+
+.contentFade {
+  animation: fadeInUp 200ms ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.375rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(71 85 105);
+}
+
+.navLink:hover {
+  background-color: rgb(241 245 249);
+}
+
+:global(.dark) .navLink {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .navLink:hover {
+  background-color: rgb(30 41 59);
+}
+
+.navLinkCompact {
+  justify-content: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.navLinkActive {
+  background-color: rgb(238 242 255);
+  font-weight: 500;
+  color: rgb(67 56 202);
+}
+
+:global(.dark) .navLinkActive {
+  background-color: rgb(30 27 75);
+  color: rgb(165 180 252);
+}
+
+.navLinkFocus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.navLinkFocus:focus-visible {
+  box-shadow:
+    0 0 0 2px rgb(99 102 241),
+    0 0 0 4px rgb(255 255 255);
+}
+
+:global(.dark) .navLinkFocus:focus-visible {
+  box-shadow:
+    0 0 0 2px rgb(99 102 241),
+    0 0 0 4px rgb(15 23 42);
+}
+
+.navLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breadcrumbsNav {
+  margin-bottom: 1rem;
+}
+
+.breadcrumbsList {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(100 116 139);
+}
+
+:global(.dark) .breadcrumbsList {
+  color: rgb(148 163 184);
+}
+
+.breadcrumbLink:hover {
+  color: rgb(67 56 202);
+}
+
+:global(.dark) .breadcrumbLink:hover {
+  color: rgb(129 140 248);
+}
+
+.breadcrumbCurrent {
+  font-weight: 500;
+  color: rgb(51 65 85);
+}
+
+:global(.dark) .breadcrumbCurrent {
+  color: rgb(226 232 240);
+}
+
+.noCommunity {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 32rem;
+  border-radius: 0.5rem;
+  border: 1px dashed rgb(203 213 225);
+  background-color: var(--surface, rgb(255 255 255));
+  padding: 2rem;
+  text-align: center;
+}
+
+:global(.dark) .noCommunity {
+  border-color: rgb(51 65 85);
+  background-color: rgb(15 23 42);
+}
+
+.noCommunityTitle {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: rgb(51 65 85);
+}
+
+:global(.dark) .noCommunityTitle {
+  color: rgb(226 232 240);
+}
+
+.noCommunityBody {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(100 116 139);
+}
+
+:global(.dark) .noCommunityBody {
+  color: rgb(148 163 184);
+}
+
+.noCommunityActions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}

@@ -6,6 +6,7 @@ import { Alert, Button, Field, Input } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { loginSchema, type LoginForm } from '../schemas'
+import styles from './LoginPage.module.css'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -31,19 +32,17 @@ export function LoginPage() {
   })
 
   return (
-    <div>
-      <h1 className="text-page-title text-slate-800 dark:text-slate-100">Iniciar sesión</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Accede con tu correo y contraseña.
-      </p>
+    <div className={styles.root}>
+      <h1 className={styles.title}>Iniciar sesión</h1>
+      <p className={styles.subtitle}>Accede con tu correo y contraseña.</p>
 
       {serverError && (
-        <div className="mt-4">
+        <div className={styles.alertWrap}>
           <Alert variant="error">{serverError}</Alert>
         </div>
       )}
 
-      <form className="mt-4 space-y-4" onSubmit={onSubmit} noValidate>
+      <form className={styles.form} onSubmit={onSubmit} noValidate>
         <Field label="Correo electrónico" htmlFor="email" error={errors.email?.message} required>
           <Input id="email" type="email" autoComplete="email" {...register('email')} />
         </Field>
@@ -57,17 +56,14 @@ export function LoginPage() {
           />
         </Field>
 
-        <Button type="submit" loading={isSubmitting} className="w-full">
+        <Button type="submit" loading={isSubmitting} className={styles.submit}>
           Entrar
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className={styles.footer}>
         ¿No tienes cuenta?{' '}
-        <Link
-          to="/register"
-          className="font-medium text-brand-700 dark:text-brand-400 hover:underline"
-        >
+        <Link to="/register" className={styles.link}>
           Crear una
         </Link>
       </p>

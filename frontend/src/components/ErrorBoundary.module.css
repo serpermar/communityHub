@@ -1,0 +1,125 @@
+.root {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(241 245 249);
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+:global(.dark) .root {
+  background-color: rgb(2 6 23);
+}
+
+.card {
+  width: 100%;
+  max-width: 28rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background-color: var(--surface, rgb(255 255 255));
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+:global(.dark) .card {
+  border-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
+}
+
+.title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: rgb(30 41 59);
+}
+
+:global(.dark) .title {
+  color: rgb(241 245 249);
+}
+
+.message {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(100 116 139);
+}
+
+:global(.dark) .message {
+  color: rgb(148 163 184);
+}
+
+.errorBox {
+  margin-top: 0.75rem;
+  overflow-wrap: break-word;
+  border-radius: 0.375rem;
+  background-color: rgb(241 245 249);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: rgb(71 85 105);
+}
+
+:global(.dark) .errorBox {
+  background-color: rgb(30 41 59);
+  color: rgb(203 213 225);
+}
+
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.retry {
+  border-radius: 0.375rem;
+  border: 1px solid rgb(203 213 225);
+  background-color: var(--surface, rgb(255 255 255));
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: rgb(51 65 85);
+}
+
+.retry:hover {
+  background-color: rgb(248 250 252);
+}
+
+:global(.dark) .retry {
+  border-color: rgb(51 65 85);
+  background-color: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+:global(.dark) .retry:hover {
+  background-color: rgb(51 65 85);
+}
+
+.reload {
+  border-radius: 0.375rem;
+  background-color: rgb(79 70 229);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: rgb(255 255 255);
+}
+
+.reload:hover {
+  background-color: rgb(67 56 202);
+}

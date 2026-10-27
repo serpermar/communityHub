@@ -1,0 +1,42 @@
+{
+  "name": "communityhub",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,tsx,js,jsx}": [
+      "npm --prefix backend run lint -- --fix",
+      "npm --prefix backend run format -- --write"
+    ],
+    "frontend/**/*.{ts,tsx,js,jsx,css}": [
+      "npm --prefix frontend run lint -- --fix",
+      "npm --prefix frontend run format -- --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serpermar/communityHub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/serpermar/communityHub/issues"
+  },
+  "homepage": "https://github.com/serpermar/communityHub#readme"
+}

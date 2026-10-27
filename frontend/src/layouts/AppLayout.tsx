@@ -13,6 +13,7 @@ import { t } from '@/i18n'
 import { NAV_ITEMS, visibleNavItems } from '@/routes/navItems'
 import { prefetchRoute } from '@/routes/prefetch'
 import { cn } from '@/utils/cn'
+import styles from './AppLayout.module.css'
 
 const SIDEBAR_KEY = 'communityhub.sidebar'
 
@@ -47,7 +48,7 @@ function AppLayoutInner() {
 
   if (loading && !active) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className={styles.loadingWrap}>
         <LoadingState />
       </div>
     )
@@ -55,7 +56,7 @@ function AppLayoutInner() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-lg p-8">
+      <div className={styles.errorWrap}>
         <ErrorState error={error} onRetry={reload} />
       </div>
     )
@@ -64,7 +65,7 @@ function AppLayoutInner() {
   const visibleItems = visibleNavItems(role)
 
   const navLinks = (compact: boolean, label: string) => (
-    <nav className="space-y-1" aria-label={label}>
+    <nav className={styles.nav} aria-label={label}>
       {visibleItems.map((item) => {
         const Icon = NAV_ICONS[item.segment]
         return (
@@ -77,16 +78,15 @@ function AppLayoutInner() {
             title={compact ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-control px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900',
-                compact && 'justify-center px-2',
-                isActive
-                  ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+                styles.navLink,
+                styles.navLinkFocus,
+                compact && styles.navLinkCompact,
+                isActive && styles.navLinkActive,
               )
             }
           >
             {Icon && <Icon aria-hidden="true" />}
-            {!compact && <span className="truncate">{t(item.labelKey)}</span>}
+            {!compact && <span className={styles.navLabel}>{t(item.labelKey)}</span>}
           </NavLink>
         )
       })}
@@ -94,25 +94,19 @@ function AppLayoutInner() {
   )
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
-      >
+    <div className={styles.body} style={{ flexDirection: 'column' }}>
+      <a href="#main-content" className={styles.skipLink}>
         {t('app.skipToContent')}
       </a>
-      <header
-        aria-label={t('app.header')}
-        className="flex items-center gap-3 border-b border-slate-200 bg-surface px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
-      >
+      <header aria-label={t('app.header')} className={styles.header}>
         <button
           type="button"
-          className="rounded-control p-2 text-slate-600 hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+          className={styles.menuButton}
           aria-label={menuOpen ? t('app.closeMenu') : t('app.openMenu')}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.menuIcon}>
             <path strokeWidth="1.7" strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
@@ -120,50 +114,38 @@ function AppLayoutInner() {
         <Logo
           withText
           className="text-brand-700 dark:text-brand-400"
-          textClassName="hidden text-base sm:inline"
+          textClassName={styles.logoText}
         />
 
         {communities.length > 0 && (
           <CommunitySwitcher communities={communities} activeId={active?.id ?? ''} />
         )}
 
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <div className={styles.headerActions}>
           {active && (
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label={t('app.commandTrigger')}
               title={t('app.commandTrigger')}
-              className="hidden items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 md:flex dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+              className={styles.commandButton}
             >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-4 w-4 fill-none stroke-current"
-              >
+              <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.commandIcon}>
                 <circle cx="11" cy="11" r="7" strokeWidth="1.7" />
                 <path strokeWidth="1.7" strokeLinecap="round" d="m20 20-3.5-3.5" />
               </svg>
               <span>{t('app.commandPalette')}</span>
-              <kbd className="rounded border border-slate-300 px-1 text-xs dark:border-slate-600">
-                Ctrl K
-              </kbd>
+              <kbd className={styles.kbd}>Ctrl K</kbd>
             </button>
           )}
           {user?.globalRole === 'ADMIN_SA' && (
-            <NavLink
-              to="/admin/communities/new"
-              className="hidden text-sm text-slate-600 hover:text-brand-700 sm:inline dark:text-slate-300 dark:hover:text-brand-400"
-            >
+            <NavLink to="/admin/communities/new" className={styles.newCommunity}>
               {t('app.newCommunity')}
             </NavLink>
           )}
           <ThemeToggle />
           <NotificationBell />
-          <NavLink
-            to="/account"
-            className="hidden text-sm text-slate-600 hover:text-brand-700 sm:inline dark:text-slate-300 dark:hover:text-brand-400"
-          >
+          <NavLink to="/account" className={styles.accountLink}>
             {user?.fullName}
           </NavLink>
           <Button variant="ghost" size="sm" onClick={() => void logout()}>
@@ -172,12 +154,12 @@ function AppLayoutInner() {
         </div>
       </header>
 
-      <div className="flex flex-1">
+      <div className={styles.body}>
         <aside
           aria-label={t('app.mainNavigation')}
           className={cn(
-            'hidden shrink-0 border-r border-slate-200 bg-surface p-3 md:block dark:border-slate-800 dark:bg-slate-900',
-            collapsed ? 'w-16' : 'w-56',
+            styles.sidebar,
+            collapsed ? styles.sidebarCollapsed : styles.sidebarExpanded,
           )}
         >
           {active ? (
@@ -188,15 +170,12 @@ function AppLayoutInner() {
                 onClick={() => setCollapsed((value) => !value)}
                 aria-label={collapsed ? t('app.expandSidebar') : t('app.collapseSidebar')}
                 aria-pressed={collapsed}
-                className="mt-2 flex w-full items-center justify-center rounded-control px-2 py-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                className={styles.collapseButton}
               >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
-                  className={cn(
-                    'h-4 w-4 fill-none stroke-current transition-transform',
-                    collapsed && 'rotate-180',
-                  )}
+                  className={cn(styles.collapseIcon, collapsed && styles.collapseIconRotated)}
                 >
                   <path strokeWidth="2" strokeLinecap="round" d="M15 6l-6 6 6 6" />
                 </svg>
@@ -208,26 +187,23 @@ function AppLayoutInner() {
         </aside>
 
         {active && menuOpen && (
-          <div className="fixed inset-0 z-40 md:hidden">
+          <div className={styles.mobileOverlay}>
             <div
-              className="absolute inset-0 bg-slate-900/40"
+              className={styles.mobileBackdrop}
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
             />
-            <aside
-              aria-label={t('app.mobileNavigation')}
-              className="relative z-10 h-full w-64 overflow-y-auto border-r border-slate-200 bg-surface p-3 dark:border-slate-800 dark:bg-slate-900"
-            >
+            <aside aria-label={t('app.mobileNavigation')} className={styles.mobileSidebar}>
               {navLinks(false, t('app.mobileNavigation'))}
             </aside>
           </div>
         )}
 
-        <main id="main-content" className="flex-1 bg-slate-50 p-4 md:p-6 dark:bg-slate-950">
+        <main id="main-content" className={styles.main}>
           {active ? (
             <>
               <Breadcrumbs pathname={location.pathname} communityId={active.id} />
-              <div key={location.pathname} className="motion-safe:animate-fade-in-up">
+              <div key={location.pathname} className={styles.contentFade}>
                 <Outlet />
               </div>
             </>
@@ -264,18 +240,15 @@ function Breadcrumbs({ pathname, communityId }: { pathname: string; communityId:
   if (!item) return null
 
   return (
-    <nav aria-label={t('app.breadcrumb')} className="mb-4">
-      <ol className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+    <nav aria-label={t('app.breadcrumb')} className={styles.breadcrumbsNav}>
+      <ol className={styles.breadcrumbsList}>
         <li>
-          <Link
-            to={`${prefix}/dashboard`}
-            className="hover:text-brand-700 dark:hover:text-brand-400"
-          >
+          <Link to={`${prefix}/dashboard`} className={styles.breadcrumbLink}>
             {t('nav.dashboard')}
           </Link>
         </li>
         <li aria-hidden="true">/</li>
-        <li aria-current="page" className="font-medium text-slate-700 dark:text-slate-200">
+        <li aria-current="page" className={styles.breadcrumbCurrent}>
           {t(item.labelKey)}
         </li>
       </ol>
@@ -287,12 +260,10 @@ function NoCommunity() {
   const { user } = useAuth()
   const navigate = useNavigate()
   return (
-    <div className="mx-auto max-w-lg rounded-lg border border-dashed border-slate-300 bg-surface p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        {t('app.noCommunityTitle')}
-      </p>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('app.noCommunityBody')}</p>
-      <div className="mt-4 flex justify-center gap-2">
+    <div className={styles.noCommunity}>
+      <p className={styles.noCommunityTitle}>{t('app.noCommunityTitle')}</p>
+      <p className={styles.noCommunityBody}>{t('app.noCommunityBody')}</p>
+      <div className={styles.noCommunityActions}>
         <Button variant="secondary" onClick={() => navigate('/invitations/redeem')}>
           {t('app.redeemInvitation')}
         </Button>

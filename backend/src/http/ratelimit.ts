@@ -87,6 +87,28 @@ export function createLoginRateLimiter() {
 }
 
 /**
+ * Limite para refresh: evita abuso de renovación de tokens.
+ */
+export function createRefreshRateLimiter() {
+  return rateLimit({
+    ...common,
+    limit: 30,
+    windowMs: 15 * 60 * 1000,
+  })
+}
+
+/**
+ * Limite para cambio de contraseña: evita intentos masivos.
+ */
+export function createChangePasswordRateLimiter() {
+  return rateLimit({
+    ...common,
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  })
+}
+
+/**
  * Limite global de la API, mas alto: protege de abuso sin molestar.
  *
  * El limite es un parametro y no una constante para que el test de regresion

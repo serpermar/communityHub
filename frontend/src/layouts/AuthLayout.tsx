@@ -1,17 +1,22 @@
 import { Outlet } from 'react-router-dom'
 import { ThemeToggle } from '@/components/ui'
 import { Logo } from '@/components/brand/Logo'
+import { AnimatedBackground } from '@/components/layout/AnimatedBackground'
+import styles from './AuthLayout.module.css'
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 dark:bg-slate-950">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-between">
-          <span className="w-9" aria-hidden="true" />
-          <Logo className="text-brand-600 dark:text-brand-400" />
-          <ThemeToggle />
+    <div className={styles.root}>
+      <AnimatedBackground variant="all" />
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <span className={styles.spacer} aria-hidden="true" />
+          <Logo className={styles.logo} />
+          <div className={styles.themeToggleWrapper}>
+            <ThemeToggle />
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className={styles.card}>
           <Outlet />
         </div>
       </div>

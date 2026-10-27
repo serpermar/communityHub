@@ -11,7 +11,11 @@ import multer, { MulterError } from 'multer'
 import type { NextFunction, Request, Response } from 'express'
 import * as controller from './controller.js'
 import { requireAuth } from './middleware.js'
-import { createLoginRateLimiter } from '../http/ratelimit.js'
+import {
+  createChangePasswordRateLimiter,
+  createLoginRateLimiter,
+  createRefreshRateLimiter,
+} from '../http/ratelimit.js'
 import { badRequest } from '../http/errors.js'
 
 const avatarUpload = multer({
@@ -51,6 +55,8 @@ function handleAvatarUpload(req: Request, res: Response, next: NextFunction): vo
 export function createAuthRouter(): Router {
   const router = Router()
   const loginLimiter = createLoginRateLimiter()
+  const refreshLimiter = createRefreshRateLimiter()
+  const changePasswordLimiter = createChangePasswordRateLimiter()
 
   // Publicos. El limite de intentos va solo en el login: el registro tambien
   // escribe en la base de datos, pero un 429 ahi impediria dar de alta a varias
@@ -58,7 +64,7 @@ export function createAuthRouter(): Router {
   // normal (mismo router, mismo vecindario).
   router.post('/register', controller.register)
   router.post('/login', loginLimiter, controller.login)
-  router.post('/refresh', controller.refresh)
+  router.post('/refresh', refreshLimiter, controller.refresh)
 
   // Protegidos.
   router.post('/logout', requireAuth, controller.logout)
@@ -66,7 +72,7 @@ export function createAuthRouter(): Router {
   router.patch('/me', requireAuth, controller.updateProfile)
   router.post('/me/avatar', requireAuth, handleAvatarUpload, controller.uploadAvatar)
   router.delete('/me/avatar', requireAuth, controller.deleteAvatar)
-  router.post('/change-password', requireAuth, controller.changePassword)
+  router.post('/change-password', requireAuth, changePasswordLimiter, controller.changePassword)
   router.get('/sessions', requireAuth, controller.listSessions)
   router.post('/sessions/revoke-others', requireAuth, controller.revokeOtherSessions)
   router.get('/me/export', requireAuth, controller.exportMyData)
