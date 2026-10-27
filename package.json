@@ -8,23 +8,28 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "lint-staged": "^17.6.0"
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.3.3"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky"
+    "prepare": "husky",
+    "format": "prettier --write"
   },
   "lint-staged": {
     "backend/**/*.{ts,tsx,js,jsx}": [
-      "npm --prefix backend run lint -- --fix",
-      "npm --prefix backend run format -- --write"
+      "npm --prefix backend run lint:staged",
+      "npm --prefix backend run format:staged"
     ],
-    "frontend/**/*.{ts,tsx,js,jsx,css}": [
-      "npm --prefix frontend run lint -- --fix",
-      "npm --prefix frontend run format -- --write"
+    "frontend/**/*.{ts,tsx,js,jsx}": [
+      "npm --prefix frontend run lint:staged",
+      "npm --prefix frontend run format:staged"
+    ],
+    "frontend/**/*.css": [
+      "npm --prefix frontend run format:staged"
     ],
     "*.{json,md,yml,yaml}": [
-      "prettier --write"
+      "npx prettier --write"
     ]
   },
   "repository": {

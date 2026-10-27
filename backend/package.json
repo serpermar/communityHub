@@ -33,7 +33,9 @@
     "mcp:dist": "node dist/mcp/stdio.js",
     "agent": "tsx src/agents/dev/cli.ts",
     "agent:dist": "node dist/agents/dev/cli.js",
-    "lint:ci": "eslint ."
+    "lint:ci": "eslint .",
+    "lint:staged": "eslint --fix",
+    "format:staged": "prettier --write"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
