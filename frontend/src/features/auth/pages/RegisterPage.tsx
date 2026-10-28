@@ -6,6 +6,8 @@ import { Alert, Button, Field, Input } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { registerSchema, type RegisterForm } from '../schemas'
+import { PasswordField } from '../components/PasswordField'
+import { PasswordStrength } from '../components/PasswordStrength'
 import styles from './RegisterPage.module.css'
 
 export function RegisterPage() {
@@ -17,8 +19,15 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) })
+    watch,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    mode: 'onTouched',
+    defaultValues: { fullName: '', email: '', password: '', phone: '' },
+  })
+
+  const passwordValue = watch('password') ?? ''
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
@@ -42,45 +51,40 @@ export function RegisterPage() {
       <p className={styles.subtitle}>Regístrate y accede con tus credenciales.</p>
 
       {serverError && (
-        <div className={styles.alertWrap}>
+        <div className={styles.alertWrap} aria-live="polite">
           <Alert variant="error">{serverError}</Alert>
         </div>
       )}
       {done && (
-        <div className={styles.alertWrap}>
+        <div className={styles.alertWrap} aria-live="polite">
           <Alert variant="success">{done} Redirigiendo al inicio de sesión…</Alert>
         </div>
       )}
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <Field label="Nombre completo" htmlFor="fullName" error={errors.fullName?.message} required>
-          <Input id="fullName" autoComplete="name" {...register('fullName')} />
+          <Input id="fullName" autoComplete="name" autoFocus {...register('fullName')} />
         </Field>
 
         <Field label="Correo electrónico" htmlFor="email" error={errors.email?.message} required>
           <Input id="email" type="email" autoComplete="email" {...register('email')} />
         </Field>
 
-        <Field
-          label="Contraseña"
-          htmlFor="password"
-          error={errors.password?.message}
-          hint="Mínimo 8 caracteres."
-          required
-        >
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            {...register('password')}
-          />
+        <Field label="Contraseña" htmlFor="password" error={errors.password?.message} required>
+          <PasswordField id="password" autoComplete="new-password" {...register('password')} />
+          <PasswordStrength password={passwordValue} />
         </Field>
 
         <Field label="Teléfono (opcional)" htmlFor="phone" error={errors.phone?.message}>
           <Input id="phone" autoComplete="tel" {...register('phone')} />
         </Field>
 
-        <Button type="submit" loading={isSubmitting} className={styles.submit}>
+        <Button
+          type="submit"
+          loading={isSubmitting}
+          disabled={!isValid || isSubmitting || !!done}
+          className={styles.submit}
+        >
           Crear cuenta
         </Button>
       </form>

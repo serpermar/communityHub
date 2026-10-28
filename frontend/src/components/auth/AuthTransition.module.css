@@ -1,0 +1,88 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: fadeIn 200ms ease-in;
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgb(99 102 241 / 0.18), rgb(2 6 23));
+  animation: bgPulse 900ms ease-in-out;
+}
+
+.ring {
+  position: relative;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 9999px;
+  border: 2px solid rgb(129 140 248 / 0.8);
+  box-shadow:
+    0 0 60px rgb(99 102 241 / 0.45),
+    inset 0 0 40px rgb(129 140 248 / 0.25);
+  animation: ring 900ms ease-in-out forwards;
+}
+
+.zoom .ring {
+  animation: zoomRing 700ms ease-in forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bgPulse {
+  0% {
+    opacity: 0.4;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomRing {
+  0% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(12);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .bg,
+  .ring {
+    animation: none !important;
+  }
+}

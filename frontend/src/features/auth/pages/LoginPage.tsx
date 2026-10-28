@@ -6,6 +6,7 @@ import { Alert, Button, Field, Input } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useAuth } from '@/context/AuthContext'
 import { loginSchema, type LoginForm } from '../schemas'
+import { PasswordField } from '../components/PasswordField'
 import styles from './LoginPage.module.css'
 
 export function LoginPage() {
@@ -17,8 +18,12 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onTouched',
+    defaultValues: { email: '', password: '' },
+  })
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
@@ -37,26 +42,32 @@ export function LoginPage() {
       <p className={styles.subtitle}>Accede con tu correo y contraseña.</p>
 
       {serverError && (
-        <div className={styles.alertWrap}>
+        <div className={styles.alertWrap} aria-live="polite">
           <Alert variant="error">{serverError}</Alert>
         </div>
       )}
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <Field label="Correo electrónico" htmlFor="email" error={errors.email?.message} required>
-          <Input id="email" type="email" autoComplete="email" {...register('email')} />
+          <Input id="email" type="email" autoComplete="email" autoFocus {...register('email')} />
         </Field>
 
         <Field label="Contraseña" htmlFor="password" error={errors.password?.message} required>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            {...register('password')}
-          />
+          <PasswordField id="password" autoComplete="current-password" {...register('password')} />
         </Field>
 
-        <Button type="submit" loading={isSubmitting} className={styles.submit}>
+        <div className={styles.forgotWrap}>
+          <Link to="/forgot-password" className={styles.forgotLink}>
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
+        <Button
+          type="submit"
+          loading={isSubmitting}
+          disabled={!isValid || isSubmitting}
+          className={styles.submit}
+        >
           Entrar
         </Button>
       </form>

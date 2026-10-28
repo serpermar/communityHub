@@ -39,6 +39,26 @@
   width: 100%;
 }
 
+.forgotWrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.25rem;
+}
+
+.forgotLink {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(67 56 202);
+}
+
+.forgotLink:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .forgotLink {
+  color: rgb(129 140 248);
+}
+
 .footer {
   margin-top: 1rem;
   text-align: center;

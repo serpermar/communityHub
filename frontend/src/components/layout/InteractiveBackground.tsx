@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { t } from '@/i18n'
+import { useEffect, useRef } from 'react'
 import styles from './InteractiveBackground.module.css'
 
 /** Desplazamiento máximo del parallax, en píxeles. */
@@ -8,14 +7,12 @@ const MAX_OFFSET = 28
 const EASE = 0.08
 
 export function InteractiveBackground() {
-  const [paused, setPaused] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const target = useRef({ x: 0, y: 0 })
   const current = useRef({ x: 0, y: 0 })
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (paused) return
     if (typeof window === 'undefined') return
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -51,10 +48,10 @@ export function InteractiveBackground() {
       el.style.removeProperty('--mx')
       el.style.removeProperty('--my')
     }
-  }, [paused])
+  }, [])
 
   return (
-    <div ref={wrapperRef} className={styles.wrapper} data-paused={paused}>
+    <div ref={wrapperRef} className={styles.wrapper}>
       <div className={styles.blobs} aria-hidden="true">
         <div className={`${styles.blobOuter} ${styles.blob1}`}>
           <div className={styles.blobInner} />
@@ -66,26 +63,6 @@ export function InteractiveBackground() {
           <div className={styles.blobInner} />
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setPaused((value) => !value)}
-        aria-pressed={paused}
-        aria-label={paused ? t('app.resumeBackground') : t('app.pauseBackground')}
-        title={paused ? t('app.resumeBackground') : t('app.pauseBackground')}
-        className={styles.toggle}
-      >
-        {paused ? (
-          <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.toggleIcon}>
-            <path d="M8 5v14l11-7z" fill="currentColor" />
-          </svg>
-        ) : (
-          <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.toggleIcon}>
-            <rect x="7" y="5" width="3.5" height="14" rx="1" fill="currentColor" />
-            <rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="currentColor" />
-          </svg>
-        )}
-      </button>
     </div>
   )
 }

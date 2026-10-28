@@ -32,37 +32,39 @@
   will-change: transform;
 }
 
-/* Blob 1 — arriba a la izquierda (azul de marca) */
+/* Blob 1 — arriba a la izquierda (brand) */
 .blob1 {
-  top: -20%;
-  left: -15%;
+  top: -18%;
+  left: -12%;
 }
 
 .blob1 .blobInner {
-  background: radial-gradient(circle at 30% 30%, var(--brand-500, #3b82f6), transparent 70%);
+  background: radial-gradient(circle at 30% 30%, var(--brand-500, #6366f1), transparent 72%);
+  opacity: 0.5;
   animation: float1 38s ease-in-out infinite alternate;
 }
 
-/* Blob 2 — abajo a la derecha (verde del logo) */
+/* Blob 2 — abajo a la derecha (accent/violeta) */
 .blob2 {
-  bottom: -25%;
-  right: -15%;
+  bottom: -22%;
+  right: -12%;
 }
 
 .blob2 .blobInner {
-  background: radial-gradient(circle at 70% 70%, #86b98a, transparent 70%);
+  background: radial-gradient(circle at 70% 70%, var(--accent-500, #8b5cf6), transparent 72%);
+  opacity: 0.5;
   animation: float2 46s ease-in-out infinite alternate-reverse;
 }
 
-/* Blob 3 — centrado, más tenue (violeta suave) */
+/* Blob 3 — centrado (info/azul) */
 .blob3 {
-  top: 20%;
-  left: 25%;
+  top: 25%;
+  left: 28%;
 }
 
 .blob3 .blobInner {
-  background: radial-gradient(circle at 50% 50%, var(--brand-400, #60a5fa), transparent 75%);
-  opacity: 0.25;
+  background: radial-gradient(circle at 50% 50%, var(--info-400, #38bdf8), transparent 74%);
+  opacity: 0.38;
   animation: float3 54s ease-in-out infinite alternate;
 }
 
@@ -108,14 +110,7 @@
   }
 }
 
-/* Pausa manual: detenemos animación y parallax (WCAG 2.2.2) */
-.wrapper[data-paused='true'] .blobInner {
-  animation-play-state: paused;
-}
-
-.wrapper[data-paused='true'] .blobOuter {
-  transform: none;
-}
+/* Sin pausa manual */
 
 /* Preferencia del sistema: sin animación, sin parallax */
 @media (prefers-reduced-motion: reduce) {
@@ -135,48 +130,4 @@
   }
 }
 
-/* Botón de pausa (el único elemento interactivo del fondo) */
-.toggle {
-  pointer-events: auto;
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 9999px;
-  border: 1px solid #e2e8f0;
-  background-color: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(6px);
-  color: #475569;
-  cursor: pointer;
-  transition:
-    background-color 150ms ease-in-out,
-    color 150ms ease-in-out;
-}
-
-.toggle:hover {
-  background-color: rgba(255, 255, 255, 0.9);
-}
-
-.toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--brand-500, #3b82f6);
-}
-
-:global(.dark) .toggle {
-  border-color: #334155;
-  background-color: rgba(15, 23, 42, 0.6);
-  color: #cbd5e1;
-}
-
-:global(.dark) .toggle:hover {
-  background-color: rgba(15, 23, 42, 0.9);
-}
-
-.toggleIcon {
-  width: 0.875rem;
-  height: 0.875rem;
-}
+/* Botón de pausa eliminado */

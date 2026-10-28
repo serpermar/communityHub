@@ -30,6 +30,8 @@ export const es = {
     themeLight: 'Tema claro',
     themeDark: 'Tema oscuro',
     skipToContent: 'Saltar al contenido',
+    pauseBackground: 'Pausar animación de fondo',
+    resumeBackground: 'Reanudar animación de fondo',
     breadcrumb: 'Ruta de navegación',
     collapseSidebar: 'Contraer menú lateral',
     expandSidebar: 'Expandir menú lateral',
