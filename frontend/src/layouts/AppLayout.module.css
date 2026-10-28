@@ -82,6 +82,7 @@
   gap: 0.25rem;
 }
 
+/* --- Navegación y Colores Semánticos --- */
 .navLink {
   display: flex;
   align-items: center;
@@ -89,7 +90,6 @@
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #475569;
   text-decoration: none;
   transition:
     background-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -98,16 +98,29 @@
 
 .navLink:hover {
   background-color: #f1f5f9;
-  color: #1e293b;
-}
-
-:global(.dark) .navLink {
-  color: #cbd5e1;
 }
 
 :global(.dark) .navLink:hover {
   background-color: #1e293b;
-  color: #f1f5f9;
+}
+
+/* Envoltorio del icono: aquí ocurre la magia del color */
+.navIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Usa el color del módulo, con opacidad para que no deslumbre */
+  color: var(--nav-accent, #64748b);
+  opacity: 0.75;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+/* Al pasar el ratón, el icono brilla al 100% */
+.navLink:hover .navIconWrapper {
+  opacity: 1;
+  transform: scale(1.05);
 }
 
 .navLinkCompact {
@@ -130,19 +143,24 @@
   outline-offset: 2px;
 }
 
+/* El texto del menú */
 .navLabel {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #475569;
+}
+
+:global(.dark) .navLabel {
+  color: #cbd5e1;
 }
 
 /* Indicador activo con barra lateral */
 .navLinkActive {
   position: relative;
-  background-color: rgb(238 242 255 / 0.6);
+  background-color: rgba(241, 245, 249, 0.8);
   font-weight: 500;
-  color: rgb(67 56 202);
 }
 
 .navLinkActive:hover {
@@ -158,12 +176,23 @@
   bottom: 0.375rem;
   width: 3px;
   border-radius: 9999px;
-  background-color: var(--brand-600, #2563eb);
+  background-color: var(--nav-accent, var(--brand-600, #2563eb));
+}
+
+.navLinkActive .navIconWrapper {
+  opacity: 1;
 }
 
 :global(.dark) .navLinkActive {
-  background-color: rgb(30 27 75 / 0.5);
-  color: rgb(165 180 252);
+  background-color: rgba(30, 41, 59, 0.6);
+}
+
+.navLinkActive .navLabel {
+  color: #0f172a;
+}
+
+:global(.dark) .navLinkActive .navLabel {
+  color: #f1f5f9;
 }
 
 :global(.dark) .navLinkActive:hover {

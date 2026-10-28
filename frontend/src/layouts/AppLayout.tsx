@@ -15,6 +15,20 @@ import { AiFloatingButton } from '@/components/ai/AiFloatingButton'
 import { CommunityProvider } from '@/context/CommunityContext'
 import styles from './AppLayout.module.css'
 
+const NAV_COLORS: Record<string, string> = {
+  dashboard: '#3b82f6', // Azul
+  incidents: '#f43f5e', // Rose (Incidencias)
+  'common-areas': '#f59e0b', // Amber (Zonas comunes)
+  reservations: '#0ea5e9', // Sky (Reservas)
+  announcements: '#eab308', // Yellow (Avisos)
+  documents: '#8b5cf6', // Violet (Documentos)
+  finance: '#10b981', // Emerald (Finanzas)
+  votes: '#6366f1', // Indigo (Votaciones)
+  assistant: '#06b6d4', // Cyan (Asistente IA)
+  members: '#14b8a6', // Teal (Miembros)
+  settings: '#64748b', // Slate (Ajustes)
+}
+
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -147,6 +161,9 @@ function AppLayoutInner() {
       {visibleItems.map((item) => {
         const Icon = NAV_ICONS[item.segment]
         const labelText = t(item.labelKey)
+        // Obtenemos el color del diccionario (o azul por defecto)
+        const accentColor = NAV_COLORS[item.segment] || '#2563eb'
+
         const link = (
           <NavLink
             key={item.segment}
@@ -154,6 +171,8 @@ function AppLayoutInner() {
             onClick={() => setMenuOpen(false)}
             onMouseEnter={() => prefetchRoute(item.segment)}
             onFocus={() => prefetchRoute(item.segment)}
+            // Inyectamos el color como variable CSS
+            style={{ '--nav-accent': accentColor } as React.CSSProperties}
             className={({ isActive }) =>
               cn(
                 styles.navLink,
@@ -164,7 +183,11 @@ function AppLayoutInner() {
             }
             aria-label={compact ? labelText : undefined}
           >
-            {Icon && <Icon aria-hidden="true" />}
+            {Icon && (
+              <span className={styles.navIconWrapper}>
+                <Icon aria-hidden="true" />
+              </span>
+            )}
             {!compact && <span className={styles.navLabel}>{labelText}</span>}
           </NavLink>
         )

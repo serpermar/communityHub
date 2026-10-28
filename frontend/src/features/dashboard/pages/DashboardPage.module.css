@@ -51,6 +51,217 @@
   color: #f1f5f9;
 }
 
+/* --- Sistema de Colores Semánticos --- */
+.accentIncidents {
+  border-top: 3px solid #f43f5e;
+}
+
+/* Rose */
+.accentReservations {
+  border-top: 3px solid #0ea5e9;
+}
+
+/* Sky */
+.accentFinance {
+  border-top: 3px solid #10b981;
+}
+
+/* Emerald */
+.accentVotes {
+  border-top: 3px solid #8b5cf6;
+}
+
+/* Violet */
+
+/* --- Action Center --- */
+.actionCenter {
+  border-radius: var(--radius-card, 0.5rem);
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+:global(.dark) .actionCenter {
+  border-color: #7f1d1d;
+  background-color: rgba(69, 10, 10, 0.4);
+}
+
+.actionCenterTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #991b1b;
+  margin: 0;
+}
+
+:global(.dark) .actionCenterTitle {
+  color: #fca5a5;
+}
+
+.actionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #7f1d1d;
+}
+
+:global(.dark) .actionItem {
+  color: #fecaca;
+}
+
+.actionLink {
+  color: #dc2626;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.actionLink:hover {
+  text-decoration: underline;
+}
+
+:global(.dark) .actionLink {
+  color: #fca5a5;
+}
+
+/* --- Activity Feed --- */
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activityItem {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  position: relative;
+}
+
+.activityItem:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  top: 1.5rem;
+  bottom: -1rem;
+  width: 1px;
+  background-color: #e2e8f0;
+}
+
+:global(.dark) .activityItem:not(:last-child)::before {
+  background-color: #334155;
+}
+
+.activityIconWrapper {
+  display: flex;
+  height: 1.5rem;
+  width: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #f1f5f9;
+  color: #64748b;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+:global(.dark) .activityIconWrapper {
+  background-color: #1e293b;
+  color: #94a3b8;
+}
+
+.activityContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.activityText {
+  font-size: 0.875rem;
+  color: #334155;
+  margin: 0;
+}
+
+:global(.dark) .activityText {
+  color: #e2e8f0;
+}
+
+.activityTime {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+:global(.dark) .activityTime {
+  color: #64748b;
+}
+
+/* --- AI Quick Actions --- */
+.aiCard {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(168, 85, 247, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+:global(.dark) .aiCard {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.aiButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.aiButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #475569;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.aiButton:hover {
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+  background-color: #f5f3ff;
+}
+
+:global(.dark) .aiButton {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+:global(.dark) .aiButton:hover {
+  border-color: #8b5cf6;
+  color: #d8b4fe;
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
 /* --- KPIs --- */
 .statsGrid {
   display: grid;
@@ -115,7 +326,6 @@
   color: #16a34a;
 }
 
-/* Envoltorio para KPIs clickeables */
 .statClickableWrapper {
   display: block;
   width: 100%;
@@ -199,7 +409,6 @@
 
 @media (min-width: 1024px) {
   .chartsGrid {
-    /* El gráfico de incidencias ocupa 2/3, el de reservas 1/3 */
     grid-template-columns: 2fr 1fr;
   }
 }

@@ -25,6 +25,11 @@ import {
   AlertTriangle,
   Megaphone,
   Vote,
+  Bot,
+  AlertCircle,
+  FileText,
+  Sparkles,
+  Clock,
 } from 'lucide-react'
 import { Card, ErrorState, PageHeader, SkeletonDashboard, Button } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
@@ -149,11 +154,52 @@ export function DashboardPage() {
 
   const tickStyle = axisTickStyle(colors)
 
+  // Lógica para Action Center (Requiere tu atención)
+  const hasUrgentInvoices = data.finance && data.finance.invoiceOverdueCount > 0
+  const hasCriticalIncidents = data.incidents.critical > 0
+  const needsAttention = hasUrgentInvoices || hasCriticalIncidents
+
+  // Lógica para Activity Feed (Simulada combinando datos existentes)
+  const activityFeed = [
+    ...data.announcements.latest.map((a) => ({
+      id: a.id,
+      type: 'announcement',
+      icon: <Megaphone size={12} />,
+      text: (
+        <>
+          Nuevo aviso: <strong>{a.title}</strong>
+        </>
+      ),
+      date: new Date(a.publishAt),
+      link: `/c/${active!.id}/announcements`,
+    })),
+    ...data.votes.open.map((v) => ({
+      id: v.id,
+      type: 'vote',
+      icon: <Vote size={12} />,
+      text: (
+        <>
+          Votación abierta: <strong>{v.title}</strong>
+        </>
+      ),
+      date: new Date(v.endsAt),
+      link: `/c/${active!.id}/votes/${v.id}`,
+    })),
+  ]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 4)
+
   const handleCategoryClick = (entry: CategoryClickEvent) => {
     if (entry && entry.activePayload && entry.activePayload.length > 0) {
       const catId = entry.activePayload[0].payload.id
       navigate(`/c/${active!.id}/incidents?category=${catId}`)
     }
+  }
+
+  const openAiWithPrompt = (prompt: string) => {
+    window.dispatchEvent(
+      new CustomEvent('open-ai-assistant', { detail: { initialMessage: prompt } }),
+    )
   }
 
   return (
@@ -163,6 +209,42 @@ export function DashboardPage() {
         <span className={styles.greetingName}>{user?.fullName?.split(' ')[0] ?? 'vecino'}</span>.
         Hoy es {format(new Date(), "d 'de' MMMM", { locale: es })}.
       </div>
+
+      {/* 1. ACTION CENTER (Requiere tu atención) */}
+      {needsAttention && (
+        <div
+          className={`${styles.actionCenter} ${styles.animateIn}`}
+          style={{ animationDelay: '40ms' }}
+        >
+          <h3 className={styles.actionCenterTitle}>
+            <AlertCircle size={18} /> Requiere tu atención
+          </h3>
+          <ul className={styles.actionList}>
+            {hasUrgentInvoices && (
+              <li className={styles.actionItem}>
+                <span>Tienes {data.finance!.invoiceOverdueCount} facturas vencidas.</span>
+                <Link
+                  to={`/c/${active!.id}/finance?tab=invoices&status=OVERDUE`}
+                  className={styles.actionLink}
+                >
+                  Revisar
+                </Link>
+              </li>
+            )}
+            {hasCriticalIncidents && (
+              <li className={styles.actionItem}>
+                <span>Hay {data.incidents.critical} incidencias críticas sin resolver.</span>
+                <Link
+                  to={`/c/${active!.id}/incidents?priority=CRITICAL`}
+                  className={styles.actionLink}
+                >
+                  Atender
+                </Link>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.animateIn} style={{ animationDelay: '50ms' }}>
         <PageHeader
@@ -217,6 +299,7 @@ export function DashboardPage() {
         />
       </div>
 
+      {/* 2. KPIs CON COLORES SEMÁNTICOS */}
       <div
         className={`${styles.statsGrid} ${styles.animateIn}`}
         style={{ animationDelay: '100ms' }}
@@ -224,22 +307,26 @@ export function DashboardPage() {
         <Stat
           label="Incidencias abiertas"
           value={data.incidents.open}
+          accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.id}/incidents?status=OPEN`)}
         />
         <Stat
           label="En progreso"
           value={data.incidents.inProgress}
+          accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.id}/incidents?status=IN_PROGRESS`)}
         />
         <Stat
           label="Críticas"
           value={data.incidents.critical}
           tone="danger"
+          accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.id}/incidents?priority=CRITICAL`)}
         />
         <Stat
           label="Reservas próximas"
           value={data.reservations.upcomingCount}
+          accentClass={styles.accentReservations}
           onClick={() => navigate(`/c/${active!.id}/reservations`)}
         />
 
@@ -282,12 +369,8 @@ export function DashboardPage() {
                   <XAxis dataKey="name" tick={tickStyle} />
                   <YAxis allowDecimals={false} tick={tickStyle} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                  <Bar
-                    dataKey="total"
-                    fill={colors.bars.incidents}
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={64}
-                  />
+                  {/* Color Rose para incidencias */}
+                  <Bar dataKey="total" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={64} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartFigure>
@@ -305,12 +388,8 @@ export function DashboardPage() {
                   <XAxis dataKey="name" tick={tickStyle} />
                   <YAxis allowDecimals={false} tick={tickStyle} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                  <Bar
-                    dataKey="total"
-                    fill={colors.bars.reservations}
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={64}
-                  />
+                  {/* Color Sky para reservas */}
+                  <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={64} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartFigure>
@@ -320,66 +399,34 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      {/* 3. ACTIVITY FEED Y ASISTENTE IA */}
       <div
         className={`${styles.listsGrid} ${styles.animateIn}`}
         style={{ animationDelay: '200ms' }}
       >
-        <Card
-          title="Últimos avisos"
-          actions={
-            <Link to={`/c/${active!.id}/announcements`} className={styles.viewAllLink}>
-              Ver todos
-            </Link>
-          }
-        >
-          {data.announcements.latest.length > 0 ? (
-            <ul className={styles.list}>
-              {data.announcements.latest.map((item) => (
-                <li key={item.id}>
-                  <Link to={`/c/${active!.id}/announcements`} className={styles.listLink}>
-                    {item.title}
-                  </Link>
-                  <span className={styles.listMeta}>
-                    {formatDistanceToNow(new Date(item.publishAt), {
-                      addSuffix: true,
-                      locale: es,
-                    })}
-                  </span>
+        {/* Activity Feed */}
+        <Card title="Actividad reciente">
+          {activityFeed.length > 0 ? (
+            <ul className={styles.activityList}>
+              {activityFeed.map((item) => (
+                <li key={item.id} className={styles.activityItem}>
+                  <div className={styles.activityIconWrapper}>{item.icon}</div>
+                  <div className={styles.activityContent}>
+                    <p className={styles.activityText}>{item.text}</p>
+                    <span className={styles.activityTime}>
+                      <Clock size={10} style={{ display: 'inline', marginRight: 4 }} />
+                      {formatDistanceToNow(item.date, { addSuffix: true, locale: es })}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className={styles.emptyText}>No hay avisos.</p>
+            <p className={styles.emptyText}>No hay actividad reciente.</p>
           )}
         </Card>
 
-        <Card
-          title="Votaciones abiertas"
-          actions={
-            <Link to={`/c/${active!.id}/votes`} className={styles.viewAllLink}>
-              Ver todas
-            </Link>
-          }
-        >
-          {data.votes.open.length > 0 ? (
-            <ul className={styles.list}>
-              {data.votes.open.map((vote) => (
-                <li key={vote.id}>
-                  <Link to={`/c/${active!.id}/votes/${vote.id}`} className={styles.listLink}>
-                    {vote.title}
-                  </Link>
-                  <span className={styles.listMeta}>
-                    Cierra{' '}
-                    {formatDistanceToNow(new Date(vote.endsAt), { addSuffix: true, locale: es })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={styles.emptyText}>No hay votaciones abiertas.</p>
-          )}
-        </Card>
-
+        {/* Próximas reservas */}
         <Card
           title="Próximas reservas"
           actions={
@@ -411,6 +458,39 @@ export function DashboardPage() {
             </div>
           )}
         </Card>
+
+        {/* 4. ACCESOS RÁPIDOS IA */}
+        <Card title="Asistente IA" className={styles.aiCard}>
+          <p className={styles.emptyText} style={{ marginBottom: '0.5rem' }}>
+            ¿En qué te puedo ayudar hoy?
+          </p>
+          <div className={styles.aiButtons}>
+            <button
+              className={styles.aiButton}
+              onClick={() => openAiWithPrompt('Resume las últimas incidencias de la comunidad.')}
+            >
+              <Sparkles size={14} /> Resumir incidencias
+            </button>
+            <button
+              className={styles.aiButton}
+              onClick={() =>
+                openAiWithPrompt(
+                  'Redacta un borrador de aviso para la comunidad sobre el mantenimiento del ascensor.',
+                )
+              }
+            >
+              <FileText size={14} /> Redactar aviso
+            </button>
+            <button
+              className={styles.aiButton}
+              onClick={() =>
+                openAiWithPrompt('¿Cuál es el estado actual de las finanzas de la comunidad?')
+              }
+            >
+              <Bot size={14} /> Consultar finanzas
+            </button>
+          </div>
+        </Card>
       </div>
 
       {data.finance && (
@@ -423,17 +503,20 @@ export function DashboardPage() {
               label="Gasto total"
               value={`${data.finance.expenseTotal.toFixed(2)} €`}
               trend={{ value: -12, isPositive: false }}
+              accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.id}/finance?tab=expenses`)}
             />
             <Stat
               label="Pendiente de pago"
               value={`${data.finance.invoiceOpenAmount.toFixed(2)} €`}
+              accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.id}/finance?tab=invoices`)}
             />
             <Stat
               label="Facturas vencidas"
               value={data.finance.invoiceOverdueCount}
               tone="danger"
+              accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.id}/finance?tab=invoices&status=OVERDUE`)}
             />
           </div>
@@ -451,10 +534,11 @@ export function DashboardPage() {
                     <XAxis dataKey="name" tick={tickStyle} />
                     <YAxis tick={tickStyle} />
                     <Tooltip content={<CustomTooltip />} />
+                    {/* Color Emerald para finanzas */}
                     <Line
                       type="monotone"
                       dataKey="total"
-                      stroke={colors.line}
+                      stroke="#10b981"
                       strokeWidth={2}
                       dot={{ r: 3 }}
                     />
@@ -486,15 +570,17 @@ function Stat({
   tone,
   trend,
   onClick,
+  accentClass,
 }: {
   label: string
   value: number | string
   tone?: 'danger'
   trend?: { value: number; isPositive: boolean }
   onClick?: () => void
+  accentClass?: string
 }) {
   const inner = (
-    <Card>
+    <Card className={accentClass}>
       <p className={styles.statLabel}>{label}</p>
       <p className={`${styles.statValue} ${tone === 'danger' ? styles.statValueDanger : ''}`}>
         {value}
