@@ -70,10 +70,20 @@ export interface PublicHoliday {
 }
 
 export interface CurrentWeather {
-  temperature: number
-  apparentTemperature: number
-  weatherCode: number
-  windSpeed: number
-  precipitation: number
-  time: string
+  current: {
+    temperatureC: number
+    apparentTemperatureC: number | null
+    weatherCode: number
+    condition: string
+    isDay: boolean
+  }
+  today: {
+    minC: number
+    maxC: number
+    precipitationProbability: number | null
+    sunrise: string | null
+    sunset: string | null
+  }
+  updatedAt: string
+  source: string
 }

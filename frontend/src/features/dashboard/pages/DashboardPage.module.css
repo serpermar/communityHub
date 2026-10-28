@@ -1,11 +1,57 @@
-/* Layout principal */
+/* --- Layout principal --- */
 .page {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-/* Grid de KPIs (arriba) */
+/* --- Animaciones de entrada --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animateIn {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animateIn {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* --- Saludo --- */
+.greeting {
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+:global(.dark) .greeting {
+  color: #cbd5e1;
+}
+
+.greetingName {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+:global(.dark) .greetingName {
+  color: #f1f5f9;
+}
+
+/* --- KPIs --- */
 .statsGrid {
   display: grid;
   gap: 0.75rem;
@@ -23,7 +69,6 @@
   }
 }
 
-/* Tarjetas de KPI */
 .statLabel {
   font-size: 0.875rem;
   color: #64748b;
@@ -53,9 +98,68 @@
   color: #f87171;
 }
 
-/* Bloque de clima dentro de la Card */
+.statTrend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.trendUp {
+  color: #dc2626;
+}
+
+.trendDown {
+  color: #16a34a;
+}
+
+/* Envoltorio para KPIs clickeables */
+.statClickableWrapper {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  outline: none;
+  border-radius: var(--radius-card, 0.5rem);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.statClickableWrapper:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+:global(.dark) .statClickableWrapper:hover {
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.3),
+    0 4px 6px -4px rgb(0 0 0 / 0.3);
+}
+
+.statClickableWrapper > div {
+  height: 100%;
+}
+
+.statClickableWrapper:focus-visible {
+  outline: 2px solid var(--brand-500, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* --- Clima --- */
+.weatherContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
 .weatherValue {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: #1e293b;
@@ -71,8 +175,10 @@
   color: #64748b;
 }
 
-:global(.dark) .weatherFeels {
-  color: #94a3b8;
+.weatherIcon {
+  color: #f59e0b;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .weatherEmpty {
@@ -85,7 +191,7 @@
   color: #64748b;
 }
 
-/* Grid de gráficos */
+/* --- Gráficos (Bento Box) --- */
 .chartsGrid {
   display: grid;
   gap: 1rem;
@@ -93,11 +199,12 @@
 
 @media (min-width: 1024px) {
   .chartsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* El gráfico de incidencias ocupa 2/3, el de reservas 1/3 */
+    grid-template-columns: 2fr 1fr;
   }
 }
 
-/* Grid de listas (3 columnas) */
+/* --- Listas --- */
 .listsGrid {
   display: grid;
   gap: 1rem;
@@ -109,7 +216,7 @@
   }
 }
 
-/* Grid de finanzas */
+/* --- Finanzas --- */
 .financeGrid {
   display: grid;
   gap: 0.75rem;
@@ -121,7 +228,7 @@
   }
 }
 
-/* Texto vacío genérico */
+/* --- Textos y Enlaces --- */
 .emptyText {
   margin: 0;
   font-size: 0.875rem;
@@ -132,7 +239,6 @@
   color: #94a3b8;
 }
 
-/* Enlace "Ver todos/todas" del título de las cards */
 .viewAllLink {
   font-size: 0.875rem;
   color: var(--brand-600, #2563eb);
@@ -147,7 +253,6 @@
   color: var(--brand-400, #60a5fa);
 }
 
-/* Listas dentro de las cards */
 .list {
   display: flex;
   flex-direction: column;
@@ -189,7 +294,140 @@
   color: #64748b;
 }
 
-/* Figure con altura fija + tabla accesible */
+.emptyList {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.emptyListText {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+:global(.dark) .emptyListText {
+  color: #94a3b8;
+}
+
+.inlineLink {
+  font-size: 0.875rem;
+  color: var(--brand-600, #2563eb);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.inlineLink:hover {
+  text-decoration: underline;
+}
+
+/* --- Tooltip y Acciones Rápidas --- */
+.customTooltip {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  font-size: 0.875rem;
+}
+
+:global(.dark) .customTooltip {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+.tooltipLabel {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.tooltipValue {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+:global(.dark) .tooltipValue {
+  color: #94a3b8;
+}
+
+.quickActions {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.5rem;
+  width: 14rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  padding: 0.25rem 0;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.dark) .dropdown {
+  background-color: #0f172a;
+  border-color: #334155;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #334155;
+  text-decoration: none;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.dropdownItem:hover {
+  background-color: #f1f5f9;
+}
+
+:global(.dark) .dropdownItem {
+  color: #e2e8f0;
+}
+
+:global(.dark) .dropdownItem:hover {
+  background-color: #1e293b;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --- Gráfico vacío y accesibilidad --- */
+.chartEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 12rem;
+  text-align: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+:global(.dark) .chartEmpty {
+  color: #94a3b8;
+}
+
 .figure {
   margin: 0;
 }

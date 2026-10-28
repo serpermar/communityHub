@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Alert,
   Badge,
@@ -133,6 +134,25 @@ function SummaryTab({ communityId }: { communityId: string }) {
   )
 }
 
+// --- Formularios tipados ---
+type ExpenseForm = {
+  concept: string
+  amount: string
+  expenseDate: string
+  category: ExpenseCategory
+  supplier: string
+  notes: string
+}
+
+type InvoiceForm = {
+  number: string
+  amount: string
+  issueDate: string
+  dueDate: string
+  concept: string
+  supplier: string
+}
+
 function ExpensesTab({ communityId }: { communityId: string }) {
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
@@ -140,53 +160,67 @@ function ExpensesTab({ communityId }: { communityId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null)
-  const [concept, setConcept] = useState('')
-  const [amount, setAmount] = useState('')
-  const [expenseDate, setExpenseDate] = useState(today())
-  const [category, setCategory] = useState<ExpenseCategory>('OTHER')
-  const [supplier, setSupplier] = useState('')
-  const [notes, setNotes] = useState('')
 
   const result = useResource(
     () => listExpenses(communityId, { page, limit: 20 }),
     [communityId, page],
   )
 
+  // 1. Usamos react-hook-form para evitar que el input pierda el foco
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ExpenseForm>({
+    defaultValues: {
+      concept: '',
+      amount: '',
+      expenseDate: today(),
+      category: 'OTHER',
+      supplier: '',
+      notes: '',
+    },
+  })
+
   const openCreate = () => {
     setEditing(null)
-    setConcept('')
-    setAmount('')
-    setExpenseDate(today())
-    setCategory('OTHER')
-    setSupplier('')
-    setNotes('')
+    reset({
+      concept: '',
+      amount: '',
+      expenseDate: today(),
+      category: 'OTHER',
+      supplier: '',
+      notes: '',
+    })
     setError(null)
     setOpen(true)
   }
 
   const openEdit = (row: Expense) => {
     setEditing(row)
-    setConcept(row.concept)
-    setAmount(String(row.amount))
-    setExpenseDate(row.expenseDate)
-    setCategory(row.category)
-    setSupplier(row.supplier ?? '')
-    setNotes(row.notes ?? '')
+    reset({
+      concept: row.concept,
+      amount: String(row.amount),
+      expenseDate: row.expenseDate,
+      category: row.category,
+      supplier: row.supplier ?? '',
+      notes: row.notes ?? '',
+    })
     setError(null)
     setOpen(true)
   }
 
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const save = handleSubmit(async (values) => {
     setError(null)
     setSaving(true)
     const input = {
-      concept: concept.trim(),
-      amount: Number(amount),
-      expenseDate,
-      category,
-      supplier: supplier.trim() || null,
-      notes: notes.trim() || null,
+      concept: values.concept.trim(),
+      amount: Number(values.amount),
+      expenseDate: values.expenseDate,
+      category: values.category,
+      supplier: values.supplier.trim() || null,
+      notes: values.notes.trim() || null,
     }
     try {
       if (editing) await updateExpense(editing.id, input)
@@ -198,7 +232,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
     } finally {
       setSaving(false)
     }
-  }
+  })
 
   const remove = async (row: Expense) => {
     setError(null)
@@ -274,35 +308,32 @@ function ExpensesTab({ communityId }: { communityId: string }) {
         onClose={() => setOpen(false)}
       >
         <form className={styles.form} onSubmit={save} noValidate>
-          <Field label="Concepto" htmlFor="exp-concept" required>
-            <Input id="exp-concept" value={concept} onChange={(e) => setConcept(e.target.value)} />
+          <Field label="Concepto" htmlFor="exp-concept" error={errors.concept?.message} required>
+            <Input
+              id="exp-concept"
+              {...register('concept', { required: 'El concepto es obligatorio.' })}
+            />
           </Field>
           <div className={styles.formRow}>
-            <Field label="Importe (€)" htmlFor="exp-amount" required>
+            <Field label="Importe (€)" htmlFor="exp-amount" error={errors.amount?.message} required>
               <Input
                 id="exp-amount"
                 type="number"
                 step="0.01"
                 min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                {...register('amount', { required: 'El importe es obligatorio.' })}
               />
             </Field>
-            <Field label="Fecha" htmlFor="exp-date" required>
+            <Field label="Fecha" htmlFor="exp-date" error={errors.expenseDate?.message} required>
               <Input
                 id="exp-date"
                 type="date"
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
+                {...register('expenseDate', { required: 'La fecha es obligatoria.' })}
               />
             </Field>
           </div>
           <Field label="Categoría" htmlFor="exp-category">
-            <Select
-              id="exp-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-            >
+            <Select id="exp-category" {...register('category')}>
               {EXPENSE_CATEGORIES.map((value) => (
                 <option key={value} value={value}>
                   {EXPENSE_CATEGORY_LABELS[value]}
@@ -311,14 +342,10 @@ function ExpensesTab({ communityId }: { communityId: string }) {
             </Select>
           </Field>
           <Field label="Proveedor" htmlFor="exp-supplier">
-            <Input
-              id="exp-supplier"
-              value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
-            />
+            <Input id="exp-supplier" {...register('supplier')} />
           </Field>
           <Field label="Notas" htmlFor="exp-notes">
-            <Input id="exp-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Input id="exp-notes" {...register('notes')} />
           </Field>
           {error && <Alert variant="error">{error}</Alert>}
           <div className={styles.modalFooter}>
@@ -350,37 +377,53 @@ function InvoicesTab({ communityId }: { communityId: string }) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [number, setNumber] = useState('')
-  const [amount, setAmount] = useState('')
-  const [issueDate, setIssueDate] = useState(today())
-  const [dueDate, setDueDate] = useState(today())
-  const [concept, setConcept] = useState('')
-  const [supplier, setSupplier] = useState('')
 
   const result = useResource(
     () => listInvoices(communityId, { page, limit: 20 }),
     [communityId, page],
   )
 
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<InvoiceForm>({
+    defaultValues: {
+      number: '',
+      amount: '',
+      issueDate: today(),
+      dueDate: today(),
+      concept: '',
+      supplier: '',
+    },
+  })
+
+  const openCreate = () => {
+    reset({
+      number: '',
+      amount: '',
+      issueDate: today(),
+      dueDate: today(),
+      concept: '',
+      supplier: '',
+    })
+    setError(null)
+    setOpen(true)
+  }
+
+  const save = handleSubmit(async (values) => {
     setError(null)
     setSaving(true)
     try {
       await createInvoice(communityId, {
-        number: number.trim(),
-        amount: Number(amount),
-        issueDate,
-        dueDate,
-        concept: concept.trim() || null,
-        supplier: supplier.trim() || null,
+        number: values.number.trim(),
+        amount: Number(values.amount),
+        issueDate: values.issueDate,
+        dueDate: values.dueDate,
+        concept: values.concept.trim() || null,
+        supplier: values.supplier.trim() || null,
       })
-      setNumber('')
-      setAmount('')
-      setIssueDate(today())
-      setDueDate(today())
-      setConcept('')
-      setSupplier('')
       setOpen(false)
       result.reload()
     } catch (caught) {
@@ -388,7 +431,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
     } finally {
       setSaving(false)
     }
-  }
+  })
 
   const pay = async (row: Invoice) => {
     setError(null)
@@ -432,7 +475,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>Facturas</h2>
-        <Button onClick={() => setOpen(true)}>Nueva factura</Button>
+        <Button onClick={openCreate}>Nueva factura</Button>
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}
@@ -463,47 +506,43 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       <Modal open={open} title="Nueva factura" onClose={() => setOpen(false)}>
         <form className={styles.form} onSubmit={save} noValidate>
           <div className={styles.formRow}>
-            <Field label="Número" htmlFor="inv-number" required>
-              <Input id="inv-number" value={number} onChange={(e) => setNumber(e.target.value)} />
+            <Field label="Número" htmlFor="inv-number" error={errors.number?.message} required>
+              <Input
+                id="inv-number"
+                {...register('number', { required: 'El número es obligatorio.' })}
+              />
             </Field>
-            <Field label="Importe (€)" htmlFor="inv-amount" required>
+            <Field label="Importe (€)" htmlFor="inv-amount" error={errors.amount?.message} required>
               <Input
                 id="inv-amount"
                 type="number"
                 step="0.01"
                 min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                {...register('amount', { required: 'El importe es obligatorio.' })}
               />
             </Field>
           </div>
           <div className={styles.formRow}>
-            <Field label="Emisión" htmlFor="inv-issue" required>
+            <Field label="Emisión" htmlFor="inv-issue" error={errors.issueDate?.message} required>
               <Input
                 id="inv-issue"
                 type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
+                {...register('issueDate', { required: 'La fecha es obligatoria.' })}
               />
             </Field>
-            <Field label="Vencimiento" htmlFor="inv-due" required>
+            <Field label="Vencimiento" htmlFor="inv-due" error={errors.dueDate?.message} required>
               <Input
                 id="inv-due"
                 type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                {...register('dueDate', { required: 'La fecha es obligatoria.' })}
               />
             </Field>
           </div>
           <Field label="Concepto" htmlFor="inv-concept">
-            <Input id="inv-concept" value={concept} onChange={(e) => setConcept(e.target.value)} />
+            <Input id="inv-concept" {...register('concept')} />
           </Field>
           <Field label="Proveedor" htmlFor="inv-supplier">
-            <Input
-              id="inv-supplier"
-              value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
-            />
+            <Input id="inv-supplier" {...register('supplier')} />
           </Field>
           {error && <Alert variant="error">{error}</Alert>}
           <div className={styles.modalFooter}>
