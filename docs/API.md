@@ -94,7 +94,7 @@ Las cuatro rutas viven bajo `/api/v1/communities`.
 {
   "id": "uuid",
   "name": "Barrio Alto",
-  "slug": "barrio-alto",          // inmutable tras el alta
+  "slug": "barrio-alto",          // editable, afecta a la URL
   "description": "text o null",
   "addressLine1": "Calle Mayor 1", // obligatorio
   "city": "Valencia",             // obligatorio
@@ -164,7 +164,8 @@ comunidad también: el permiso es de plataforma, no de comunidad.
 ```jsonc
 // mínimo
 { "name": "Barrio Alto", "slug": "barrio-alto",
-  "addressLine1": "Calle Mayor 1", "city": "Valencia" }
+  "addressLine1": "Calle Mayor 1", "city": "Valencia",
+  "province": "Valencia", "postalCode": "46001" }
 ```
 
 ```
@@ -221,9 +222,7 @@ Requiere rol `ADMIN` en esa comunidad. `PRESIDENT` y `NEIGHBOR` reciben `403`.
 
 Reglas que no son evidentes:
 
-- **`slug` no se puede cambiar.** Se rechaza con `400` y un mensaje que lo diga,
-  no como "clave desconocida". Admitirlo rompería los enlaces ya compartidos
-  sin avisar, que es justo lo que un identificador visible tiene que evitar.
+- **`slug` se puede cambiar.** Modifica la URL de la comunidad. El backend valida que el nuevo slug no esté en uso. **Cambiarlo romperá los enlaces antiguos.**
 - **Cadena vacía es `null`.** `{"description": ""}` guarda `null`, no `""`, para
   que el frontend no tenga que tratar el caso aparte.
 - **`isActive: false` es la baja.** No hay `DELETE`: `communities` no tiene

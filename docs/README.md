@@ -752,7 +752,7 @@ El estado de cada pieza:
 
 | Autenticación | `backend/src/auth/` | Hecho: los 7 endpoints, 49 tests de integración |
 
-| Comunidades | `backend/src/communities/` | Hecho: los 4 endpoints |
+| Comunidades | `backend/src/communities/` | Hecho: los 4 endpoints + geocodificación con Photon y edición de slug |
 
 | Miembros e invitaciones | `backend/src/members/` | Hecho: los 7 endpoints |
 
