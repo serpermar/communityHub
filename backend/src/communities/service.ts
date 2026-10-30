@@ -246,6 +246,19 @@ export async function update(
   })
 }
 
+export async function getBySlug(slug: string): Promise<CommunityView> {
+  return withContext({ userId: null, communityId: null }, async (tx) => {
+    // NOTA: Asegúrate de añadir esta función en tu repository.ts
+    const row = await repo.findCommunityBySlug(tx, slug)
+
+    if (!row || row.deleted_at !== null) {
+      throw notFound('La comunidad no existe.')
+    }
+
+    return toView(row as repo.CommunityRow)
+  })
+}
+
 // Actualizamos la función para que entienda tanto errores de Prisma (P2002) como de SQL crudo (P2010)
 export function slugEnUso(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false

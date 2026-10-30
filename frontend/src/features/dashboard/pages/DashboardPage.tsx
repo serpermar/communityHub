@@ -44,7 +44,6 @@ import type { CurrentWeather } from '../types'
 import { axisTickStyle } from './dashboardChartStyles'
 import styles from './DashboardPage.module.css'
 
-// --- Tipos para evitar el `any` y pasar la regla de ESLint ---
 interface CustomTooltipProps {
   active?: boolean
   payload?: Array<{ value: number | string }>
@@ -109,7 +108,6 @@ export function DashboardPage() {
   const [weather, setWeather] = useState<CurrentWeather | null>(null)
 
   const isAdmin = isManager(role)
-
   const [isActionsOpen, setIsActionsOpen] = useState(false)
   const actionsRef = useRef<HTMLDivElement>(null)
 
@@ -122,9 +120,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node))
         setIsActionsOpen(false)
-      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -141,25 +138,20 @@ export function DashboardPage() {
     name: CATEGORY_LABELS[item.category],
     total: item.count,
   }))
-
   const reservationData = data.reservations.byMonth.map((item) => ({
     name: item.month,
     total: item.count,
   }))
-
   const expenseData = (data.finance?.expensesByMonth ?? []).map((item) => ({
     name: item.month,
     total: item.total,
   }))
-
   const tickStyle = axisTickStyle(colors)
 
-  // Lógica para Action Center (Requiere tu atención)
   const hasUrgentInvoices = data.finance && data.finance.invoiceOverdueCount > 0
   const hasCriticalIncidents = data.incidents.critical > 0
   const needsAttention = hasUrgentInvoices || hasCriticalIncidents
 
-  // Lógica para Activity Feed (Simulada combinando datos existentes)
   const activityFeed = [
     ...data.announcements.latest.map((a) => ({
       id: a.id,
@@ -171,7 +163,7 @@ export function DashboardPage() {
         </>
       ),
       date: new Date(a.publishAt),
-      link: `/c/${active!.id}/announcements`,
+      link: `/c/${active!.slug}/announcements`, // <-- CAMBIO
     })),
     ...data.votes.open.map((v) => ({
       id: v.id,
@@ -183,16 +175,15 @@ export function DashboardPage() {
         </>
       ),
       date: new Date(v.endsAt),
-      link: `/c/${active!.id}/votes/${v.id}`,
+      link: `/c/${active!.slug}/votes/${v.id}`, // <-- CAMBIO
     })),
   ]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 4)
 
   const handleCategoryClick = (entry: CategoryClickEvent) => {
-    if (entry && entry.activePayload && entry.activePayload.length > 0) {
-      const catId = entry.activePayload[0].payload.id
-      navigate(`/c/${active!.id}/incidents?category=${catId}`)
+    if (entry?.activePayload?.length) {
+      navigate(`/c/${active!.slug}/incidents?category=${entry.activePayload[0].payload.id}`) // <-- CAMBIO
     }
   }
 
@@ -210,7 +201,6 @@ export function DashboardPage() {
         Hoy es {format(new Date(), "d 'de' MMMM", { locale: es })}.
       </div>
 
-      {/* 1. ACTION CENTER (Requiere tu atención) */}
       {needsAttention && (
         <div
           className={`${styles.actionCenter} ${styles.animateIn}`}
@@ -224,9 +214,11 @@ export function DashboardPage() {
               <li className={styles.actionItem}>
                 <span>Tienes {data.finance!.invoiceOverdueCount} facturas vencidas.</span>
                 <Link
-                  to={`/c/${active!.id}/finance?tab=invoices&status=OVERDUE`}
+                  to={`/c/${active!.slug}/finance?tab=invoices&status=OVERDUE`}
                   className={styles.actionLink}
                 >
+                  {' '}
+                  {/* <-- CAMBIO */}
                   Revisar
                 </Link>
               </li>
@@ -235,9 +227,11 @@ export function DashboardPage() {
               <li className={styles.actionItem}>
                 <span>Hay {data.incidents.critical} incidencias críticas sin resolver.</span>
                 <Link
-                  to={`/c/${active!.id}/incidents?priority=CRITICAL`}
+                  to={`/c/${active!.slug}/incidents?priority=CRITICAL`}
                   className={styles.actionLink}
                 >
+                  {' '}
+                  {/* <-- CAMBIO */}
                   Atender
                 </Link>
               </li>
@@ -264,30 +258,35 @@ export function DashboardPage() {
                     className={styles.dropdownItem}
                     onClick={() => {
                       setIsActionsOpen(false)
-                      navigate(`/c/${active!.id}/incidents/new`)
+                      navigate(`/c/${active!.slug}/incidents/new`)
                     }}
                   >
+                    {' '}
+                    {/* <-- CAMBIO */}
                     <AlertTriangle size={16} /> Reportar incidencia
                   </button>
-
                   {isAdmin && (
                     <>
                       <button
                         className={styles.dropdownItem}
                         onClick={() => {
                           setIsActionsOpen(false)
-                          navigate(`/c/${active!.id}/announcements`)
+                          navigate(`/c/${active!.slug}/announcements`)
                         }}
                       >
+                        {' '}
+                        {/* <-- CAMBIO */}
                         <Megaphone size={16} /> Publicar aviso
                       </button>
                       <button
                         className={styles.dropdownItem}
                         onClick={() => {
                           setIsActionsOpen(false)
-                          navigate(`/c/${active!.id}/votes/new`)
+                          navigate(`/c/${active!.slug}/votes/new`)
                         }}
                       >
+                        {' '}
+                        {/* <-- CAMBIO */}
                         <Vote size={16} /> Crear votación
                       </button>
                     </>
@@ -299,7 +298,6 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* 2. KPIs CON COLORES SEMÁNTICOS */}
       <div
         className={`${styles.statsGrid} ${styles.animateIn}`}
         style={{ animationDelay: '100ms' }}
@@ -308,28 +306,31 @@ export function DashboardPage() {
           label="Incidencias abiertas"
           value={data.incidents.open}
           accentClass={styles.accentIncidents}
-          onClick={() => navigate(`/c/${active!.id}/incidents?status=OPEN`)}
-        />
+          onClick={() => navigate(`/c/${active!.slug}/incidents?status=OPEN`)}
+        />{' '}
+        {/* <-- CAMBIO */}
         <Stat
           label="En progreso"
           value={data.incidents.inProgress}
           accentClass={styles.accentIncidents}
-          onClick={() => navigate(`/c/${active!.id}/incidents?status=IN_PROGRESS`)}
-        />
+          onClick={() => navigate(`/c/${active!.slug}/incidents?status=IN_PROGRESS`)}
+        />{' '}
+        {/* <-- CAMBIO */}
         <Stat
           label="Críticas"
           value={data.incidents.critical}
           tone="danger"
           accentClass={styles.accentIncidents}
-          onClick={() => navigate(`/c/${active!.id}/incidents?priority=CRITICAL`)}
-        />
+          onClick={() => navigate(`/c/${active!.slug}/incidents?priority=CRITICAL`)}
+        />{' '}
+        {/* <-- CAMBIO */}
         <Stat
           label="Reservas próximas"
           value={data.reservations.upcomingCount}
           accentClass={styles.accentReservations}
-          onClick={() => navigate(`/c/${active!.id}/reservations`)}
-        />
-
+          onClick={() => navigate(`/c/${active!.slug}/reservations`)}
+        />{' '}
+        {/* <-- CAMBIO */}
         <Card>
           <p className={styles.statLabel}>Clima</p>
           {weather && typeof weather.current?.temperatureC === 'number' ? (
@@ -369,7 +370,6 @@ export function DashboardPage() {
                   <XAxis dataKey="name" tick={tickStyle} />
                   <YAxis allowDecimals={false} tick={tickStyle} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                  {/* Color Rose para incidencias */}
                   <Bar dataKey="total" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={64} />
                 </BarChart>
               </ResponsiveContainer>
@@ -388,7 +388,6 @@ export function DashboardPage() {
                   <XAxis dataKey="name" tick={tickStyle} />
                   <YAxis allowDecimals={false} tick={tickStyle} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                  {/* Color Sky para reservas */}
                   <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={64} />
                 </BarChart>
               </ResponsiveContainer>
@@ -399,12 +398,10 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* 3. ACTIVITY FEED Y ASISTENTE IA */}
       <div
         className={`${styles.listsGrid} ${styles.animateIn}`}
         style={{ animationDelay: '200ms' }}
       >
-        {/* Activity Feed */}
         <Card title="Actividad reciente">
           {activityFeed.length > 0 ? (
             <ul className={styles.activityList}>
@@ -426,25 +423,23 @@ export function DashboardPage() {
           )}
         </Card>
 
-        {/* Próximas reservas */}
         <Card
           title="Próximas reservas"
           actions={
-            <Link to={`/c/${active!.id}/reservations`} className={styles.viewAllLink}>
+            <Link to={`/c/${active!.slug}/reservations`} className={styles.viewAllLink}>
               Ver todas
             </Link>
           }
         >
+          {' '}
+          {/* <-- CAMBIO */}
           {data.reservations.upcoming.length > 0 ? (
             <ul className={styles.list}>
               {data.reservations.upcoming.map((item) => (
                 <li key={item.id}>
                   <span className={styles.listText}>{item.commonAreaName ?? 'Zona'}</span>
                   <span className={styles.listMeta}>
-                    {formatDistanceToNow(new Date(item.startsAt), {
-                      addSuffix: true,
-                      locale: es,
-                    })}
+                    {formatDistanceToNow(new Date(item.startsAt), { addSuffix: true, locale: es })}
                   </span>
                 </li>
               ))}
@@ -452,14 +447,14 @@ export function DashboardPage() {
           ) : (
             <div className={styles.emptyList}>
               <p className={styles.emptyListText}>No hay reservas próximas.</p>
-              <Link to={`/c/${active!.id}/common-areas`} className={styles.inlineLink}>
-                + Reservar zona común
+              <Link to={`/c/${active!.slug}/common-areas`} className={styles.inlineLink}>
+                {' '}
+                {/* <-- CAMBIO */}+ Reservar zona común
               </Link>
             </div>
           )}
         </Card>
 
-        {/* 4. ACCESOS RÁPIDOS IA */}
         <Card title="Asistente IA" className={styles.aiCard}>
           <p className={styles.emptyText} style={{ marginBottom: '0.5rem' }}>
             ¿En qué te puedo ayudar hoy?
@@ -504,21 +499,24 @@ export function DashboardPage() {
               value={`${data.finance.expenseTotal.toFixed(2)} €`}
               trend={{ value: -12, isPositive: false }}
               accentClass={styles.accentFinance}
-              onClick={() => navigate(`/c/${active!.id}/finance?tab=expenses`)}
-            />
+              onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
+            />{' '}
+            {/* <-- CAMBIO */}
             <Stat
               label="Pendiente de pago"
               value={`${data.finance.invoiceOpenAmount.toFixed(2)} €`}
               accentClass={styles.accentFinance}
-              onClick={() => navigate(`/c/${active!.id}/finance?tab=invoices`)}
-            />
+              onClick={() => navigate(`/c/${active!.slug}/finance?tab=invoices`)}
+            />{' '}
+            {/* <-- CAMBIO */}
             <Stat
               label="Facturas vencidas"
               value={data.finance.invoiceOverdueCount}
               tone="danger"
               accentClass={styles.accentFinance}
-              onClick={() => navigate(`/c/${active!.id}/finance?tab=invoices&status=OVERDUE`)}
-            />
+              onClick={() => navigate(`/c/${active!.slug}/finance?tab=invoices&status=OVERDUE`)}
+            />{' '}
+            {/* <-- CAMBIO */}
           </div>
 
           <Card title={t('dashboard.expenseTrend')}>
@@ -527,14 +525,15 @@ export function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={expenseData}
-                    onClick={() => navigate(`/c/${active!.id}/finance?tab=expenses`)}
+                    onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
                     style={{ cursor: 'pointer' }}
                   >
+                    {' '}
+                    {/* <-- CAMBIO */}
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
                     <XAxis dataKey="name" tick={tickStyle} />
                     <YAxis tick={tickStyle} />
                     <Tooltip content={<CustomTooltip />} />
-                    {/* Color Emerald para finanzas */}
                     <Line
                       type="monotone"
                       dataKey="total"
@@ -551,8 +550,10 @@ export function DashboardPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => navigate(`/c/${active!.id}/finance?tab=expenses`)}
+                  onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
                 >
+                  {' '}
+                  {/* <-- CAMBIO */}
                   Ir a Finanzas
                 </Button>
               </div>
@@ -594,9 +595,7 @@ function Stat({
       )}
     </Card>
   )
-
   if (!onClick) return inner
-
   return (
     <div
       className={styles.statClickableWrapper}

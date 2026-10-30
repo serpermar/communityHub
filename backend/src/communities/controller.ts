@@ -86,3 +86,13 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     next(error)
   }
 }
+
+export async function getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // Usamos routeParam para asegurar que es un string y no undefined
+    const slug = routeParam(req, 'slug')
+    ok(res, await service.getBySlug(slug))
+  } catch (error) {
+    next(error)
+  }
+}

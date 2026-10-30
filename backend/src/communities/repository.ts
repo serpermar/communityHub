@@ -195,3 +195,13 @@ export async function updateCommunity(
   })
   return result.count
 }
+
+export async function findCommunityBySlug(tx: Tx, slug: string) {
+  return tx.communities.findFirst({
+    where: {
+      slug,
+      deleted_at: null, // Nos aseguramos de no devolver comunidades borradas
+    },
+    select: COMMUNITY_FIELDS,
+  })
+}

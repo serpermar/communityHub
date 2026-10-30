@@ -5,11 +5,6 @@ import { cn } from '@/utils/cn'
 import type { CommunitySummary } from '@/types/community'
 import styles from './CommunitySwitcher.module.css'
 
-/**
- * Selector de comunidad con búsqueda. Con muchas comunidades, un `<select>`
- * nativo se vuelve incómodo; esto es un combobox accesible (input + lista) que
- * filtra por nombre. Se cierra al elegir, con Escape o al pulsar fuera.
- */
 export function CommunitySwitcher({
   communities,
   activeId,
@@ -44,10 +39,11 @@ export function CommunitySwitcher({
     setHighlight(0)
   }, [query, open])
 
-  const choose = (id: string) => {
+  const choose = (community: CommunitySummary) => {
     setOpen(false)
     setQuery('')
-    navigate(`/c/${id}/dashboard`)
+    // CAMBIO: Usamos community.slug
+    navigate(`/c/${community.slug}/dashboard`)
   }
 
   const optionId = (id: string) => `community-option-${id}`
@@ -72,7 +68,7 @@ export function CommunitySwitcher({
       setHighlight(filtered.length - 1)
     } else if (event.key === 'Enter' && filtered[highlight]) {
       event.preventDefault()
-      choose(filtered[highlight].id)
+      choose(filtered[highlight])
     }
   }
 
@@ -116,7 +112,7 @@ export function CommunitySwitcher({
                   role="option"
                   aria-selected={index === highlight}
                   onMouseEnter={() => setHighlight(index)}
-                  onClick={() => choose(community.id)}
+                  onClick={() => choose(community)}
                   className={cn(
                     styles.optionButton,
                     index === highlight && styles.optionHighlighted,

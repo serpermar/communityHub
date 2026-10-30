@@ -148,7 +148,8 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: '/c/:communityId',
+            // CAMBIO: Usamos :communitySlug en lugar de :communityId
+            path: '/c/:communitySlug',
             element: <AppLayout />,
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/services/ApiError'
 import { api } from '@/services/http'
 import type { Community, CommunitySummary } from '@/types/community'
@@ -23,29 +24,14 @@ interface CommunityContextValue {
 
 const CommunityContext = createContext<CommunityContextValue | null>(null)
 
-function pickCommunity(
-  communities: CommunitySummary[],
-  detail: Community | null,
-  communityId?: string,
-): Community | null {
-  if (!communityId) return null
-  if (detail && detail.id === communityId) return detail
-  return communities.find((item) => item.id === communityId) ?? null
-}
-
-/**
- * Lista las comunidades del usuario (selector) y resuelve la activa.
- *
- * El rol de la activa sale del backend (`memberRole`); nunca se deduce ni se
- * reutiliza entre comunidades.
- */
 export function CommunityProvider({
-  communityId,
+  communitySlug,
   children,
 }: {
-  communityId?: string
+  communitySlug?: string
   children: ReactNode
 }) {
+  const navigate = useNavigate()
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
   const [detail, setDetail] = useState<Community | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,41 +42,59 @@ export function CommunityProvider({
     try {
       const list = await api.get<CommunitySummary[]>('/communities')
       setCommunities(list)
+
+      if (communitySlug) {
+        // Comprobamos si es un UUID antiguo para redirigir a la URL con slug
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          communitySlug,
+        )
+
+        if (isUuid) {
+          const foundById = list.find((c) => c.id === communitySlug)
+          if (foundById) {
+            // Redirigimos a la URL amigable
+            navigate(`/c/${foundById.slug}/dashboard`, { replace: true })
+            return
+          }
+        }
+
+        // Buscamos la comunidad por slug en la lista
+        const found = list.find((c) => c.slug === communitySlug)
+        if (found) {
+          // Necesitamos el detalle completo (con memberRole)
+          const fullDetail = await api.get<Community>(`/communities/${found.id}`)
+          setDetail(fullDetail)
+        } else {
+          // CORRECCIÓN: Pasamos el status numérico Y el ApiErrorBody
+          setError(
+            new ApiError(404, {
+              code: 'NOT_FOUND',
+              message: 'No tienes acceso a esta comunidad o no existe.',
+            }),
+          )
+          setDetail(null)
+        }
+      } else {
+        setDetail(null)
+      }
       setError(null)
     } catch (caught) {
       setError(ApiError.from(caught))
+      setDetail(null)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [communitySlug, navigate])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
-  useEffect(() => {
-    setDetail(null)
-    if (!communityId) return
-    if (communities.some((item) => item.id === communityId)) return
-
-    let activeRequest = true
-    api
-      .get<Community>(`/communities/${communityId}`)
-      .then((value) => {
-        if (activeRequest) setDetail(value)
-      })
-      .catch(() => {
-        if (activeRequest) setDetail(null)
-      })
-    return () => {
-      activeRequest = false
-    }
-  }, [communityId, communities])
-
-  const active = useMemo(
-    () => pickCommunity(communities, detail, communityId),
-    [communities, detail, communityId],
-  )
+  const active = useMemo(() => {
+    if (detail) return detail
+    if (!communitySlug) return null
+    return communities.find((item) => item.slug === communitySlug) ?? null
+  }, [communities, detail, communitySlug])
 
   const value = useMemo<CommunityContextValue>(
     () => ({

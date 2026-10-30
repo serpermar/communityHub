@@ -14,19 +14,18 @@ import { cn } from '@/utils/cn'
 import { AiFloatingButton } from '@/components/ai/AiFloatingButton'
 import styles from './AppLayout.module.css'
 
-// --- NUEVO: Diccionario de colores semánticos ---
 const NAV_COLORS: Record<string, string> = {
-  dashboard: '#3b82f6', // Azul
-  incidents: '#f43f5e', // Rose (Incidencias)
-  'common-areas': '#f59e0b', // Amber (Zonas comunes)
-  reservations: '#0ea5e9', // Sky (Reservas)
-  announcements: '#eab308', // Yellow (Avisos)
-  documents: '#8b5cf6', // Violet (Documentos)
-  finance: '#10b981', // Emerald (Finanzas)
-  votes: '#6366f1', // Indigo (Votaciones)
-  assistant: '#06b6d4', // Cyan (Asistente IA)
-  members: '#14b8a6', // Teal (Miembros)
-  settings: '#64748b', // Slate (Ajustes)
+  dashboard: '#3b82f6',
+  incidents: '#f43f5e',
+  'common-areas': '#f59e0b',
+  reservations: '#0ea5e9',
+  announcements: '#eab308',
+  documents: '#8b5cf6',
+  finance: '#10b981',
+  votes: '#6366f1',
+  assistant: '#06b6d4',
+  members: '#14b8a6',
+  settings: '#64748b',
 }
 
 function SearchIcon({ className }: { className?: string }) {
@@ -46,7 +45,6 @@ function SearchIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-
 function MenuIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -62,7 +60,6 @@ function MenuIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   const path = direction === 'left' ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'
   return (
@@ -80,7 +77,6 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
     </svg>
   )
 }
-
 function LayoutSkeleton() {
   return (
     <div className={styles.layoutSkeleton} aria-hidden="true">
@@ -113,7 +109,6 @@ function AppLayoutInner() {
     mobileSidebarRef,
     mobileTriggerRef,
     setPaletteOpen,
-    // setMenuOpen, <-- ELIMINADO PARA EVITAR EL WARNING
     toggleCollapsed,
     openMenu,
     closeMenu,
@@ -157,17 +152,16 @@ function AppLayoutInner() {
       {visibleItems.map((item) => {
         const Icon = NAV_ICONS[item.segment]
         const labelText = t(item.labelKey)
-        // Obtenemos el color del diccionario (o azul por defecto)
         const accentColor = NAV_COLORS[item.segment] || '#2563eb'
 
         const link = (
           <NavLink
             key={item.segment}
-            to={`/c/${active.id}/${item.segment}`}
+            // CAMBIO: Usamos active.slug
+            to={`/c/${active.slug}/${item.segment}`}
             onClick={closeMenu}
             onMouseEnter={() => prefetchRoute(item.segment)}
             onFocus={() => prefetchRoute(item.segment)}
-            // Inyectamos el color como variable CSS
             style={{ '--nav-accent': accentColor } as React.CSSProperties}
             className={({ isActive }) =>
               cn(
@@ -204,7 +198,6 @@ function AppLayoutInner() {
       <a href="#main-content" className={styles.skipLink}>
         {t('app.skipToContent')}
       </a>
-
       <div className={styles.layout}>
         <aside
           ref={desktopSidebarRef}
@@ -217,9 +210,7 @@ function AppLayoutInner() {
           <div className={styles.sidebarBrand}>
             <Logo withText={!collapsed} />
           </div>
-
           {renderNavLinks(collapsed, t('app.mainNavigation'))}
-
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -244,7 +235,6 @@ function AppLayoutInner() {
             >
               <MenuIcon className={styles.menuIcon} />
             </button>
-
             <div className={styles.headerActions}>
               <div className={styles.headerGroup}>
                 {communities.length > 0 && (
@@ -274,7 +264,6 @@ function AppLayoutInner() {
                   </a>
                 )}
               </div>
-
               <div className={styles.headerGroup}>
                 <ThemeToggle />
                 <NotificationBell />
@@ -327,16 +316,16 @@ function AppLayoutInner() {
           onOpenChange={setPaletteOpen}
         />
       )}
-
       <AiFloatingButton />
     </>
   )
 }
 
 export function AppLayout() {
-  const { communityId } = useParams<{ communityId: string }>()
+  // CAMBIO: Leemos communitySlug de la URL
+  const { communitySlug } = useParams<{ communitySlug: string }>()
   return (
-    <CommunityProvider communityId={communityId}>
+    <CommunityProvider communitySlug={communitySlug}>
       <AppLayoutInner />
     </CommunityProvider>
   )
