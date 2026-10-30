@@ -1,33 +1,26 @@
 import { z } from 'zod'
 
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
 export const createCommunitySchema = z.object({
-  name: z.string().trim().min(2, 'El nombre es obligatorio.').max(120, 'Nombre demasiado largo.'),
-  slug: z
-    .string()
-    .trim()
-    .min(2, 'El identificador es obligatorio.')
-    .max(80, 'Identificador demasiado largo.')
-    .regex(
-      slugPattern,
-      'Solo minúsculas, números y guiones simples (sin empezar ni acabar en guion).',
-    ),
-  addressLine1: z.string().trim().min(1, 'La dirección es obligatoria.').max(200),
-  city: z.string().trim().min(1, 'La ciudad es obligatoria.').max(120),
-  description: z
-    .string()
-    .trim()
-    .max(1000, 'Descripción demasiado larga.')
-    .optional()
-    .or(z.literal('')),
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
+  slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres.'),
+  addressLine1: z.string().min(5, 'La dirección es obligatoria.'),
+  city: z.string().min(2, 'La ciudad es obligatoria.'),
+  province: z.string().min(2, 'La provincia es obligatoria.'),
+  postalCode: z.string().regex(/^\d{5}$/, 'El código postal debe tener 5 dígitos.'),
+  description: z.string().optional(),
 })
 
 export const updateCommunitySchema = z.object({
-  name: z.string().trim().min(2, 'El nombre es obligatorio.').max(120),
-  description: z.string().trim().max(1000).optional().or(z.literal('')),
-  addressLine1: z.string().trim().min(1, 'La dirección es obligatoria.').max(200),
-  city: z.string().trim().min(1, 'La ciudad es obligatoria.').max(120),
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
+  slug: z
+    .string()
+    .min(3, 'El slug debe tener al menos 3 caracteres.')
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Solo minúsculas, números y guiones.'),
+  addressLine1: z.string().min(5, 'La dirección es obligatoria.'),
+  city: z.string().min(2, 'La ciudad es obligatoria.'),
+  province: z.string().min(2, 'La provincia es obligatoria.'),
+  postalCode: z.string().regex(/^\d{5}$/, 'El código postal debe tener 5 dígitos.'),
+  description: z.string().optional(),
   isActive: z.boolean(),
 })
 

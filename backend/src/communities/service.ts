@@ -187,8 +187,11 @@ export async function create(userId: string, input: CreateCommunityInput): Promi
  * fecha inventada en un campo que se usa para ordenar y para saber que version
  * se esta mirando.
  */
+// ... (tus imports y tipos se mantienen igual)
+
 const COLUMNAS: Record<string, string> = {
   name: 'name',
+  slug: 'slug', // <-- AÑADIDO AQUÍ
   description: 'description',
   addressLine1: 'address_line1',
   city: 'city',
@@ -212,58 +215,50 @@ export async function update(
 
   for (const [campo, columna] of Object.entries(COLUMNAS)) {
     const valor = input[campo as keyof UpdateCommunityInput]
-
-    // `undefined` = el cliente no lo ha mencionado. No se escribe, y esa es toda
-    // la diferencia entre un PATCH parcial y uno que vacia la comunidad.
-    //
-    // La cadena vacia si se escribe, pero como NULL: mandarla como `''` dejaria
-    // una descripcion vacia que el frontend tiene que tratar aparte, y aqui se
-    // puede resolver en la linea de arriba.
     if (valor === undefined) continue
-
     data[columna] = valor === '' ? null : valor
   }
 
   data.updated_at = new Date()
 
   return withContext({ userId, communityId }, async (tx) => {
-    const affected = await repo.updateCommunity(tx, communityId, data)
+    try {
+      const affected = await repo.updateCommunity(tx, communityId, data)
 
-    if (affected === 0) {
-      throw notFound('La comunidad no existe.')
+      if (affected === 0) {
+        throw notFound('La comunidad no existe.')
+      }
+
+      const row = await repo.findCommunityById(tx, communityId)
+
+      if (!row) {
+        throw notFound('La comunidad no existe.')
+      }
+
+      return toView(row as repo.CommunityRow, memberRole)
+    } catch (error: unknown) {
+      // Si el nuevo slug ya existe, devolvemos un 409 en lugar de un 500
+      if (slugEnUso(error)) {
+        throw conflict('CONFLICT', 'Ya existe una comunidad con ese identificador.')
+      }
+      throw error
     }
-
-    const row = await repo.findCommunityById(tx, communityId)
-
-    if (!row) {
-      throw notFound('La comunidad no existe.')
-    }
-
-    return toView(row as repo.CommunityRow, memberRole)
   })
 }
 
-/**
- * Texto del error de PostgreSQL cuando un `slug` ya existe.
- *
- * `app_create_community()` es `SECURITY DEFINER` y su unicidad la impone el
- * indice unico de la tabla, no Prisma. Por eso el conflicto llega como un error
- * de Postgres (`23505`), no como el `P2002` que el middleware de errores ya
- * sabia traducir, y sin esto el alta de un slug repetido devolvia un 500.
- *
- * Se busca la columna `(slug)` y no el nombre del indice porque el mensaje de
- * PostgreSQL NO incluye el nombre de la restriccion: es
- * `Key (slug)=(...) already exists.`. Ademas esta traducido al idioma de la
- * sesion, asi que el codigo `23505` y el nombre de la columna son las dos cosas
- * que no cambian con el idioma.
- */
+// Actualizamos la función para que entienda tanto errores de Prisma (P2002) como de SQL crudo (P2010)
 export function slugEnUso(error: unknown): boolean {
-  // Un fallo de `$queryRaw` SIEMPRE llega como `P2010`, y el codigo de
-  // PostgreSQL va en `meta.code`, no en `message`. Comprobando `message` (o
-  // esperando un `PrismaClientUnknownRequestError`, que es lo primero que
-  // parece) esto nunca detectaba el conflicto y el alta devolvia 500.
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false
-  if (error.code !== 'P2010') return false
 
-  return error.meta?.code === '23505' && /\(slug\)/.test(String(error.meta?.message ?? ''))
+  // Error estándar de Prisma por violación de índice único (P2002)
+  if (error.code === 'P2002') {
+    return Array.isArray(error.meta?.target) && error.meta.target.includes('slug')
+  }
+
+  // Error de Prisma al ejecutar consultas crudas que devuelve código de Postgres (P2010)
+  if (error.code === 'P2010') {
+    return error.meta?.code === '23505' && /\(slug\)/.test(String(error.meta?.message ?? ''))
+  }
+
+  return false
 }

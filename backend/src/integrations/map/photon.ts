@@ -1,28 +1,9 @@
 // ---------------------------------------------------------------------------
 // Adaptador de Photon (EXT-8): geocodificado y POIs por proximidad.
-//
-// Photon (Komoot) habla GeoJSON y no exige clave, que es justo lo que pide el
-// presupuesto $0 del proyecto. Se eligio sobre Nominatim porque la politica de
-// Nominatim prohibe el uso desde herramientas _vibe-coding_/low-code y limita a
-// 1 req/s (ARCHITECTURE.md §8); Photon cubre el mismo caso con las mismas datos
-// de OSM.
-//
-// Dos operaciones sobre el mismo endpoint `/api/`:
-//
-//   - geocode(address): `?q=<direccion>&limit=1` -> la mejor coincidencia. Si no
-//     hay features, devuelve `null` (no es un error de red; es "no resuelve",
-//     que el service convierte en 422).
-//   - searchNearby(lat, lon): `?lat=&lon=&limit=` -> features cercanas, que se
-//     clasifican y filtran por radio en `map/geo.ts`. Photon no filtra por radio
-//     (EXT-11).
-//
-// El parseo es defensivo: una feature sin `geometry.coordinates` o sin nombre se
-// descarta en vez de romper. Un `osm_key` vacio es valido y cae en `Otro`.
 // ---------------------------------------------------------------------------
 
 import { env } from '../../config/env.js'
 import { ExternalProviderError } from '../errors.js'
-import { fetchJson } from '../http.js'
 import type { GeocodeResult, GeocodingProvider, PlaceView } from '../types.js'
 import { buildPlaceViews, type RawPlace } from './geo.js'
 
@@ -59,7 +40,6 @@ function coordinatesOf(
   return { latitude: lat, longitude: lon }
 }
 
-/** Compone una direccion legible a partir de las piezas de Photon, si las trae. */
 function formatAddress(props: Record<string, unknown>): string | null {
   const street = str(props.street)
   const house = str(props.housenumber)
@@ -99,11 +79,22 @@ export class PhotonProvider implements GeocodingProvider {
   readonly name = 'photon'
 
   async geocode(input: { address: string; signal?: AbortSignal }): Promise<GeocodeResult | null> {
-    const params = new URLSearchParams({ q: input.address, limit: '1', lang: 'es' })
-    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, {
+    const params = new URLSearchParams({ q: input.address, limit: '1', lang: 'en' })
+    const url = `${env.PHOTON_BASE_URL}/api/?${params.toString()}`
+
+    // Usamos fetch nativo para poder pasar la cabecera User-Agent
+    const response = await fetch(url, {
       signal: input.signal,
+      headers: {
+        'User-Agent': 'CommunityHub/1.0 (soporte@communityhub.com)',
+      },
     })
 
+    if (!response.ok) {
+      throw new ExternalProviderError(`Photon respondió con estado ${response.status}`)
+    }
+
+    const payload = await response.json()
     const first = featuresOf(payload)[0]
     if (!first) return null
 
@@ -132,10 +123,20 @@ export class PhotonProvider implements GeocodingProvider {
       lang: 'es',
     })
 
-    const payload = await fetchJson(`${env.PHOTON_BASE_URL}/api/?${params.toString()}`, {
+    const url = `${env.PHOTON_BASE_URL}/api/?${params.toString()}`
+
+    const response = await fetch(url, {
       signal: input.signal,
+      headers: {
+        'User-Agent': 'CommunityHub/1.0 (soporte@communityhub.com)',
+      },
     })
 
+    if (!response.ok) {
+      throw new ExternalProviderError(`Photon respondió con estado ${response.status}`)
+    }
+
+    const payload = await response.json()
     const raw = featuresOf(payload)
       .map(toRawPlace)
       .filter((place): place is RawPlace => place !== null)

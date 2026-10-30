@@ -1,20 +1,20 @@
-import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { Button, CommandPalette, ErrorState, ThemeToggle, Tooltip } from '@/components/ui'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { Logo } from '@/components/brand/Logo'
 import { NAV_ICONS } from '@/components/brand/NavIcons'
 import { CommunitySwitcher } from '@/features/communities/components/CommunitySwitcher'
 import { useAuth } from '@/context/AuthContext'
-import { useCommunity } from '@/context/CommunityContext'
+import { useCommunity, CommunityProvider } from '@/context/CommunityContext'
 import { useAppLayout } from '@/hooks/useAppLayout'
 import { t } from '@/i18n'
 import { visibleNavItems } from '@/routes/navItems'
 import { prefetchRoute } from '@/routes/prefetch'
 import { cn } from '@/utils/cn'
 import { AiFloatingButton } from '@/components/ai/AiFloatingButton'
-import { CommunityProvider } from '@/context/CommunityContext'
 import styles from './AppLayout.module.css'
 
+// --- NUEVO: Diccionario de colores semánticos ---
 const NAV_COLORS: Record<string, string> = {
   dashboard: '#3b82f6', // Azul
   incidents: '#f43f5e', // Rose (Incidencias)
@@ -113,15 +113,11 @@ function AppLayoutInner() {
     mobileSidebarRef,
     mobileTriggerRef,
     setPaletteOpen,
-    setMenuOpen,
+    // setMenuOpen, <-- ELIMINADO PARA EVITAR EL WARNING
     toggleCollapsed,
     openMenu,
     closeMenu,
   } = useAppLayout({ activeId: active?.id })
-
-  // El atajo Ctrl/Cmd+K lo maneja CommandPalette internamente, pero además
-  // abrimos el palette desde el botón. Ya está montado, así que solo pasamos
-  // open/onOpenChange.
 
   if (loading && !active) return <LayoutSkeleton />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -147,9 +143,9 @@ function AppLayoutInner() {
             </Button>
           )}
         </div>
-        <Link to="/invitations" className={styles.noCommunityLink}>
+        <a href="/invitations" className={styles.noCommunityLink}>
           {t('app.viewInvitations')}
-        </Link>
+        </a>
       </div>
     )
   }
@@ -168,7 +164,7 @@ function AppLayoutInner() {
           <NavLink
             key={item.segment}
             to={`/c/${active.id}/${item.segment}`}
-            onClick={() => setMenuOpen(false)}
+            onClick={closeMenu}
             onMouseEnter={() => prefetchRoute(item.segment)}
             onFocus={() => prefetchRoute(item.segment)}
             // Inyectamos el color como variable CSS
@@ -210,7 +206,6 @@ function AppLayoutInner() {
       </a>
 
       <div className={styles.layout}>
-        {/* Sidebar de escritorio */}
         <aside
           ref={desktopSidebarRef}
           className={cn(
@@ -236,7 +231,6 @@ function AppLayoutInner() {
           </button>
         </aside>
 
-        {/* Contenido principal */}
         <div className={styles.body}>
           <header className={styles.header}>
             <button
@@ -275,18 +269,18 @@ function AppLayoutInner() {
                   <SearchIcon className={styles.commandIcon} />
                 </button>
                 {user?.globalRole === 'ADMIN_SA' && (
-                  <Link to="/admin/communities/new" className={styles.newCommunity}>
+                  <a href="/admin/communities/new" className={styles.newCommunity}>
                     {t('app.newCommunity')}
-                  </Link>
+                  </a>
                 )}
               </div>
 
               <div className={styles.headerGroup}>
                 <ThemeToggle />
                 <NotificationBell />
-                <Link to="/account" className={styles.accountLink}>
+                <a href="/account" className={styles.accountLink}>
                   {user?.fullName ?? user?.email ?? ''}
-                </Link>
+                </a>
                 <Button variant="ghost" size="sm" onClick={() => void logout()}>
                   {t('app.logout')}
                 </Button>
@@ -300,7 +294,6 @@ function AppLayoutInner() {
         </div>
       </div>
 
-      {/* Sidebar móvil */}
       {menuOpen && (
         <div className={styles.mobileOverlay} role="dialog" aria-modal="true">
           <div className={styles.mobileBackdrop} onClick={closeMenu} aria-hidden="true" />
@@ -326,7 +319,6 @@ function AppLayoutInner() {
         </div>
       )}
 
-      {/* Command Palette global */}
       {active && (
         <CommandPalette
           communityId={active.id}
@@ -336,7 +328,6 @@ function AppLayoutInner() {
         />
       )}
 
-      {/* FAB del asistente */}
       <AiFloatingButton />
     </>
   )

@@ -104,6 +104,12 @@
   background-color: #1e293b;
 }
 
+.navLink {
+  transition:
+    background-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Envoltorio del icono: aquí ocurre la magia del color */
 .navIconWrapper {
   display: flex;
@@ -133,6 +139,11 @@
   display: none;
 }
 
+.navLinkCompact.navLinkActive::before {
+  top: 0.375rem;
+  bottom: 0.375rem;
+}
+
 .navLinkFocus {
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -150,6 +161,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #475569;
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :global(.dark) .navLabel {
@@ -159,49 +173,67 @@
 /* Indicador activo con barra lateral */
 .navLinkActive {
   position: relative;
-  background-color: rgba(241, 245, 249, 0.8);
-  font-weight: 500;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--nav-accent) 12%, transparent) 0%,
+    transparent 100%
+  );
+  font-weight: 600;
+  color: var(--nav-accent);
 }
 
 .navLinkActive:hover {
-  background-color: rgb(238 242 255 / 0.9);
-  color: rgb(67 56 202);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--nav-accent) 16%, transparent) 0%,
+    transparent 100%
+  );
+  color: var(--nav-accent);
 }
 
 .navLinkActive::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.375rem;
-  bottom: 0.375rem;
-  width: 3px;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  width: 2px;
   border-radius: 9999px;
   background-color: var(--nav-accent, var(--brand-600, #2563eb));
 }
 
 .navLinkActive .navIconWrapper {
   opacity: 1;
+  color: var(--nav-accent);
 }
 
 :global(.dark) .navLinkActive {
-  background-color: rgba(30, 41, 59, 0.6);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--nav-accent) 18%, transparent) 0%,
+    transparent 100%
+  );
 }
 
 .navLinkActive .navLabel {
-  color: #0f172a;
+  color: var(--nav-accent);
 }
 
 :global(.dark) .navLinkActive .navLabel {
-  color: #f1f5f9;
+  color: var(--nav-accent);
 }
 
 :global(.dark) .navLinkActive:hover {
-  background-color: rgb(30 27 75 / 0.8);
-  color: rgb(165 180 252);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--nav-accent) 24%, transparent) 0%,
+    transparent 100%
+  );
+  color: var(--nav-accent);
 }
 
 :global(.dark) .navLinkActive::before {
-  background-color: var(--brand-400, #60a5fa);
+  background-color: var(--nav-accent);
 }
 
 /* Botón de colapsar */

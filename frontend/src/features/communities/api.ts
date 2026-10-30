@@ -15,6 +15,7 @@ export function createCommunity(input: CreateCommunityInput): Promise<CommunityS
 
 export type UpdateCommunityInput = Partial<{
   name: string
+  slug: string
   description: string | null
   addressLine1: string
   city: string
