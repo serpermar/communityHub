@@ -15,12 +15,18 @@ export function RedeemInvitationPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<{ code: string }>({ defaultValues: { code: '' } })
+  } = useForm<{ code: string; unitNumber: string }>({
+    defaultValues: { code: '', unitNumber: '' },
+  })
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      const result = await redeemInvitation(values.code.trim())
+      // CAMBIO: Pasamos values.unitNumber (si está vacío, lo mandamos como undefined)
+      const result = await redeemInvitation(
+        values.code.trim(),
+        values.unitNumber.trim() || undefined,
+      )
       setDone('¡Ya formas parte de la comunidad!')
       window.setTimeout(
         () => navigate(`/c/${result.communityId}/dashboard`, { replace: true }),
@@ -53,6 +59,17 @@ export function RedeemInvitationPage() {
           <Field label="Código de invitación" htmlFor="code" error={errors.code?.message} required>
             <Input id="code" {...register('code', { required: 'El código es obligatorio.' })} />
           </Field>
+
+          {/* NUEVO CAMPO */}
+          <Field
+            label="Vivienda (opcional)"
+            htmlFor="unitNumber"
+            error={errors.unitNumber?.message}
+            hint="Ej: Portal A, 3º B. Podrás cambiarlo después."
+          >
+            <Input id="unitNumber" {...register('unitNumber')} placeholder="Portal A, 3º B" />
+          </Field>
+
           <div className={styles.formFooter}>
             <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
               Volver

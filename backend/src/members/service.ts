@@ -336,7 +336,8 @@ export async function redeemInvitation(
   return ejecuta(
     () =>
       withContext({ userId, communityId: null }, async (tx) => {
-        const row = await repo.redeemInvitation(tx, input.code)
+        // CAMBIO: Pasamos input.unitNumber al repositorio
+        const row = await repo.redeemInvitation(tx, input.code, input.unitNumber)
 
         return { memberId: row.member_id, communityId: row.community_id }
       }),

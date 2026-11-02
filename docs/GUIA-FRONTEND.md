@@ -133,6 +133,24 @@ Una vez dentro de una comunidad, la app usa `AppLayout`:
 
 ---
 
+### 5.8 Canjear una invitación y acceder a una comunidad
+
+1. Si todavía no perteneces a ninguna comunidad, accede al flujo **Canjear invitación** desde la pantalla de acceso o desde la llamada a la acción que aparece cuando no hay una comunidad activa.
+2. Introduce el **código de invitación**. El código debe tener 64 caracteres hexadecimales.
+3. Opcionalmente, indica tu **vivienda** (`unitNumber`, máximo 50 caracteres). Puedes dejar este campo vacío si no corresponde.
+4. Envía el formulario. El frontend realiza la petición `POST /api/v1/invitations/redeem` con el código y, si se ha indicado, la vivienda.
+5. Si el canje se completa correctamente (`201 Created`), la respuesta incluye `memberId` y `communityId`. La cuenta queda incorporada a la comunidad con el rol `NEIGHBOR` y estado `ACTIVE`, y la aplicación puede continuar hacia la comunidad correspondiente.
+
+**Errores que puede mostrar el flujo:**
+
+- `400 Bad Request`: el código o los datos introducidos no superan la validación.
+- `401 Unauthorized`: no hay una sesión autenticada válida.
+- `403 Forbidden`: el correo de la cuenta no coincide con el correo destinatario de la invitación.
+- `404 Not Found`: el código de invitación no existe o ya se ha utilizado.
+- `409 Conflict`: la cuenta ya tiene una membresía activa en esa comunidad.
+
+---
+
 ## 6. Tema claro/oscuro (punto 8)
 
 - **Toggle**: icono sol/luna en cabecera (cambia entre `light`/`dark`). También aparece en las pantallas de login/registro.

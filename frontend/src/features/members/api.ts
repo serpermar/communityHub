@@ -32,6 +32,6 @@ export function revokeInvitation(communityId: string, invitationId: string): Pro
   return api.delete<void>(`/communities/${communityId}/invitations/${invitationId}`)
 }
 
-export function redeemInvitation(code: string): Promise<RedeemResult> {
-  return api.post<RedeemResult>('/invitations/redeem', { code })
+export function redeemInvitation(code: string, unitNumber?: string): Promise<RedeemResult> {
+  return api.post<RedeemResult>('/invitations/redeem', { code, unitNumber })
 }

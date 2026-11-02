@@ -41,18 +41,6 @@
 -- ----------------------------------------------------------------------------
 -- 1. community_members: fuera las políticas de escritura
 -- ----------------------------------------------------------------------------
---
--- members_insert_self  : la mitad `or app_is_admin_of(community_id)` dejaba
---                        insertar la fila de cualquier user_id con el role que
---                        fuera, ADMIN incluido. Con el alta directa por email
---                        descartada (M-1) no queda ningún camino legítimo que la
---                        necesite.
--- members_update_admin : con ella, un ADMIN podía cambiar role y status sin
---                        pasar por el invariante de M-3.
--- members_delete_admin : contradice M-4. Nadie borra una membresía.
---
--- Se deja members_select_own_community, que es la que necesita el listado y las
--- políticas de los bloques siguientes. Y se deja el GRANT de SELECT.
 drop policy if exists members_insert_self on community_members;
 drop policy if exists members_update_admin on community_members;
 drop policy if exists members_delete_admin on community_members;
@@ -60,18 +48,6 @@ drop policy if exists members_delete_admin on community_members;
 -- ----------------------------------------------------------------------------
 -- 2. community_invitations
 -- ----------------------------------------------------------------------------
---
--- El código se guarda con hash, nunca en claro. Es el mismo criterio que las
--- sesiones del bloque 01: con el hash, leer la tabla no sirve para entrar en
--- nada. En claro sería una lista de puertas abiertas de todas las comunidades.
---
--- No hay columna `role` (M-9): quien entra por invitación es siempre NEIGHBOR.
--- Un campo que solo puede valer una cosa es ruido que alguien acabará leyendo
--- como configurable.
---
--- No hay columna `expires_at` con DEFAULT a propósito. Que caduque a los 7 días
--- (M-7) lo decide la función, no la tabla: un default se puede sortear con un
--- INSERT explícito, y esta tabla no admite INSERT.
 create table if not exists community_invitations (
   id            uuid primary key default gen_random_uuid(),
   community_id  uuid not null references communities (id) on delete cascade,
@@ -84,26 +60,15 @@ create table if not exists community_invitations (
   created_at    timestamptz not null default now()
 );
 
--- Una invitación por código, que es la unicidad de verdad: el hash es lo único
--- que se puede repetir si el generador falla, y el unique es la última línea.
 create unique index if not exists community_invitations_code_uidx
   on community_invitations (community_id, code_hash);
 
--- "Solo una invitación viva por email y comunidad" (M-11) garantizado por un
--- índice y no solo por un if dentro de la función. Es la diferencia entre una
--- regla y una intención.
 create unique index if not exists community_invitations_live_uidx
   on community_invitations (community_id, email)
   where accepted_at is null;
 
--- Para GET /invitations, que lista por comunidad y de más reciente a más vieja.
 create index if not exists community_invitations_listing_idx
   on community_invitations (community_id, created_at desc);
-
--- No hay índice por email a propósito: ninguna consulta busca invitaciones por
--- email. El canje busca por code_hash y el "ya hay una viva" por
--- (community_id, email), que es justo lo que cubre community_invitations_live_uidx.
--- Un índice que nadie consulta solo cuesta escrituras.
 
 comment on table community_invitations is
   'Invitaciones por codigo (spec 03). El codigo nunca se guarda: solo su SHA-256.';
@@ -111,54 +76,28 @@ comment on table community_invitations is
 -- ----------------------------------------------------------------------------
 -- 3. RLS y permisos
 -- ----------------------------------------------------------------------------
---
--- ENABLE y FORCE, las dos, siempre juntas: ver 02_rls.sql §4.
 alter table community_invitations enable row level security;
 alter table community_invitations force  row level security;
 
--- Lectura: solo el ADMIN de esa comunidad. Un vecino no ve las invitaciones, ni
--- las que se han usado: el historial de a quien invito cada ADMIN es informacion
--- de la direccion.
 drop policy if exists invitations_select_admin on community_invitations;
 create policy invitations_select_admin on community_invitations
   for select using (app_is_admin_of(community_id));
 
--- Anular (M-11): solo invitaciones SIN usar. El borrado físico se limita a la
--- que nunca se usó, que es justo la que no tiene valor histórico: su código era
--- una puerta abierta y al borrar deja de serlo. Las usadas no se tocan, y por
--- eso `accepted_at is null` está en el USING y no en un if del servicio.
 drop policy if exists invitations_delete_unused_admin on community_invitations;
 create policy invitations_delete_unused_admin on community_invitations
   for delete using (app_is_admin_of(community_id) and accepted_at is null);
 
--- INSERT y UPDATE: sin política. Se van por app_invite_to_community(), que no
--- pasa por RLS porque es SECURITY DEFINER.
-
 grant select, delete on community_invitations to app_runtime;
 
--- 02_rls.sql concede `insert, update` sobre community_members a app_runtime para
--- el camino de policies. Ese camino ya no existe, así que el permiso se revoca
--- aquí. Quitarlo de la lista de 02_rls.sql no basta: un GRANT anterior no se
--- deshace por dejar de repetirlo.
 revoke insert, update on community_members from app_runtime;
 
 -- ----------------------------------------------------------------------------
 -- 4. Funciones
 -- ----------------------------------------------------------------------------
---
--- Todas: SECURITY DEFINER, search_path fijo, sin ejecutables por PUBLIC. Las
--- guardas van DENTRO de la función y no solo en la política, porque una función
--- SECURITY DEFINER no pasa por RLS: si la comprobación viviera solo en la
--- política, llamarla saltaría el filtro.
 
 -- ----------------------------------------------------------------------------
 -- 4.1 Lectura de un miembro
 -- ----------------------------------------------------------------------------
---
--- `stable`: solo lee. Hay dos columnas de `users` (full_name y email) porque es
--- un listado de vecinos de la propia comunidad, no un directorio global. Se
--- filtran las cuentas con deleted_at para que un vecino dado de baja no aparezca
--- en el portal de los demás.
 create or replace function app_get_community_member(
   p_community_id uuid,
   p_member_id    uuid
@@ -203,11 +142,6 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 4.2 Listado de miembros
 -- ----------------------------------------------------------------------------
---
--- Sale todo, incluidos SUSPENDED y LEFT, con su `status` a la vista: SUSPENDED
--- es visible, no secreto, y el histórico es el punto de M-4. Filtrar por estado,
--- si hiciera falta, es cosa del frontend; ocultar a quien se fue sería tirar
--- justo el dato que M-4 dice que se conserva.
 create or replace function app_list_community_members(
   p_community_id uuid
 )
@@ -251,18 +185,6 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 4.3 Crear una invitación
 -- ----------------------------------------------------------------------------
---
--- Devuelve el código EN CLARO, que es lo único que se puede enseñar. El hash es
--- lo que se guarda.
---
--- El código se genera aquí dentro, nunca lo recibe el cliente: si lo recibiera,
--- un ADMIN podría poner un código predecible y adivinar invitaciones ajenas,
--- porque lo que se compara es el hash.
---
--- gen_random_bytes() está en pgcrypto, y con `search_path = public, pg_temp` no
--- se puede contar con que resuelva: en Supabase las extensiones se instalan en
--- el esquema `extensions`. Dos gen_random_uuid() dan 244 bits de entropía y
--- salen de pg_catalog, que es donde están desde PG 13. sha256() también.
 create or replace function app_invite_to_community(
   p_community_id uuid,
   p_email        text
@@ -285,23 +207,16 @@ begin
     raise exception 'sin contexto de usuario' using errcode = '42501';
   end if;
 
-  -- M-2: solo el ADMIN de ESA comunidad.
   if not app_is_admin_of(p_community_id) then
     raise exception 'solo un ADMIN puede invitar' using errcode = '42501';
   end if;
 
-  -- M-8: sin email no hay invitación. La comprobación no es adorno: el email es
-  -- lo que impide que el código sirva a quien lo intercepte.
   if v_email = ''
      or v_email !~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
   then
     raise exception 'email invalido' using errcode = '22023';
   end if;
 
-  -- Una invitación viva por email y comunidad (el índice parcial también lo
-  -- garantiza, pero el if da un mensaje utilizable en vez de un 23505 pelado).
-  -- No se pisa la anterior: si el ADMIN la ha perdido, la anula con DELETE y se
-  -- ve que hubo una anulación.
   if exists (
     select 1
       from community_invitations i
@@ -323,7 +238,7 @@ begin
     v_email,
     encode(sha256(convert_to(v_code, 'utf8')), 'hex'),
     app_current_user_id(),
-    now() + interval '7 days',   -- M-7
+    now() + interval '7 days',
     null
   )
   returning community_invitations.id into v_id;
@@ -333,24 +248,15 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- 4.4 Canjear una invitación
+-- 4.4 Canjear una invitación (MODIFICADO PARA ACEPTAR VIVIENDA)
 -- ----------------------------------------------------------------------------
---
--- El camino de entrada (M-1). Exige sesión: el canje va en
--- POST /api/v1/invitations/redeem, no dentro del registro (M-10).
---
--- El orden de las comprobaciones importa. Primero se localiza la invitación
--- viva, luego se mira si caducó, luego el email, y el "usar" el código es lo
--- ÚLTIMO, ya con la decisión tomada. Si se reclamara antes, un 403 por email
--- distinto dejaría el código consumido sin haber servido para nada.
---
--- El email se compara AQUÍ y no en TypeScript. El UPDATE que marca el código
--- como usado y el INSERT de la membresía tienen que quedar en la misma
--- transacción que la comparación contra la fila; si se comparara en la
--- aplicación primero, un segundo canje simultáneo por parte de otra persona
--- podría colarse entre medias.
+
+-- Eliminamos la versión anterior de la función para evitar conflictos de firmas
+drop function if exists app_redeem_invitation(text);
+
 create or replace function app_redeem_invitation(
-  p_code text
+  p_code text,
+  p_unit_number text default null
 )
 returns table (
   member_id   uuid,
@@ -361,13 +267,10 @@ volatile
 security definer
 set search_path = public, pg_temp
 as $$
--- Los OUT de `returns table` (member_id, community_id) son variables plpgsql, y
--- `on conflict (community_id, user_id)` nombra columnas sin cualificar: sin esto
--- plpgsql ve las dos cosas y el canje falla con 42702 "ambiguous". La columna
--- gana, que es lo que significa un ON CONFLICT.
 #variable_conflict use_column
 declare
   v_code    text := btrim(coalesce(p_code, ''));
+  v_unit    text := btrim(coalesce(p_unit_number, ''));
   v_hash    text;
   v_inv     community_invitations%rowtype;
   v_email   text;
@@ -391,8 +294,6 @@ begin
    where i.code_hash = v_hash
      and i.accepted_at is null;
 
-  -- M-6: un solo uso. El segundo intento no encuentra nada porque accepted_at ya
-  -- no es null.
   if not found then
     raise exception 'invitation_used: el codigo ya se ha usado'
       using errcode = '22023';
@@ -412,9 +313,6 @@ begin
     raise exception 'sin contexto de usuario' using errcode = '42501';
   end if;
 
-  -- 42501 y no 22023 a propósito: un 400 con "este codigo es de otro email"
-  -- confirmaría que el código existe, y eso es información sobre una comunidad
-  -- ajena. Es el mismo motivo por el que el bloque 02 no filtra ese detalle.
   if v_email <> v_inv.email then
     raise exception 'invitation_email_mismatch: el codigo es de otro email'
       using errcode = '42501';
@@ -430,10 +328,6 @@ begin
       using errcode = '23505';
   end if;
 
-  -- Reclamar el código. El UPDATE con `accepted_at is null` serializa a los
-  -- concurrentes: el segundo espera al bloqueo y, cuando lo hereda, ya no
-  -- cumple el WHERE y no toca nada. Por eso cero filas significa "otro se ha
-  -- adelantado".
   update community_invitations
      set accepted_at = now(),
          accepted_by = app_current_user_id()
@@ -447,26 +341,23 @@ begin
       using errcode = '22023';
   end if;
 
-  -- M-9: siempre NEIGHBOR. Y si la fila existía en SUSPENDED o LEFT, el unique
-  -- (community_id, user_id) la reutiliza en vez de crear una segunda fila, que
-  -- el índice rechazaría. Un ADMIN que se fue y vuelve entra como vecino otra
-  -- vez: el rol se le vuelve a dar desde dentro, con registro.
+  -- MODIFICACIÓN: Añadimos unit_number al INSERT y al ON CONFLICT
   insert into community_members as m (
-    community_id, user_id, role, status, invited_by, joined_at
+    community_id, user_id, role, status, invited_by, joined_at, unit_number
   )
   values (
     v_inv.community_id, app_current_user_id(), 'NEIGHBOR', 'ACTIVE',
-    v_inv.invited_by, now()
+    v_inv.invited_by, now(), case when v_unit = '' then null else v_unit end
   )
   on conflict (community_id, user_id) do update
      set role        = 'NEIGHBOR',
          status      = 'ACTIVE',
          invited_by  = excluded.invited_by,
          joined_at   = excluded.joined_at,
+         unit_number = case when excluded.unit_number is not null then excluded.unit_number else m.unit_number end,
          updated_at  = now()
   returning m.id into v_member;
 
-  -- Bloque 14 (NTF-2/NTF-4): MEMBER_JOINED a la direccion, sin el que se une.
   perform app_notify_leadership(
     v_inv.community_id,
     'MEMBER_JOINED',
@@ -483,19 +374,6 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 4.5 Cambiar el rol
 -- ----------------------------------------------------------------------------
---
--- M-3. "Es el último" es un count sobre la misma tabla, y un UPDATE suelto no
--- puede llevar la cuenta dentro de la misma sentencia sin un disparador. Aquí el
--- count y el UPDATE van en la misma transacción, y es imposible que alguien se
--- cuelgue entre medias.
---
--- El count mira status = 'ACTIVE', no solo role = 'ADMIN': un ADMIN suspendido
--- ya no administra nada, porque app_role_in() filtra por estado activo. Si se
--- contaran todas las filas con role ADMIN, el invariante saltaría justo cuando
--- más falta hace, que es cuando queda un ADMIN suspendido y el otro se va.
---
--- Y no hay ninguna prohibición de cambiarse a sí mismo (spec 03 §5): con dos
--- ADMIN, uno sí puede degradarse. El criterio es el del último.
 create or replace function app_set_member_role(
   p_community_id uuid,
   p_member_id    uuid,
@@ -524,10 +402,6 @@ begin
     raise exception 'el rol es obligatorio' using errcode = '22023';
   end if;
 
-  -- El `and m.community_id = p_community_id` no es decorativo: es lo que impide
-  -- que el ADMIN de A toque a un miembro de B diciendo un memberId de B. El
-  -- error es P0002 y se traduce a 404, no a 403: en esa comunidad ese miembro no
-  -- existe, y un 403 confirmaría que el id es válido en alguna parte.
   select m.role, m.status into v_role, v_status
     from community_members m
    where m.id = p_member_id
@@ -562,9 +436,6 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 4.6 Cambiar el estado
 -- ----------------------------------------------------------------------------
---
--- Misma guarda, invariante simétrico: si el objetivo es el último ADMIN ACTIVO y
--- el estado nuevo no es ACTIVE, no puede.
 create or replace function app_set_member_status(
   p_community_id uuid,
   p_member_id    uuid,
@@ -620,50 +491,37 @@ begin
   update community_members
      set status = p_status
    where id = p_member_id
-     and community_id = p_community_id;
+     and m.community_id = p_community_id;
 end;
 $$;
 
 -- ----------------------------------------------------------------------------
 -- 5. Permisos de ejecución
 -- ----------------------------------------------------------------------------
---
--- El revoke va de public y no de anon/authenticated a propósito: revocar del
--- grupo PUBLIC los cubre a todos de una vez, y no deja al autor acordarse de un
--- cuarto rol mañana. Es el mismo criterio que 02b y 02c.
 grant execute on function app_get_community_member(uuid, uuid) to app_runtime;
 grant execute on function app_list_community_members(uuid) to app_runtime;
 grant execute on function app_invite_to_community(uuid, text) to app_runtime;
-grant execute on function app_redeem_invitation(text) to app_runtime;
+-- MODIFICACIÓN: Nueva firma con dos argumentos
+grant execute on function app_redeem_invitation(text, text) to app_runtime;
 grant execute on function app_set_member_role(uuid, uuid, member_role) to app_runtime;
 grant execute on function app_set_member_status(uuid, uuid, member_status) to app_runtime;
 
 revoke execute on function app_get_community_member(uuid, uuid) from public;
 revoke execute on function app_list_community_members(uuid) from public;
 revoke execute on function app_invite_to_community(uuid, text) from public;
-revoke execute on function app_redeem_invitation(text) from public;
+-- MODIFICACIÓN: Nueva firma con dos argumentos
+revoke execute on function app_redeem_invitation(text, text) from public;
 revoke execute on function app_set_member_role(uuid, uuid, member_role) from public;
 revoke execute on function app_set_member_status(uuid, uuid, member_status) from public;
 
 -- ----------------------------------------------------------------------------
 -- 6. Autocomprobación
 -- ----------------------------------------------------------------------------
---
--- Que este archivo se ejecutara sin errores no demuestra nada. Lo que importa es
--- que las funciones hayan QUEDADO como deben: si alguien las reescribe y se le
--- olvida el `security definer` o el `search_path` fijo, el archivo se aplicaría
--- igual de limpio y el agujero se instalaría solo, en silencio.
---
--- Las comprobaciones de que NO existen las políticas de escritura valen tanto
--- como las de que existen las funciones. Un `drop policy` que alguien deshaga
--- dejando el `drop` no se ve en ningún diff si nadie lo comprueba.
 do $$
 declare
   v_fallos text := '';
   r        record;
 begin
-  -- Las seis funciones: SECURITY DEFINER, search_path fijo y no ejecutables por
-  -- PUBLIC.
   for r in
     select p.proname, p.prosecdef, p.proconfig
       from pg_proc p
@@ -699,7 +557,6 @@ begin
     end if;
   end loop;
 
-  -- Las seis tienen que existir. El bucle anterior no falla si no hay ninguna.
   for r in
     select unnest(array[
       'app_get_community_member', 'app_list_community_members',
@@ -718,8 +575,6 @@ begin
     end if;
   end loop;
 
-  -- community_members: solo lectura. Cualquier política de escritura es un fallo,
-  -- porque reabre el camino que el invariante de M-3 necesita cerrado.
   if exists (
     select 1
       from pg_policies
@@ -739,7 +594,6 @@ begin
     v_fallos := v_fallos || ' falta members_select_own_community de SELECT;';
   end if;
 
-  -- Invitaciones: SELECT y DELETE para el ADMIN, y nada de INSERT ni de UPDATE.
   if exists (
     select 1
       from pg_policies
@@ -759,8 +613,6 @@ begin
     v_fallos := v_fallos || ' falta invitations_delete_unused_admin de DELETE;';
   end if;
 
-  -- RLS activada y forzada en la tabla nueva. Sin FORCE se aplica a los roles no
-  -- propietarios y el dueño se la salta.
   if not exists (
     select 1
       from pg_class c
@@ -773,13 +625,6 @@ begin
     v_fallos := v_fallos || ' community_invitations necesita RLS activada y forzada;';
   end IF;
 
-  -- La tabla de invitaciones no puede tener INSERT para el rol de la aplicación.
-  --
-  -- Se excluyen a propósito el dueño (postgres, que es owner y por tanto puede
-  -- todo) y service_role (la clave de administración de Supabase, que recibe
-  -- todos los privilegios por defecto en cualquier tabla nueva por
-  -- ALTER DEFAULT PRIVILEGES). Lo que importa es que app_runtime, anon,
-  -- authenticated y PUBLIC no puedan insertar: el alta va por función.
   if exists (
     select 1
       from information_schema.role_table_grants

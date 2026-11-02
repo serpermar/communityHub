@@ -261,10 +261,11 @@ export async function deleteInvitation(
 export async function redeemInvitation(
   tx: Tx,
   code: string,
+  unitNumber?: string,
 ): Promise<{ member_id: string; community_id: string }> {
   const rows = await tx.$queryRaw<Array<{ member_id: string; community_id: string }>>`
     select member_id, community_id
-      from app_redeem_invitation(${code})
+      from app_redeem_invitation(${code}, ${unitNumber || null})
   `
 
   const row = rows[0]

@@ -238,6 +238,39 @@ Deliberado. La baja es `PATCH { "isActive": false }`. Añadir el borrado físico
 sería el primero del proyecto y exigiría una política `DELETE` que hoy no existe
 a propósito.
 
+
+## Invitaciones
+
+### `POST /api/v1/invitations/redeem`
+
+Canjea un código de invitación y une al usuario autenticado a la comunidad correspondiente. El código se genera en el servidor y se muestra en claro una única vez al crearlo (ver `POST /api/v1/communities/:communityId/invitations`).
+
+**Cuerpo:**
+
+| Campo | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `code` | string | Sí | Código de invitación (64 caracteres hexadecimales). |
+| `unitNumber` | string | No | Vivienda del usuario dentro de la comunidad (ej. `Portal A, 3º B`). Máximo 50 caracteres. |
+
+**Respuesta `201 Created`:**
+
+```json
+{
+  "data": {
+    "memberId": "uuid-de-la-membresia",
+    "communityId": "uuid-de-la-comunidad"
+  }
+}
+```
+
+**Códigos de error:**
+
+- `400 VALIDATION_ERROR`: el cuerpo no es válido (código vacío, `unitNumber` demasiado largo, etc.).
+- `401 UNAUTHORIZED`: falta la sesión.
+- `403 FORBIDDEN`: el código no corresponde al email del usuario autenticado.
+- `404 NOT_FOUND`: el código no existe o ya se ha usado.
+- `409 CONFLICT`: el usuario ya es miembro activo de la comunidad.
+
 ---
 
 ## Incidencias

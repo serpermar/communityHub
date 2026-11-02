@@ -115,6 +115,7 @@ export const redeemSchema = z
       .trim()
       .min(1, 'El código es obligatorio.')
       .max(200, 'El código es demasiado largo.'),
+    unitNumber: z.string().trim().max(50, 'La vivienda es demasiado larga.').optional(),
   })
   .strict()
 
