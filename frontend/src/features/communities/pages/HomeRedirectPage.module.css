@@ -1,43 +1,197 @@
-.emptyCard {
-  margin-left: auto;
-  margin-right: auto;
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+:global(.dark) .page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.card {
+  width: 100%;
   max-width: 32rem;
-  border-radius: 0.5rem;
-  border: 1px dashed #cbd5e1;
   background-color: white;
-  padding: 2rem;
+  border-radius: 1rem;
+  padding: 2.5rem 2rem;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
   text-align: center;
 }
 
-:global(.dark) .emptyCard {
-  border-color: #334155;
+:global(.dark) .card {
   background-color: #0f172a;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.4),
+    0 8px 10px -6px rgb(0 0 0 / 0.4);
 }
 
-.emptyTitle {
+/* Icono principal con gradiente */
+.iconWrapper {
+  display: flex;
+  height: 5rem;
+  width: 5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, var(--brand-500, #3b82f6), var(--brand-700, #1d4ed8));
+  color: white;
+  box-shadow: 0 10px 20px -5px rgb(59 130 246 / 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.icon {
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+/* Título y descripción */
+.title {
   margin: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #334155;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
-:global(.dark) .emptyTitle {
-  color: #e2e8f0;
+:global(.dark) .title {
+  color: #f1f5f9;
 }
 
-.emptyDescription {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
+.description {
+  margin: 0;
+  font-size: 0.9375rem;
   color: #64748b;
+  line-height: 1.5;
+  max-width: 24rem;
 }
 
-:global(.dark) .emptyDescription {
+:global(.dark) .description {
   color: #94a3b8;
 }
 
-.actions {
-  margin-top: 1rem;
+/* Opciones */
+.options {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.option:hover {
+  border-color: var(--brand-500, #3b82f6);
+  background-color: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.1);
+}
+
+.option:focus-visible {
+  outline: none;
+  border-color: var(--brand-500, #3b82f6);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.2);
+}
+
+:global(.dark) .option {
+  border-color: #334155;
+  background-color: #1e293b;
+}
+
+:global(.dark) .option:hover {
+  border-color: var(--brand-500, #3b82f6);
+  background-color: #1e293b;
+}
+
+.optionIcon {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  border-radius: 0.5rem;
+  background-color: #eff6ff;
+  color: var(--brand-600, #2563eb);
+}
+
+.optionIcon svg {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+:global(.dark) .optionIcon {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--brand-400, #60a5fa);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.optionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+:global(.dark) .optionTitle {
+  color: #f1f5f9;
+}
+
+.optionDesc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+:global(.dark) .optionDesc {
+  color: #94a3b8;
+}
+
+.optionArrow {
+  height: 1.25rem;
+  width: 1.25rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition:
+    transform 200ms ease,
+    color 200ms ease;
+}
+
+.option:hover .optionArrow {
+  color: var(--brand-500, #3b82f6);
+  transform: translateX(2px);
 }
