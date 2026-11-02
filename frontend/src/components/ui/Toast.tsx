@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/utils/cn'
 import styles from './Toast.module.css'
 
@@ -33,7 +34,6 @@ const VARIANT_CLASSES: Record<ToastVariant, string> = {
 }
 
 const DEFAULT_DURATION_MS = 4000
-
 let nextId = 1
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -54,15 +54,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div aria-live="polite" aria-atomic="false" className={styles.viewport}>
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
-        ))}
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   )
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
+  const shouldReduceMotion = useReducedMotion()
   const [paused, setPaused] = useState(false)
   const remaining = useRef(DEFAULT_DURATION_MS)
   const startedAt = useRef(Date.now())
@@ -78,7 +81,12 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   }, [paused, onDismiss, toast.id])
 
   return (
-    <div
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 50, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: shouldReduceMotion ? 0 : 50, scale: 0.95 }}
+      transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }}
       role={toast.variant === 'error' ? 'alert' : 'status'}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -95,7 +103,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       >
         ✕
       </button>
-    </div>
+    </motion.div>
   )
 }
 

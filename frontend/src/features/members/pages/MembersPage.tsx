@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -42,6 +43,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PAGE_SIZE = 10
 
 export function MembersPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { active, role } = useCommunity()
   const { notify } = useToast()
   const isAdmin = role === 'ADMIN'
@@ -135,7 +137,7 @@ export function MembersPage() {
             aria-label={`Rol de ${row.fullName ?? 'miembro'}`}
             value={row.role}
             onChange={(event) => void change(row, { role: event.target.value as MemberRole })}
-            className="w-40"
+            className={styles.roleSelect}
           >
             {MEMBER_ROLES.map((value) => (
               <option key={value} value={value}>
@@ -156,7 +158,7 @@ export function MembersPage() {
             aria-label={`Estado de ${row.fullName ?? 'miembro'}`}
             value={row.status}
             onChange={(event) => void change(row, { status: event.target.value as MemberStatus })}
-            className="w-36"
+            className={styles.statusSelect}
           >
             {MEMBER_STATUSES.map((value) => (
               <option key={value} value={value}>
@@ -176,6 +178,11 @@ export function MembersPage() {
       render: (row) => formatDate(row.joinedAt),
     },
   ]
+
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
 
   return (
     <div className={styles.page}>
@@ -208,7 +215,7 @@ export function MembersPage() {
       ) : members.error ? (
         <ErrorState error={members.error} onRetry={members.reload} />
       ) : members.data ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <Card>
             <DataTable
               columns={columns}
@@ -230,7 +237,7 @@ export function MembersPage() {
             total={filtered.length}
             onPage={setPage}
           />
-        </>
+        </motion.div>
       ) : null}
 
       {isAdmin && (

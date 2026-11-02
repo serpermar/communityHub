@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Button, CommandPalette, ErrorState, ThemeToggle, Tooltip } from '@/components/ui'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { Logo } from '@/components/brand/Logo'
@@ -12,6 +13,7 @@ import { visibleNavItems } from '@/routes/navItems'
 import { prefetchRoute } from '@/routes/prefetch'
 import { cn } from '@/utils/cn'
 import { AiFloatingButton } from '@/components/ai/AiFloatingButton'
+import { PageTransition } from '@/components/layout/PageTransition'
 import styles from './AppLayout.module.css'
 
 const NAV_COLORS: Record<string, string> = {
@@ -97,6 +99,7 @@ function LayoutSkeleton() {
 }
 
 function AppLayoutInner() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { active, communities, role, loading, error, reload } = useCommunity()
@@ -121,7 +124,6 @@ function AppLayoutInner() {
     return (
       <div className={styles.noCommunityPage}>
         <div className={styles.noCommunityCard}>
-          {/* Icono principal */}
           <div className={styles.noCommunityIconWrapper}>
             <svg
               aria-hidden="true"
@@ -138,14 +140,9 @@ function AppLayoutInner() {
               <circle cx="24" cy="20" r="3" fill="currentColor" stroke="none" />
             </svg>
           </div>
-
-          {/* Título y descripción */}
           <h1 className={styles.noCommunityTitle}>{t('app.noCommunityTitle')}</h1>
           <p className={styles.noCommunityBody}>{t('app.noCommunityBody')}</p>
-
-          {/* Opciones */}
           <div className={styles.noCommunityOptions}>
-            {/* Opción 1: Canjear invitación */}
             <button
               type="button"
               onClick={() => navigate('/invitations/redeem')}
@@ -183,8 +180,6 @@ function AppLayoutInner() {
                 <path d="m9 18 6-6-6-6" />
               </svg>
             </button>
-
-            {/* Opción 2: Crear comunidad (solo ADMIN_SA) */}
             {user?.globalRole === 'ADMIN_SA' && (
               <button
                 type="button"
@@ -242,7 +237,6 @@ function AppLayoutInner() {
         const link = (
           <NavLink
             key={item.segment}
-            // CAMBIO: Usamos active.slug
             to={`/c/${active.slug}/${item.segment}`}
             onClick={closeMenu}
             onMouseEnter={() => prefetchRoute(item.segment)}
@@ -266,13 +260,12 @@ function AppLayoutInner() {
             {!compact && <span className={styles.navLabel}>{labelText}</span>}
           </NavLink>
         )
-        if (compact) {
+        if (compact)
           return (
             <Tooltip key={item.segment} label={labelText}>
               {link}
             </Tooltip>
           )
-        }
         return link
       })}
     </nav>
@@ -284,7 +277,10 @@ function AppLayoutInner() {
         {t('app.skipToContent')}
       </a>
       <div className={styles.layout}>
-        <aside
+        <motion.aside
+          initial={{ x: -50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
           ref={desktopSidebarRef}
           className={cn(
             styles.sidebar,
@@ -305,7 +301,7 @@ function AppLayoutInner() {
           >
             <ChevronIcon direction={collapsed ? 'right' : 'left'} />
           </button>
-        </aside>
+        </motion.aside>
 
         <div className={styles.body}>
           <header className={styles.header}>
@@ -363,7 +359,11 @@ function AppLayoutInner() {
           </header>
 
           <main id="main-content" className={styles.main}>
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <PageTransition key={location.pathname}>
+                <Outlet />
+              </PageTransition>
+            </AnimatePresence>
           </main>
         </div>
       </div>
@@ -407,7 +407,6 @@ function AppLayoutInner() {
 }
 
 export function AppLayout() {
-  // CAMBIO: Leemos communitySlug de la URL
   const { communitySlug } = useParams<{ communitySlug: string }>()
   return (
     <CommunityProvider communitySlug={communitySlug}>

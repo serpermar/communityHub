@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, useReducedMotion, type Variants } from 'framer-motion'
 import {
   Bar,
   BarChart,
@@ -100,6 +101,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 export function DashboardPage() {
+  const shouldReduceMotion = useReducedMotion()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { active, role } = useCommunity()
@@ -163,7 +165,7 @@ export function DashboardPage() {
         </>
       ),
       date: new Date(a.publishAt),
-      link: `/c/${active!.slug}/announcements`, // <-- CAMBIO
+      link: `/c/${active!.slug}/announcements`,
     })),
     ...data.votes.open.map((v) => ({
       id: v.id,
@@ -175,7 +177,7 @@ export function DashboardPage() {
         </>
       ),
       date: new Date(v.endsAt),
-      link: `/c/${active!.slug}/votes/${v.id}`, // <-- CAMBIO
+      link: `/c/${active!.slug}/votes/${v.id}`,
     })),
   ]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
@@ -183,7 +185,7 @@ export function DashboardPage() {
 
   const handleCategoryClick = (entry: CategoryClickEvent) => {
     if (entry?.activePayload?.length) {
-      navigate(`/c/${active!.slug}/incidents?category=${entry.activePayload[0].payload.id}`) // <-- CAMBIO
+      navigate(`/c/${active!.slug}/incidents?category=${entry.activePayload[0].payload.id}`)
     }
   }
 
@@ -193,19 +195,35 @@ export function DashboardPage() {
     )
   }
 
+  // Variantes de animación tipadas correctamente
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.1 },
+    },
+  }
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+  }
+
   return (
-    <div className={styles.page}>
-      <div className={`${styles.greeting} ${styles.animateIn}`} style={{ animationDelay: '0ms' }}>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className={styles.page}
+    >
+      <motion.div variants={itemVariants} className={styles.greeting}>
         {getGreeting()},{' '}
         <span className={styles.greetingName}>{user?.fullName?.split(' ')[0] ?? 'vecino'}</span>.
         Hoy es {format(new Date(), "d 'de' MMMM", { locale: es })}.
-      </div>
+      </motion.div>
 
       {needsAttention && (
-        <div
-          className={`${styles.actionCenter} ${styles.animateIn}`}
-          style={{ animationDelay: '40ms' }}
-        >
+        <motion.div variants={itemVariants} className={styles.actionCenter}>
           <h3 className={styles.actionCenterTitle}>
             <AlertCircle size={18} /> Requiere tu atención
           </h3>
@@ -217,8 +235,6 @@ export function DashboardPage() {
                   to={`/c/${active!.slug}/finance?tab=invoices&status=OVERDUE`}
                   className={styles.actionLink}
                 >
-                  {' '}
-                  {/* <-- CAMBIO */}
                   Revisar
                 </Link>
               </li>
@@ -230,17 +246,15 @@ export function DashboardPage() {
                   to={`/c/${active!.slug}/incidents?priority=CRITICAL`}
                   className={styles.actionLink}
                 >
-                  {' '}
-                  {/* <-- CAMBIO */}
                   Atender
                 </Link>
               </li>
             )}
           </ul>
-        </div>
+        </motion.div>
       )}
 
-      <div className={styles.animateIn} style={{ animationDelay: '50ms' }}>
+      <motion.div variants={itemVariants}>
         <PageHeader
           title={data.community.name}
           description={`${data.community.city} · ${data.community.memberCount} miembros (${data.community.neighborCount} vecinos)`}
@@ -261,8 +275,6 @@ export function DashboardPage() {
                       navigate(`/c/${active!.slug}/incidents/new`)
                     }}
                   >
-                    {' '}
-                    {/* <-- CAMBIO */}
                     <AlertTriangle size={16} /> Reportar incidencia
                   </button>
                   {isAdmin && (
@@ -274,8 +286,6 @@ export function DashboardPage() {
                           navigate(`/c/${active!.slug}/announcements`)
                         }}
                       >
-                        {' '}
-                        {/* <-- CAMBIO */}
                         <Megaphone size={16} /> Publicar aviso
                       </button>
                       <button
@@ -285,8 +295,6 @@ export function DashboardPage() {
                           navigate(`/c/${active!.slug}/votes/new`)
                         }}
                       >
-                        {' '}
-                        {/* <-- CAMBIO */}
                         <Vote size={16} /> Crear votación
                       </button>
                     </>
@@ -296,41 +304,35 @@ export function DashboardPage() {
             </div>
           }
         />
-      </div>
+      </motion.div>
 
-      <div
-        className={`${styles.statsGrid} ${styles.animateIn}`}
-        style={{ animationDelay: '100ms' }}
-      >
+      <motion.div variants={itemVariants} className={styles.statsGrid}>
         <Stat
           label="Incidencias abiertas"
           value={data.incidents.open}
           accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.slug}/incidents?status=OPEN`)}
-        />{' '}
-        {/* <-- CAMBIO */}
+        />
         <Stat
           label="En progreso"
           value={data.incidents.inProgress}
           accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.slug}/incidents?status=IN_PROGRESS`)}
-        />{' '}
-        {/* <-- CAMBIO */}
+        />
         <Stat
           label="Críticas"
           value={data.incidents.critical}
           tone="danger"
           accentClass={styles.accentIncidents}
           onClick={() => navigate(`/c/${active!.slug}/incidents?priority=CRITICAL`)}
-        />{' '}
-        {/* <-- CAMBIO */}
+        />
         <Stat
           label="Reservas próximas"
           value={data.reservations.upcomingCount}
           accentClass={styles.accentReservations}
           onClick={() => navigate(`/c/${active!.slug}/reservations`)}
-        />{' '}
-        {/* <-- CAMBIO */}
+        />
+
         <Card>
           <p className={styles.statLabel}>Clima</p>
           {weather && typeof weather.current?.temperatureC === 'number' ? (
@@ -351,12 +353,9 @@ export function DashboardPage() {
             <p className={styles.weatherEmpty}>No disponible</p>
           )}
         </Card>
-      </div>
+      </motion.div>
 
-      <div
-        className={`${styles.chartsGrid} ${styles.animateIn}`}
-        style={{ animationDelay: '150ms' }}
-      >
+      <motion.div variants={itemVariants} className={styles.chartsGrid}>
         <Card title="Incidencias por categoría">
           {categoryData.length > 0 ? (
             <ChartFigure caption="Incidencias por categoría" data={categoryData}>
@@ -396,12 +395,9 @@ export function DashboardPage() {
             <p className={styles.emptyText}>Sin datos de reservas.</p>
           )}
         </Card>
-      </div>
+      </motion.div>
 
-      <div
-        className={`${styles.listsGrid} ${styles.animateIn}`}
-        style={{ animationDelay: '200ms' }}
-      >
+      <motion.div variants={itemVariants} className={styles.listsGrid}>
         <Card title="Actividad reciente">
           {activityFeed.length > 0 ? (
             <ul className={styles.activityList}>
@@ -431,8 +427,6 @@ export function DashboardPage() {
             </Link>
           }
         >
-          {' '}
-          {/* <-- CAMBIO */}
           {data.reservations.upcoming.length > 0 ? (
             <ul className={styles.list}>
               {data.reservations.upcoming.map((item) => (
@@ -448,8 +442,7 @@ export function DashboardPage() {
             <div className={styles.emptyList}>
               <p className={styles.emptyListText}>No hay reservas próximas.</p>
               <Link to={`/c/${active!.slug}/common-areas`} className={styles.inlineLink}>
-                {' '}
-                {/* <-- CAMBIO */}+ Reservar zona común
+                + Reservar zona común
               </Link>
             </div>
           )}
@@ -486,12 +479,12 @@ export function DashboardPage() {
             </button>
           </div>
         </Card>
-      </div>
+      </motion.div>
 
       {data.finance && (
-        <div
-          className={styles.animateIn}
-          style={{ animationDelay: '250ms', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        <motion.div
+          variants={itemVariants}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
         >
           <div className={styles.financeGrid}>
             <Stat
@@ -500,23 +493,20 @@ export function DashboardPage() {
               trend={{ value: -12, isPositive: false }}
               accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
-            />{' '}
-            {/* <-- CAMBIO */}
+            />
             <Stat
               label="Pendiente de pago"
               value={`${data.finance.invoiceOpenAmount.toFixed(2)} €`}
               accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.slug}/finance?tab=invoices`)}
-            />{' '}
-            {/* <-- CAMBIO */}
+            />
             <Stat
               label="Facturas vencidas"
               value={data.finance.invoiceOverdueCount}
               tone="danger"
               accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.slug}/finance?tab=invoices&status=OVERDUE`)}
-            />{' '}
-            {/* <-- CAMBIO */}
+            />
           </div>
 
           <Card title={t('dashboard.expenseTrend')}>
@@ -528,8 +518,6 @@ export function DashboardPage() {
                     onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
                     style={{ cursor: 'pointer' }}
                   >
-                    {' '}
-                    {/* <-- CAMBIO */}
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
                     <XAxis dataKey="name" tick={tickStyle} />
                     <YAxis tick={tickStyle} />
@@ -552,16 +540,14 @@ export function DashboardPage() {
                   size="sm"
                   onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
                 >
-                  {' '}
-                  {/* <-- CAMBIO */}
                   Ir a Finanzas
                 </Button>
               </div>
             )}
           </Card>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   )
 }
 

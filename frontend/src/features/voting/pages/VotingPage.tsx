@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Badge,
   Button,
@@ -24,6 +25,7 @@ import { VOTE_STATUS_LABELS, VOTE_STATUSES, type Vote, type VoteStatus } from '.
 import styles from './VotingPage.module.css'
 
 export function VotingPage() {
+  const shouldReduceMotion = useReducedMotion()
   const navigate = useNavigate()
   const { active, role } = useCommunity()
   const { filters, page, setFilter, setPage } = useUrlFilters({ status: VOTE_STATUSES })
@@ -46,7 +48,7 @@ export function VotingPage() {
       sortable: true,
       sortValue: (vote) => vote.title,
       render: (vote) => (
-        <Link to={`/c/${active!.id}/votes/${vote.id}`} className={styles.titleLink}>
+        <Link to={`/c/${active!.slug}/votes/${vote.id}`} className={styles.titleLink}>
           {vote.title}
         </Link>
       ),
@@ -78,13 +80,18 @@ export function VotingPage() {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
         title="Votaciones"
         actions={
           isManager(role) && (
-            <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>Nueva votación</Button>
+            <Button onClick={() => navigate(`/c/${active!.slug}/votes/new`)}>Nueva votación</Button>
           )
         }
       />
@@ -110,7 +117,7 @@ export function VotingPage() {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <Card>
             <DataTable
               columns={columns}
@@ -123,7 +130,7 @@ export function VotingPage() {
                   description="Crea una votación para consultar a la comunidad."
                   action={
                     isManager(role) ? (
-                      <Button onClick={() => navigate(`/c/${active!.id}/votes/new`)}>
+                      <Button onClick={() => navigate(`/c/${active!.slug}/votes/new`)}>
                         Nueva votación
                       </Button>
                     ) : undefined
@@ -138,7 +145,7 @@ export function VotingPage() {
             total={result.data.meta.total}
             onPage={setPage}
           />
-        </>
+        </motion.div>
       ) : null}
     </div>
   )

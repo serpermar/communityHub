@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -60,6 +61,7 @@ const toLocalInput = (iso: string | null): string => {
 }
 
 export function AnnouncementsPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { active, role } = useCommunity()
   const canManage = isManager(role)
   const { filters, page, setFilter, setPage } = useUrlFilters({ type: ANNOUNCEMENT_TYPES })
@@ -144,6 +146,11 @@ export function AnnouncementsPage() {
     }
   }
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -197,7 +204,7 @@ export function AnnouncementsPage() {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data && result.data.data.length > 0 ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <div className={styles.list}>
             {result.data.data.map((announcement) => (
               <Card
@@ -244,7 +251,7 @@ export function AnnouncementsPage() {
             total={result.data.meta.total}
             onPage={setPage}
           />
-        </>
+        </motion.div>
       ) : (
         <EmptyState
           title="No hay avisos"

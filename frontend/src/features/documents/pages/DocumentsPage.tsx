@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -38,6 +39,7 @@ const fileSize = (bytes: number): string =>
   bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(0)} KB`
 
 export function DocumentsPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { active, role } = useCommunity()
   const isAdmin = role === 'ADMIN'
   const { filters, page, pageSize, setFilter, setPage, setPageSize } = useUrlFilters(
@@ -173,6 +175,11 @@ export function DocumentsPage() {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -203,7 +210,7 @@ export function DocumentsPage() {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <Card>
             <DataTable
               columns={columns}
@@ -232,7 +239,7 @@ export function DocumentsPage() {
             pageSizeOptions={[10, 20, 50]}
             onPageSize={setPageSize}
           />
-        </>
+        </motion.div>
       ) : null}
 
       <Modal open={open} title="Subir documento" onClose={() => setOpen(false)}>

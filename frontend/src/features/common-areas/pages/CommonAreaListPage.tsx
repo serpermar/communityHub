@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -41,6 +42,7 @@ const createAreaSchema = z.object({
 type CreateAreaForm = z.infer<typeof createAreaSchema>
 
 export function CommonAreaListPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { active, role } = useCommunity()
   const [open, setOpen] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -85,7 +87,7 @@ export function CommonAreaListPage() {
       key: 'name',
       header: 'Zona',
       render: (area) => (
-        <Link to={`/c/${active!.id}/common-areas/${area.id}`} className={styles.nameLink}>
+        <Link to={`/c/${active!.slug}/common-areas/${area.id}`} className={styles.nameLink}>
           {area.name}
         </Link>
       ),
@@ -106,6 +108,11 @@ export function CommonAreaListPage() {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -118,24 +125,26 @@ export function CommonAreaListPage() {
       ) : areas.error ? (
         <ErrorState error={areas.error} onRetry={areas.reload} />
       ) : areas.data ? (
-        <Card>
-          <DataTable
-            columns={columns}
-            rows={areas.data}
-            rowKey={(area) => area.id}
-            empty={
-              <EmptyState
-                title="No hay zonas comunes"
-                description="Crea una zona para poder reservarla."
-                action={
-                  role === 'ADMIN' ? (
-                    <Button onClick={() => setOpen(true)}>Nueva zona</Button>
-                  ) : undefined
-                }
-              />
-            }
-          />
-        </Card>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
+          <Card>
+            <DataTable
+              columns={columns}
+              rows={areas.data}
+              rowKey={(area) => area.id}
+              empty={
+                <EmptyState
+                  title="No hay zonas comunes"
+                  description="Crea una zona para poder reservarla."
+                  action={
+                    role === 'ADMIN' ? (
+                      <Button onClick={() => setOpen(true)}>Nueva zona</Button>
+                    ) : undefined
+                  }
+                />
+              }
+            />
+          </Card>
+        </motion.div>
       ) : null}
 
       <Modal open={open} title="Nueva zona común" onClose={() => setOpen(false)}>

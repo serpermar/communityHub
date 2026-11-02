@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Button, Card, Input, Modal, Spinner } from '@/components/ui'
 import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
@@ -64,6 +65,7 @@ export function AiAssistantDrawer({
   onClose: () => void
   initialMessage?: string | null
 }) {
+  const shouldReduceMotion = useReducedMotion()
   const { active } = useCommunity()
   const [sessions, setSessions] = useState<Array<{ id: string; title: string | null }>>([])
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
@@ -219,7 +221,12 @@ export function AiAssistantDrawer({
 
   return (
     <Modal open={open} title="Asistente IA" onClose={onClose}>
-      <div className={styles.gridLayout}>
+      <motion.div
+        initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className={styles.gridLayout}
+      >
         <Card className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
             <p className={styles.sidebarTitle}>Conversaciones</p>
@@ -307,7 +314,7 @@ export function AiAssistantDrawer({
             </Button>
           </form>
         </div>
-      </div>
+      </motion.div>
     </Modal>
   )
 }

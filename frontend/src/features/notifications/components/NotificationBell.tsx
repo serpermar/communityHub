@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Spinner } from '@/components/ui'
 import { t } from '@/i18n'
 import { formatDateTime } from '@/utils/format'
@@ -15,10 +16,8 @@ import styles from './NotificationBell.module.css'
 
 const POLL_MS = 60000
 
-/**
- * Campana con sondeo cada 60 s y revalidacion al recuperar el foco (FE-12).
- */
 export function NotificationBell() {
+  const shouldReduceMotion = useReducedMotion()
   const navigate = useNavigate()
   const [count, setCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -34,7 +33,7 @@ export function NotificationBell() {
       const result = await getUnreadCount()
       if (mounted.current) setCount(result.count)
     } catch {
-      // La campana no debe romper la app si el sondeo falla.
+      // Ignorar
     }
   }, [])
 
@@ -67,8 +66,6 @@ export function NotificationBell() {
     }
   }
 
-  // Cierra con Escape o al pulsar fuera, y devuelve el foco al panel/trigger
-  // cuando se cierra con Escape (patron de popover accesible).
   useEffect(() => {
     if (!open) return
     const onPointer = (event: MouseEvent) => {
@@ -99,7 +96,7 @@ export function NotificationBell() {
         )
         setCount((current) => Math.max(0, current - 1))
       } catch {
-        // Ignorar: la notificacion sigue ahi.
+        // Ignorar
       }
     }
     const link = notificationLink(notification)
@@ -117,7 +114,7 @@ export function NotificationBell() {
       )
       setCount(0)
     } catch {
-      // Ignorar.
+      // Ignorar
     }
   }
 
@@ -144,74 +141,81 @@ export function NotificationBell() {
         {count > 0 && <span className={styles.badge}>{count > 9 ? '9+' : count}</span>}
       </button>
 
-      {open && (
-        <div
-          ref={panelRef}
-          id="notifications-panel"
-          role="dialog"
-          aria-label={t('notifications.title')}
-          className={styles.panel}
-        >
-          <div className={styles.panelHeader}>
-            <span className={styles.panelTitle}>{t('notifications.title')}</span>
-            <button
-              type="button"
-              className={styles.markAllButton}
-              onClick={() => void readAll()}
-              disabled={count === 0}
-            >
-              {t('notifications.markAll')}
-            </button>
-          </div>
-          <div className={styles.listScroll}>
-            {loading ? (
-              <div className={styles.loadingContainer}>
-                <Spinner />
-              </div>
-            ) : items.length === 0 ? (
-              <p className={styles.emptyText}>{t('notifications.empty')}</p>
-            ) : (
-              <ul className={styles.list}>
-                {items.map((notification) => (
-                  <li key={notification.id}>
-                    <button
-                      type="button"
-                      onClick={() => void openOne(notification)}
-                      className={styles.itemButton}
-                    >
-                      <span className={styles.itemHeader}>
-                        {!notification.readAt && (
-                          <span
-                            className={styles.unreadDot}
-                            aria-label={t('notifications.unread')}
-                          />
-                        )}
-                        <span className={styles.itemTitle}>{notification.title}</span>
-                      </span>
-                      <span className={styles.itemBody}>{notification.body}</span>
-                      <span className={styles.itemDate}>
-                        {formatDateTime(notification.createdAt)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className={styles.panelFooter}>
-            <button
-              type="button"
-              className={styles.viewAllButton}
-              onClick={() => {
-                setOpen(false)
-                navigate('/notifications')
-              }}
-            >
-              {t('notifications.viewAll')}
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: shouldReduceMotion ? 0 : -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -10, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            ref={panelRef}
+            id="notifications-panel"
+            role="dialog"
+            aria-label={t('notifications.title')}
+            className={styles.panel}
+          >
+            {/* ... contenido del panel ... (igual que antes) */}
+            <div className={styles.panelHeader}>
+              <span className={styles.panelTitle}>{t('notifications.title')}</span>
+              <button
+                type="button"
+                className={styles.markAllButton}
+                onClick={() => void readAll()}
+                disabled={count === 0}
+              >
+                {t('notifications.markAll')}
+              </button>
+            </div>
+            <div className={styles.listScroll}>
+              {loading ? (
+                <div className={styles.loadingContainer}>
+                  <Spinner />
+                </div>
+              ) : items.length === 0 ? (
+                <p className={styles.emptyText}>{t('notifications.empty')}</p>
+              ) : (
+                <ul className={styles.list}>
+                  {items.map((notification) => (
+                    <li key={notification.id}>
+                      <button
+                        type="button"
+                        onClick={() => void openOne(notification)}
+                        className={styles.itemButton}
+                      >
+                        <span className={styles.itemHeader}>
+                          {!notification.readAt && (
+                            <span
+                              className={styles.unreadDot}
+                              aria-label={t('notifications.unread')}
+                            />
+                          )}
+                          <span className={styles.itemTitle}>{notification.title}</span>
+                        </span>
+                        <span className={styles.itemBody}>{notification.body}</span>
+                        <span className={styles.itemDate}>
+                          {formatDateTime(notification.createdAt)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className={styles.panelFooter}>
+              <button
+                type="button"
+                className={styles.viewAllButton}
+                onClick={() => {
+                  setOpen(false)
+                  navigate('/notifications')
+                }}
+              >
+                {t('notifications.viewAll')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

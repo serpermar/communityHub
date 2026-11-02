@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { NAV_ICONS } from '@/components/brand/NavIcons'
 import { t } from '@/i18n'
 import { visibleNavItems } from '@/routes/navItems'
@@ -23,11 +24,6 @@ type CommandItem =
   | { type: 'announcement'; id: string; title: string; subtitle: string }
   | { type: 'member'; id: string; title: string; subtitle: string }
 
-/**
- * Selector de comandos (Cmd/Ctrl+K): salta a cualquier seccion de la comunidad
- * activa filtrando por texto. Reutiliza `visibleNavItems` (mismos destinos y
- * permisos que el sidebar) y ahora también busca entidades reales.
- */
 export function CommandPalette({
   communityId,
   role,
@@ -39,6 +35,7 @@ export function CommandPalette({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const shouldReduceMotion = useReducedMotion()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
@@ -204,85 +201,108 @@ export function CommandPalette({
   }
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.backdrop} onClick={close} aria-hidden="true" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('app.commandPalette')}
-        className={styles.dialog}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          role="combobox"
-          aria-expanded="true"
-          aria-controls="command-listbox"
-          aria-autocomplete="list"
-          aria-label={t('app.commandPalette')}
-          aria-activedescendant={
-            allItems[highlight] && allItems[highlight].type === 'nav'
-              ? `command-option-${(allItems[highlight] as { segment: string }).segment}`
-              : undefined
-          }
-          placeholder={t('app.commandPlaceholder')}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={onKeyDown}
-          className={styles.input}
-        />
-        <ul
-          id="command-listbox"
-          role="listbox"
-          aria-label={t('app.commandPalette')}
-          className={styles.list}
-        >
-          {allItems.length === 0 ? (
-            <li className={styles.emptyItem}>
-              {query.trim().length >= 2 && loadingEntities
-                ? 'Buscando...'
-                : t('app.commandNoResults')}
-            </li>
-          ) : (
-            allItems.map((item, index) => {
-              if (item.type === 'nav') {
-                const Icon = NAV_ICONS[item.segment]
-                return (
-                  <li key={`nav-${item.segment}`}>
-                    <button
-                      type="button"
-                      id={`command-option-${item.segment}`}
-                      role="option"
-                      aria-selected={index === highlight}
-                      onMouseEnter={() => setHighlight(index)}
-                      onClick={() => choose(item)}
-                      className={`${styles.navOption} ${index === highlight ? styles.optionHighlighted : ''}`}
-                    >
-                      {Icon && <Icon aria-hidden="true" />}
-                      {item.label}
-                    </button>
-                  </li>
-                )
+    <AnimatePresence>
+      {open && (
+        <div className={styles.overlay}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={close}
+            className={styles.backdrop}
+            aria-hidden="true"
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('app.commandPalette')}
+            initial={{
+              opacity: 0,
+              scale: shouldReduceMotion ? 1 : 0.95,
+              y: shouldReduceMotion ? 0 : 20,
+            }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              scale: shouldReduceMotion ? 1 : 0.95,
+              y: shouldReduceMotion ? 0 : 20,
+            }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={styles.dialog}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="command-listbox"
+              aria-autocomplete="list"
+              aria-label={t('app.commandPalette')}
+              aria-activedescendant={
+                allItems[highlight] && allItems[highlight].type === 'nav'
+                  ? `command-option-${(allItems[highlight] as { segment: string }).segment}`
+                  : undefined
               }
-              return (
-                <li key={`${item.type}-${item.id}`}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={index === highlight}
-                    onMouseEnter={() => setHighlight(index)}
-                    onClick={() => choose(item)}
-                    className={`${styles.entityOption} ${index === highlight ? styles.optionHighlighted : ''}`}
-                  >
-                    <span className={styles.entityTitle}>{item.title}</span>
-                    <span className={styles.entitySubtitle}>{item.subtitle}</span>
-                  </button>
+              placeholder={t('app.commandPlaceholder')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={onKeyDown}
+              className={styles.input}
+            />
+            <ul
+              id="command-listbox"
+              role="listbox"
+              aria-label={t('app.commandPalette')}
+              className={styles.list}
+            >
+              {allItems.length === 0 ? (
+                <li className={styles.emptyItem}>
+                  {query.trim().length >= 2 && loadingEntities
+                    ? 'Buscando...'
+                    : t('app.commandNoResults')}
                 </li>
-              )
-            })
-          )}
-        </ul>
-      </div>
-    </div>
+              ) : (
+                allItems.map((item, index) => {
+                  if (item.type === 'nav') {
+                    const Icon = NAV_ICONS[item.segment]
+                    return (
+                      <li key={`nav-${item.segment}`}>
+                        <button
+                          type="button"
+                          id={`command-option-${item.segment}`}
+                          role="option"
+                          aria-selected={index === highlight}
+                          onMouseEnter={() => setHighlight(index)}
+                          onClick={() => choose(item)}
+                          className={`${styles.navOption} ${index === highlight ? styles.optionHighlighted : ''}`}
+                        >
+                          {Icon && <Icon aria-hidden="true" />}
+                          {item.label}
+                        </button>
+                      </li>
+                    )
+                  }
+                  return (
+                    <li key={`${item.type}-${item.id}`}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={index === highlight}
+                        onMouseEnter={() => setHighlight(index)}
+                        onClick={() => choose(item)}
+                        className={`${styles.entityOption} ${index === highlight ? styles.optionHighlighted : ''}`}
+                      >
+                        <span className={styles.entityTitle}>{item.title}</span>
+                        <span className={styles.entitySubtitle}>{item.subtitle}</span>
+                      </button>
+                    </li>
+                  )
+                })
+              )}
+            </ul>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }

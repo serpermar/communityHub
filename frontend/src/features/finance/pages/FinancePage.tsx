@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -134,26 +135,8 @@ function SummaryTab({ communityId }: { communityId: string }) {
   )
 }
 
-// --- Formularios tipados ---
-type ExpenseForm = {
-  concept: string
-  amount: string
-  expenseDate: string
-  category: ExpenseCategory
-  supplier: string
-  notes: string
-}
-
-type InvoiceForm = {
-  number: string
-  amount: string
-  issueDate: string
-  dueDate: string
-  concept: string
-  supplier: string
-}
-
 function ExpensesTab({ communityId }: { communityId: string }) {
+  const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Expense | null>(null)
@@ -166,13 +149,19 @@ function ExpensesTab({ communityId }: { communityId: string }) {
     [communityId, page],
   )
 
-  // 1. Usamos react-hook-form para evitar que el input pierda el foco
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ExpenseForm>({
+  } = useForm<{
+    concept: string
+    amount: string
+    expenseDate: string
+    category: ExpenseCategory
+    supplier: string
+    notes: string
+  }>({
     defaultValues: {
       concept: '',
       amount: '',
@@ -271,6 +260,11 @@ function ExpensesTab({ communityId }: { communityId: string }) {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.tabContent}>
       <div className={styles.actionsRow}>
@@ -284,7 +278,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <Card>
             <DataTable
               columns={columns}
@@ -299,7 +293,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
             total={result.data.meta.total}
             onPage={setPage}
           />
-        </>
+        </motion.div>
       ) : null}
 
       <Modal
@@ -373,6 +367,7 @@ function ExpensesTab({ communityId }: { communityId: string }) {
 }
 
 function InvoicesTab({ communityId }: { communityId: string }) {
+  const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -388,7 +383,14 @@ function InvoicesTab({ communityId }: { communityId: string }) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<InvoiceForm>({
+  } = useForm<{
+    number: string
+    amount: string
+    issueDate: string
+    dueDate: string
+    concept: string
+    supplier: string
+  }>({
     defaultValues: {
       number: '',
       amount: '',
@@ -471,6 +473,11 @@ function InvoicesTab({ communityId }: { communityId: string }) {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
@@ -485,7 +492,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
       ) : result.error ? (
         <ErrorState error={result.error} onRetry={result.reload} />
       ) : result.data ? (
-        <>
+        <motion.div variants={listVariants} initial="hidden" animate="visible">
           <Card>
             <DataTable
               columns={columns}
@@ -500,7 +507,7 @@ function InvoicesTab({ communityId }: { communityId: string }) {
             total={result.data.meta.total}
             onPage={setPage}
           />
-        </>
+        </motion.div>
       ) : null}
 
       <Modal open={open} title="Nueva factura" onClose={() => setOpen(false)}>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
   Badge,
@@ -33,6 +34,7 @@ import styles from './ReservationListPage.module.css'
 type View = 'list' | 'calendar'
 
 export function ReservationListPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { user } = useAuth()
   const { active, role } = useCommunity()
   const { notify } = useToast()
@@ -135,6 +137,11 @@ export function ReservationListPage() {
     },
   ]
 
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -153,9 +160,7 @@ export function ReservationListPage() {
               type="button"
               onClick={() => setView('calendar')}
               aria-pressed={view === 'calendar'}
-              className={`${styles.viewButton} ${
-                view === 'calendar' ? styles.viewButtonActive : ''
-              }`}
+              className={`${styles.viewButton} ${view === 'calendar' ? styles.viewButtonActive : ''}`}
             >
               Calendario
             </button>
@@ -202,7 +207,7 @@ export function ReservationListPage() {
           ) : result.error ? (
             <ErrorState error={result.error} onRetry={result.reload} />
           ) : result.data ? (
-            <>
+            <motion.div variants={listVariants} initial="hidden" animate="visible">
               <Card>
                 <DataTable
                   columns={columns}
@@ -222,7 +227,7 @@ export function ReservationListPage() {
                 total={result.data.meta.total}
                 onPage={setPage}
               />
-            </>
+            </motion.div>
           ) : null}
         </>
       )}

@@ -1,4 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
   Badge,
   Button,
@@ -98,7 +99,7 @@ export function IncidentListPage() {
         <button
           type="button"
           className={styles.titleButton}
-          onClick={() => navigate(`/c/${active!.id}/incidents/${incident.id}`)}
+          onClick={() => navigate(`/c/${active!.slug}/incidents/${incident.id}`)}
         >
           {incident.title}
         </button>
@@ -138,6 +139,12 @@ export function IncidentListPage() {
     },
   ]
 
+  // Solo animamos el contenedor de la tabla (efecto fade-in)
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.3 } },
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -155,7 +162,7 @@ export function IncidentListPage() {
               ariaLabel="Vista de incidencias"
             />
             {role !== 'PROVIDER' && (
-              <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+              <Button onClick={() => navigate(`/c/${active!.slug}/incidents/new`)}>
                 Nueva incidencia
               </Button>
             )}
@@ -220,7 +227,7 @@ export function IncidentListPage() {
         ) : view === 'calendar' ? (
           <IncidentCalendar incidents={result.data.data} />
         ) : (
-          <>
+          <motion.div variants={listVariants} initial="hidden" animate="visible">
             <Card>
               <DataTable
                 columns={columns}
@@ -233,7 +240,7 @@ export function IncidentListPage() {
                     description="No se encontraron incidencias con estos filtros."
                     action={
                       role !== 'PROVIDER' ? (
-                        <Button onClick={() => navigate(`/c/${active!.id}/incidents/new`)}>
+                        <Button onClick={() => navigate(`/c/${active!.slug}/incidents/new`)}>
                           Nueva incidencia
                         </Button>
                       ) : undefined
@@ -248,7 +255,7 @@ export function IncidentListPage() {
               total={result.data.meta.total}
               onPage={setPage}
             />
-          </>
+          </motion.div>
         )
       ) : null}
     </div>
