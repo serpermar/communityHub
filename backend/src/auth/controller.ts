@@ -1,13 +1,5 @@
 // ---------------------------------------------------------------------------
 // Controller de autenticacion.
-//
-// Su unico trabajo es traducir HTTP a llamadas al servicio y volver. No decide
-// nada: si aparece una condicion de negocio aqui, es que se ha puesto en el
-// sitio equivocado.
-//
-// En concreto, este archivo NO sabe cuando un refresh token es robado ni si una
-// cuenta esta activa. Eso lo decide el servicio, y el codigo de error sale de
-// alla a traves de la excepcion.
 // ---------------------------------------------------------------------------
 
 import type { NextFunction, Request, Response } from 'express'
@@ -43,18 +35,6 @@ function clientInfo(req: Request) {
   }
 }
 
-/**
- * Escribe la cookie de refresh.
- *
- * `httpOnly` para que JavaScript no la lea, que es lo que cierra el XSS. `secure`
- * para que no viaje en claro. `sameSite=strict` para que no salga en peticiones
- * de terceros, lo que da proteccion CSRF sin token. Y `path` restringido a
- * `/api/v1/auth`: la cookie solo viaja a los tres endpoints que la necesitan, que
- * es la respuesta a la pregunta 1 de la spec 01.
- *
- * El `secure` se puede desactivar solo en desarrollo, porque `localhost` en http
- * no acepta cookies `secure` y no habria forma de probar el login.
- */
 function setRefreshCookie(res: Response, token: string): void {
   res.cookie(env.REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
@@ -65,13 +45,6 @@ function setRefreshCookie(res: Response, token: string): void {
   })
 }
 
-/**
- * Borra la cookie de refresh.
- *
- * Con los mismos atributos con los que se creo. Si no coinciden, el navegador no
- * la borra: el `path` o el nombre tienen que ser identicos, y ese es un fallo
- * silencioso que deja al cliente con un refresh token vivo para siempre.
- */
 function clearRefreshCookie(res: Response): void {
   res.clearCookie(env.REFRESH_COOKIE_NAME, {
     httpOnly: true,
@@ -96,8 +69,6 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     const input = parse(loginSchema, req.body)
     const result = await service.login({ ...input, ...clientInfo(req) })
     setRefreshCookie(res, result.refreshToken)
-    // El refresh token viaja solo en la cookie httpOnly. Nunca en el cuerpo: si
-    // fuera aqui, un XSS lo leeria de `localStorage` o de la respuesta JSON.
     const { refreshToken: _refreshToken, ...body } = result
     ok(res, body)
   } catch (error) {
@@ -109,12 +80,6 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
   try {
     const token = req.cookies?.[env.REFRESH_COOKIE_NAME]
 
-    // Sin cookie no hay nada que renovar. Se lanza el mismo error que un refresh
-    // invalido, para no distinguir los casos.
-    //
-    // Se lanza en vez de responder aqui a mano porque el `catch` de abajo ya borra
-    // la cookie y delega en el middleware de errores. Escribir el envelope a mano
-    // aqui era duplicar las dos cosas que ese `catch` hace por todos.
     if (typeof token !== 'string' || token.length === 0) {
       throw tokenRevoked()
     }
@@ -124,8 +89,6 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     const { refreshToken: _refreshToken, ...body } = result
     ok(res, body)
   } catch (error) {
-    // Cualquier fallo aqui deja al cliente con una cookie que ya no vale. Sin
-    // borrarla, el cliente reintenta en bucle con un token muerto.
     clearRefreshCookie(res)
     next(error)
   }
@@ -162,30 +125,25 @@ export async function updateProfile(
   }
 }
 
-export async function uploadAvatar(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export async function uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const file = req.file
     if (!file) {
       throw badRequest('El archivo es obligatorio.')
     }
-    ok(res, await service.uploadAvatar(req.auth!.userId, {
-      buffer: file.buffer,
-      mimetype: file.mimetype,
-    }))
+    ok(
+      res,
+      await service.uploadAvatar(req.auth!.userId, {
+        buffer: file.buffer,
+        mimetype: file.mimetype,
+      }),
+    )
   } catch (error) {
     next(error)
   }
 }
 
-export async function deleteAvatar(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export async function deleteAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     ok(res, await service.deleteAvatar(req.auth!.userId))
   } catch (error) {
@@ -249,19 +207,24 @@ export async function revokeOtherSessions(
   }
 }
 
-export async function exportMyData(
+/**
+ * Exporta todos los datos del usuario en formato JSON y los envía como archivo adjunto.
+ */
+export async function exportAccountData(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const data = await service.exportMyData(req.auth!.userId)
+    const userId = req.auth!.userId
+    const data = await service.exportUserData(userId)
+
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="communityhub-datos-${req.auth!.userId}.json"`,
+      `attachment; filename="communityhub-mis-datos-${Date.now()}.json"`,
     )
-    res.send(JSON.stringify(data, null, 2))
+    res.send(JSON.stringify({ data }, null, 2))
   } catch (error) {
     next(error)
   }

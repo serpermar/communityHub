@@ -58,10 +58,7 @@ export function createAuthRouter(): Router {
   const refreshLimiter = createRefreshRateLimiter()
   const changePasswordLimiter = createChangePasswordRateLimiter()
 
-  // Publicos. El limite de intentos va solo en el login: el registro tambien
-  // escribe en la base de datos, pero un 429 ahi impediria dar de alta a varias
-  // personas desde la misma IP, que en un portal de una comunidad es el caso
-  // normal (mismo router, mismo vecindario).
+  // Publicos.
   router.post('/register', controller.register)
   router.post('/login', loginLimiter, controller.login)
   router.post('/refresh', refreshLimiter, controller.refresh)
@@ -75,8 +72,10 @@ export function createAuthRouter(): Router {
   router.post('/change-password', requireAuth, changePasswordLimiter, controller.changePassword)
   router.get('/sessions', requireAuth, controller.listSessions)
   router.post('/sessions/revoke-others', requireAuth, controller.revokeOtherSessions)
-  router.get('/me/export', requireAuth, controller.exportMyData)
   router.delete('/sessions/:id', requireAuth, controller.revokeSession)
+
+  // Descarga de datos
+  router.get('/me/export', requireAuth, controller.exportAccountData)
 
   return router
 }

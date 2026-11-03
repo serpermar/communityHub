@@ -1,19 +1,9 @@
 // ---------------------------------------------------------------------------
 // Servicio de autenticacion.
-//
-// Aqui vive la logica de negocio: quien puede entrar, cuando caduca una sesion,
-// que pasa cuando llega un refresh token robado. Los controllers solo reparen
-// peticiones y los repositorios solo ejecutan SQL.
-//
-// Regla que atraviesa todo el archivo: el servicio NUNCA decide con informacion
-// que venga del cliente sin comprobarla. El `communityId` de una peticion se
-// valida contra la pertenencia real del usuario antes de usarse, nunca se
-// acepta tal cual.
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from 'node:crypto'
-import { Prisma } from '@prisma/client'
-import { session_status } from '@prisma/client'
+import { Prisma, session_status } from '@prisma/client'
 import { withContext } from '../context.js'
 import { env } from '../config/env.js'
 import {
@@ -88,21 +78,6 @@ function toPublicUser(row: {
 // Registro
 // ---------------------------------------------------------------------------
 
-/**
- * Crear una cuenta.
- *
- * No se crea sesion: el usuario entra con su contrasena, lo que de paso
- * comprueba que el hash se guardo bien y que el argon2 verifica contra el.
- *
- * No se comprueba antes de insertar si el email ya existe, porque a esta altura
- * no hay contexto de RLS y la politica `users_select_self` devolveria cero
- * filas siempre. Se inserta y se traduce el conflicto de clave unica, que es
- * atomico y no deja la carrera que deja un SELECT seguido de INSERT.
- *
- * Aqui si se distingue el email duplicado del resto de errores (409
- * EMAIL_TAKEN), a diferencia del login: quien se registra conoce su propio email
- * y necesita saber que esta repetido.
- */
 export async function register(input: {
   email: string
   password: string
@@ -114,19 +89,6 @@ export async function register(input: {
   const id = randomUUID()
 
   try {
-    // El contexto es el id DEL USUARIO QUE SE ESTA CREANDO, no null.
-    //
-    // No es un detalle menor ni un atajo: con `userId: null` el registro falla
-    // con 42501 "new row violates row-level security policy for table users",
-    // aunque `users_insert_public` sea `with check (true)` y el INSERT sea
-    // permitido. La razon es que la escritura de Prisma comprueba la politica de
-    // SELECT sobre la fila afectada, y `users_select_self` exige
-    // `id = app_current_user_id()`. Con el contexto vacio, la fila recien creada
-    // no es visible ni para si misma y la operacion se rechaza.
-    //
-    // Poner el id aqui es ademas lo correcto por si mismo: al finishing de
-    // registrarse uno es el propio usuario, y `users_select_self` existe para
-    // permitirle leer su fila.
     const row = await withContext({ userId: id, communityId: null }, (tx) =>
       repo.createUser(tx, {
         id,
@@ -153,26 +115,11 @@ export async function register(input: {
 // Login
 // ---------------------------------------------------------------------------
 
-/**
- * Verificar credenciales y emitir sesion.
- *
- * Tres caminos, todos terminan en el mismo error 401 INVALID_CREDENTIALS:
- *
- *   email inexistente      -> se verifica argon2 contra un hash senuelo y 401
- *   cuenta borrada o baja  -> se verifica argon2 contra un hash senuelo y 401
- *   contrasena incorrecta  -> se verifica argon2 de verdad y 401
- *
- * El hash senuelo en los dos primeros casos no es decoracion: sin el, el tiempo
- * de respuesta delata que accounts existen. Es la unica proteccion posible,
- * porque el mensaje de error ya es identico.
- */
 export async function login(
   input: { email: string; password: string } & ClientInfo,
 ): Promise<SessionTokens> {
   const email = normalizeEmail(input.email)
 
-  // Sin contexto de RLS todavia: es exactamente el punto ciego que cubren las
-  // funciones SECURITY DEFINER.
   const row = await withContext({ userId: null, communityId: null }, (tx) =>
     repo.findUserByEmailForAuth(tx, email),
   )
@@ -183,10 +130,6 @@ export async function login(
   }
 
   const usable = row.deleted_at === null && row.status === 'ACTIVE'
-
-  // La cuenta existe, asi que se verifica de verdad. El resultado se descarta
-  // para una cuenta no utilizable, pero el trabajo se hace igual y por eso el
-  // tiempo de respuesta es el mismo en los tres caminos.
   const passwordOk = await verifyPassword(row.password_hash, input.password)
 
   if (!usable || !passwordOk) {
@@ -212,9 +155,6 @@ export async function login(
   })
 
   if (!created) {
-    // Solo posible si RLS denyase la lectura del propio usuario, lo que
-    // significa que el contexto no se aplico. Es un fallo de infraestructura y
-    // no un error de credenciales.
     throw unauthorized('No se ha podido completar el inicio de sesión.')
   }
 
@@ -230,19 +170,6 @@ export async function login(
 // Refresh con rotacion y deteccion de robo
 // ---------------------------------------------------------------------------
 
-/**
- * Renovar la sesion.
- *
- * La rotacion es la parte que no es trivial. Cada refresh emite un token nuevo y
- * revoca el anterior. Si un token ya revocado vuelve a aparecer, significa que
- * hay dos parties con el mismo token: la victima y un ladron. No se puede
- * saber cual es cual, asi que se revoca la FAMILIA entera. La victima pierde la
- * sesion y tiene que entrar otra vez, que es molesto; la alternativa es dejar
- * que uno de los dos la conserve, y ese puede ser el ladron.
- *
- * `family_id` no cambia al rotar: toda la cadena de un login comparte familia.
- * Solo se genera uno nuevo al hacer login de verdad.
- */
 export async function refresh(
   input: { refreshToken: string } & ClientInfo,
 ): Promise<SessionTokens> {
@@ -252,8 +179,6 @@ export async function refresh(
     repo.findSessionByTokenHash(tx, tokenHash),
   )
 
-  // Token desconocido: se limpia la cookie y listo. No se distingue de un token
-  // revocado a proposito, para no darle informacion a quien lo prueba.
   if (!existing) {
     throw tokenRevoked()
   }
@@ -306,13 +231,6 @@ export async function refresh(
 // Logout y gestion de sesiones
 // ---------------------------------------------------------------------------
 
-/**
- * Cerrar la sesion actual.
- *
- * Revoca la sesion, y con ella el access token: el `ver` del JWT apunta a una
- * sesion que ya no esta ACTIVE, asi que la siguiente peticion da 401 aunque el
- * token no haya expirado. Es lo que espera alguien al pulsar "salir".
- */
 export async function logout(input: { userId: string; sessionId: string }): Promise<void> {
   await withContext({ userId: input.userId, communityId: null }, (tx) =>
     repo.revokeSession(tx, input.sessionId),
@@ -326,8 +244,6 @@ export async function listSessions(input: { userId: string; currentSessionId: st
 
   return rows.map((row) => ({
     id: row.id,
-    // Marca la sesion con la que ha llegado esta peticion, para que la interfaz
-    // pueda indicarla y no ofrecer "cerrar esta sesion" sobre ella misma.
     current: row.id === input.currentSessionId,
     familyId: row.family_id,
     expiresAt: row.expires_at.toISOString(),
@@ -338,13 +254,6 @@ export async function listSessions(input: { userId: string; currentSessionId: st
   }))
 }
 
-/**
- * Revocar una sesion concreta del usuario, desde la pantalla de sesiones.
- *
- * La pertenencia la garantiza `sessions_own`. Una sesion ajena no es un 403 con
- * detalle: afectaria a cero filas y se responde 404, para no confirmar que ese
- * id existe.
- */
 export async function revokeSessionById(input: {
   userId: string
   sessionId: string
@@ -367,25 +276,10 @@ export async function revokeOtherSessions(input: {
   )
 }
 
-export async function exportMyData(userId: string) {
-  const user = await getMe(userId)
-  return {
-    exportedAt: new Date().toISOString(),
-    user,
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Usuario actual
 // ---------------------------------------------------------------------------
 
-/**
- * Usuario de la peticion.
- *
- * Se lee dentro del contexto de RLS y la politica `users_select_self` solo deja
- * ver la fila propia. Si algun dia se rompe esa politica, este endpoint devuelve
- * un 404 en vez de datos de otro, y el fallo es visible.
- */
 export async function getMe(userId: string): Promise<PublicUser> {
   const row = await withContext({ userId, communityId: null }, (tx) =>
     repo.findUserById(tx, userId),
@@ -402,13 +296,6 @@ export async function getMe(userId: string): Promise<PublicUser> {
 // Edicion del perfil propio
 // ---------------------------------------------------------------------------
 
-/**
- * Actualizar nombre y telefono del usuario de la peticion.
- *
- * El correo no se toca: cambiarlo exige verificar de nuevo la direccion, que es
- * otro flujo. Aqui solo hay datos de contacto, y el servicio los normaliza antes
- * de guardarlos (cadena vacia en telefono significa "borrar").
- */
 export async function updateProfile(
   userId: string,
   input: { fullName: string; phone?: string },
@@ -427,17 +314,6 @@ export async function updateProfile(
   return toPublicUser(row)
 }
 
-/**
- * Cambiar la contrasena del usuario de la peticion.
- *
- * Se exige la contrasena actual: sin eso, cualquiera con una sesion abierta (un
- * portatil dejado desbloqueado, un token robado) podria apropiarse de la cuenta.
- * Se verifica con argon2 antes de tocar nada.
- *
- * Al guardar la nueva se revocan las demas sesiones: si la contrasena anterior
- * estaba comprometida, sus sesiones dejan de valer. La sesion actual sobrevive
- * para no expulsar a quien esta cambiando la contrasena.
- */
 export async function changePassword(input: {
   userId: string
   sessionId: string
@@ -497,4 +373,190 @@ export async function deleteAvatar(userId: string): Promise<PublicUser> {
   }
 
   return toPublicUser(row)
+}
+
+// ---------------------------------------------------------------------------
+// Exportacion de datos (RGPD)
+// ---------------------------------------------------------------------------
+
+/**
+ * Exporta todos los datos personales del usuario.
+ *
+ * Ahora que la recursión de `document_acl` está resuelta en SQL (con la función
+ * `app_user_can_view_document_acl`), todas las consultas pueden ir dentro de
+ * `withContext` con el rol `app_runtime`. No hace falta el cliente `admin` y se
+ * mantiene la regla de no importar `db-admin.ts` desde código de producto.
+ */
+export async function exportUserData(userId: string) {
+  return withContext({ userId, communityId: null }, async (tx) => {
+    // 1. Perfil
+    const user = await tx.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        phone: true,
+        global_role: true,
+        email_verified_at: true,
+        created_at: true,
+        updated_at: true,
+      },
+    })
+
+    if (!user) {
+      throw new Error('Usuario no encontrado')
+    }
+
+    // 2. Membresías
+    const membershipsRaw = await tx.communityMembers.findMany({
+      where: { user_id: userId },
+      select: {
+        community_id: true,
+        role: true,
+        status: true,
+        unit_number: true,
+        joined_at: true,
+      },
+    })
+
+    const communityIds = membershipsRaw.map((m) => m.community_id).filter(Boolean)
+    const communities = communityIds.length
+      ? await tx.communities.findMany({
+          where: { id: { in: communityIds } },
+          select: { id: true, name: true, city: true },
+        })
+      : []
+
+    const communityMap = new Map(communities.map((c) => [c.id, c]))
+    const memberships = membershipsRaw.map((m) => ({
+      role: m.role,
+      status: m.status,
+      unit_number: m.unit_number,
+      joined_at: m.joined_at,
+      community: communityMap.get(m.community_id) ?? null,
+    }))
+
+    // 3. Incidencias
+    const incidents = await tx.incidents.findMany({
+      where: { reporter_id: userId },
+      select: {
+        reference_code: true,
+        title: true,
+        description: true,
+        category: true,
+        priority: true,
+        status: true,
+        created_at: true,
+      },
+    })
+
+    // 4. Reservas
+    const reservationsRaw = await tx.reservations.findMany({
+      where: { user_id: userId },
+      select: { common_area_id: true, starts_at: true, ends_at: true, status: true },
+    })
+
+    const areaIds = [...new Set(reservationsRaw.map((r) => r.common_area_id).filter(Boolean))]
+    const areas = areaIds.length
+      ? await tx.commonAreas.findMany({
+          where: { id: { in: areaIds } },
+          select: { id: true, name: true },
+        })
+      : []
+
+    const areaMap = new Map(areas.map((a) => [a.id, a]))
+    const reservations = reservationsRaw.map((r) => ({
+      starts_at: r.starts_at,
+      ends_at: r.ends_at,
+      status: r.status,
+      common_area: areaMap.get(r.common_area_id) ?? null,
+    }))
+
+    // 5. Votos emitidos
+    const votesRaw = await tx.voteResponses.findMany({
+      where: { user_id: userId },
+      select: { option_id: true, created_at: true },
+    })
+
+    const optionIds = [...new Set(votesRaw.map((v) => v.option_id).filter(Boolean))]
+    const options = optionIds.length
+      ? await tx.voteOptions.findMany({
+          where: { id: { in: optionIds } },
+          select: { id: true, label: true, vote_id: true },
+        })
+      : []
+
+    const optionMap = new Map(options.map((o) => [o.id, o]))
+    const voteIds = [...new Set(options.map((o) => o.vote_id).filter(Boolean))]
+    const voteTitles = voteIds.length
+      ? await tx.votes.findMany({
+          where: { id: { in: voteIds } },
+          select: { id: true, title: true },
+        })
+      : []
+
+    const voteTitleMap = new Map(voteTitles.map((v) => [v.id, v.title]))
+    const votes = votesRaw.map((v) => {
+      const option = optionMap.get(v.option_id)
+      return {
+        created_at: v.created_at,
+        option_label: option?.label ?? null,
+        vote_title: option ? (voteTitleMap.get(option.vote_id) ?? null) : null,
+      }
+    })
+
+    // 6. Zonas comunes creadas
+    const commonAreas = await tx.commonAreas.findMany({
+      where: { created_by: userId },
+      select: { name: true, type: true, created_at: true },
+    })
+
+    // 7. Avisos creados
+    const announcements = await tx.announcements.findMany({
+      where: { author_id: userId },
+      select: { title: true, type: true, publish_at: true },
+    })
+
+    // 8. Documentos subidos (ahora con RLS, sin recursión gracias al fix de SQL)
+    const documents = await tx.documents.findMany({
+      where: { uploaded_by: userId },
+      select: { title: true, category: true, created_at: true },
+    })
+
+    // 9. Gastos creados
+    const expenses = await tx.expenses.findMany({
+      where: { created_by: userId },
+      select: { concept: true, amount: true, expense_date: true },
+    })
+
+    // 10. Facturas creadas
+    const invoices = await tx.invoices.findMany({
+      where: { created_by: userId },
+      select: { number: true, amount: true, status: true, issue_date: true },
+    })
+
+    // 11. Votaciones creadas
+    const createdVotes = await tx.votes.findMany({
+      where: { created_by: userId },
+      select: { title: true, status: true, created_at: true },
+    })
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: user,
+      memberships,
+      activity: {
+        incidents,
+        reservations,
+        votes,
+        commonAreas,
+        announcements,
+        documents,
+        expenses,
+        invoices,
+        createdVotes,
+      },
+    }
+  })
 }

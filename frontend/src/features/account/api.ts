@@ -38,3 +38,10 @@ export function changePassword(input: {
 }): Promise<void> {
   return api.post<void>('/auth/change-password', input)
 }
+
+/**
+ * Pide al backend el JSON con todos los datos del usuario.
+ */
+export function exportAccountData(): Promise<unknown> {
+  return api.get('/auth/me/export')
+}
