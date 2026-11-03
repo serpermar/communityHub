@@ -43,7 +43,65 @@ import { requireAuth, requireCommunity, requireCommunityRole } from '../auth/mid
 export function createMembersRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/members:
+   *   get:
+   *     summary: Listar miembros de una comunidad
+   *     description: |
+   *       Cualquier miembro activo puede listar. No requiere ADMIN: es el caso
+   *       de uso principal ("¿el técnico ya tiene acceso?"). La visibilidad la
+   *       decide RLS `members_of_community`.
+   *     tags: [Members]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: query
+   *         name: page
+   *         schema: { type: integer, minimum: 1, default: 1 }
+   *       - in: query
+   *         name: limit
+   *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+   *     responses:
+   *       200:
+   *         description: Lista paginada de miembros.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/MemberListResponse' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.get('/:communityId/members', requireAuth, requireCommunity(), controller.listMembers)
+
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/members/{memberId}:
+   *   get:
+   *     summary: Detalle de un miembro
+   *     tags: [Members]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: path
+   *         name: memberId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       200:
+   *         description: Miembro.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Member' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.get(
     '/:communityId/members/:memberId',
     requireAuth,
@@ -51,8 +109,47 @@ export function createMembersRouter(): Router {
     controller.getMember,
   )
 
-  // `requireCommunity()` antes que `requireCommunityRole('ADMIN')`: el guard de rol
-  // lee `req.community`, que escribe el primero.
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/members/{memberId}:
+   *   patch:
+   *     summary: Cambiar el rol de un miembro
+   *     description: Requiere rol ADMIN en la comunidad.
+   *     tags: [Members]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: path
+   *         name: memberId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [role]
+   *             properties:
+   *               role:
+   *                 type: string
+   *                 enum: [NEIGHBOR, PRESIDENT, ADMIN]
+   *     responses:
+   *       200:
+   *         description: Rol actualizado.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Member' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.patch(
     '/:communityId/members/:memberId',
     requireAuth,
@@ -74,6 +171,55 @@ export function createMembersRouter(): Router {
 export function createInvitationsRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/invitations:
+   *   post:
+   *     summary: Crear una invitación
+   *     description: |
+   *       Requiere rol ADMIN en la comunidad. Si se define `email`, solo ese
+   *       email podrá canjear el código; si no, el código sirve para cualquiera
+   *       con el enlace. La respuesta incluye el `code` de canje, que **no** se
+   *       devuelve en el listado.
+   *     tags: [Invitations]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [role]
+   *             properties:
+   *               role:
+   *                 type: string
+   *                 enum: [NEIGHBOR, PRESIDENT, ADMIN]
+   *                 default: NEIGHBOR
+   *               email:
+   *                 type: string
+   *                 format: email
+   *                 description: Si se define, el canje queda limitado a este email.
+   *               expiresInDays:
+   *                 type: integer
+   *                 minimum: 1
+   *                 maximum: 90
+   *                 default: 7
+   *     responses:
+   *       201:
+   *         description: |
+   *           Invitación creada. La respuesta incluye el `code` de canje, que
+   *           solo se devuelve aquí y no en el listado.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/InvitationCreatedResponse' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.post(
     '/:communityId/invitations',
     requireAuth,
@@ -82,6 +228,27 @@ export function createInvitationsRouter(): Router {
     controller.createInvitation,
   )
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/invitations:
+   *   get:
+   *     summary: Listar invitaciones de una comunidad
+   *     description: Requiere rol ADMIN. Incluye las ya usadas (historial).
+   *     tags: [Invitations]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       200:
+   *         description: Lista de invitaciones.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/InvitationListResponse' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.get(
     '/:communityId/invitations',
     requireAuth,
@@ -90,6 +257,34 @@ export function createInvitationsRouter(): Router {
     controller.listInvitations,
   )
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/invitations/{invitationId}:
+   *   delete:
+   *     summary: Anular una invitación
+   *     description: Requiere rol ADMIN. Una invitación usada no se puede anular.
+   *     tags: [Invitations]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: path
+   *         name: invitationId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       204:
+   *         description: Invitación anulada.
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   *       409:
+   *         description: La invitación ya fue usada
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/Error' }
+   */
   router.delete(
     '/:communityId/invitations/:invitationId',
     requireAuth,
@@ -110,6 +305,49 @@ export function createInvitationsRouter(): Router {
 export function createInvitationRedeemRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/invitations/redeem:
+   *   post:
+   *     summary: Canjear un código de invitación
+   *     description: |
+   *       El usuario autenticado pasa a ser miembro de la comunidad del código,
+   *       con el rol que el código indique. No lleva `requireCommunity`: al
+   *       canjear aún no se sabe a qué comunidad se entra; la decide el código.
+   *     tags: [Invitations]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [code]
+   *             properties:
+   *               code:
+   *                 type: string
+   *                 example: 'A1B2-C3D4-E5F6'
+   *     responses:
+   *       200:
+   *         description: Canje correcto. Devuelve la comunidad a la que se ha entrado.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Community' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       404:
+   *         description: Código inválido, expirado o ya usado
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/Error' }
+   *       409:
+   *         description: El usuario ya es miembro de esa comunidad
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/Error' }
+   */
   router.post('/redeem', requireAuth, controller.redeemInvitation)
 
   return router

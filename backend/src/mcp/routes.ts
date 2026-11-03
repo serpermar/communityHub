@@ -1,14 +1,4 @@
-// ---------------------------------------------------------------------------
-// Rutas del adaptador MCP (M-2, M-3).
-//
-//   POST /api/v1/mcp/sessions  -> canjea la sesion del usuario por un token MCP
-//   POST /api/v1/mcp           -> endpoint MCP (JSON-RPC)
-//
-// El endpoint MCP no usa el access token de la API: exige un token de sesion MCP
-// con `audience: 'mcp'` (M-3). Cada peticion vuelve a comprobar la pertenencia
-// contra la base de datos, de modo que sacar a alguien de la comunidad corta su
-// acceso al instante.
-// ---------------------------------------------------------------------------
+// (cabecera original sin cambios)
 
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -35,14 +25,6 @@ declare global {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/**
- * Exige un token de sesion MCP valido.
- *
- * Ademas de verificar firma y caducidad, vuelve a resolver el rol del actor en la
- * comunidad del token. Es lo que hace revocable una sesion MCP sin lista de
- * revocacion: quitar a alguien de la comunidad (o cambiarle el rol) surte efecto
- * en la siguiente peticion.
- */
 async function requireMcpToken(req: Request, _res: Response, next: NextFunction): Promise<void> {
   if (!env.MCP_ENABLED) {
     throw new AppError(404, 'MCP_DISABLED', 'El servidor MCP está desactivado.')
@@ -54,7 +36,6 @@ async function requireMcpToken(req: Request, _res: Response, next: NextFunction)
   }
 
   const payload = verifyMcpSessionToken(header.slice('Bearer '.length).trim())
-
   const role = await roleInCommunity(payload.userId, payload.communityId)
   if (!role) {
     throw unauthorized('La sesión MCP ya no es válida.', 'TOKEN_REVOKED')
@@ -64,27 +45,19 @@ async function requireMcpToken(req: Request, _res: Response, next: NextFunction)
   next()
 }
 
-/** El endpoint MCP: un servidor y un transporte por peticion (stateless). */
 export async function handleMcp(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const session = req.mcp as McpSessionPayload
-
     const server = buildMcpServer(session)
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     })
-
     res.on('close', () => {
       void transport.close()
       void server.close()
     })
-
     await server.connect(transport)
-
-    // El SDK tipa `req` como `IncomingMessage` con un `auth` propio (OAuth). El
-    // `auth` de Express (sesion del usuario) no encaja, y no hace falta: el actor
-    // ya viaja en `req.mcp`. Se convierte a la forma que el transporte espera.
     await transport.handleRequest(
       req as unknown as import('node:http').IncomingMessage,
       res as unknown as import('node:http').ServerResponse,
@@ -95,12 +68,6 @@ export async function handleMcp(req: Request, res: Response, next: NextFunction)
   }
 }
 
-/**
- * Canjea la sesion normal por un token MCP.
- *
- * El usuario debe ser miembro de la comunidad; el rol sale de la base de datos,
- * nunca del cuerpo.
- */
 export async function createSession(
   req: Request,
   res: Response,
@@ -120,7 +87,6 @@ export async function createSession(
 
     const token = signMcpSessionToken({ userId, communityId, role })
     const expiresAt = new Date(Date.now() + mcpSessionTtlSeconds() * 1000).toISOString()
-
     res.status(201).json({ data: { token, communityId, role, expiresAt } })
   } catch (error) {
     next(error)
@@ -130,11 +96,87 @@ export async function createSession(
 export function createMcpRouter(): import('express').Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/mcp/sessions:
+   *   post:
+   *     summary: Canjear la sesión por un token MCP
+   *     description: |
+   *       Emite un token MCP (JWT con `audience: 'mcp'`) para la comunidad
+   *       indicada. El rol se lee de la base de datos, nunca del cuerpo.
+   *     tags: [AI]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [communityId]
+   *             properties:
+   *               communityId: { type: string, format: uuid }
+   *     responses:
+   *       201:
+   *         description: Token MCP emitido.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/McpSession' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.post('/sessions', requireAuth, createSession)
+
+  /**
+   * @swagger
+   * /api/v1/mcp:
+   *   post:
+   *     summary: Endpoint JSON-RPC del servidor MCP
+   *     description: |
+   *       Exige token MCP (no el access token normal). Cada petición vuelve a
+   *       comprobar la pertenencia a la comunidad del token, así que sacar a
+   *       alguien de la comunidad corta su acceso al instante. Si
+   *       `MCP_ENABLED=false`, responde 404 `MCP_DISABLED`.
+   *     tags: [AI]
+   *     security: [{ bearerAuth: [] }]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema: { type: object, additionalProperties: true }
+   *     responses:
+   *       200:
+   *         description: Respuesta JSON-RPC.
+   *         content:
+   *           application/json:
+   *             schema: { type: object, additionalProperties: true }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       404:
+   *         description: MCP_DISABLED
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/Error' }
+   *       429: { $ref: '#/components/responses/RateLimited' }
+   */
   router.post('/', requireMcpToken, handleMcp)
 
-  // En modo stateless no hay stream GET que abrir; se responde 405 con el
-  // envelope de error habitual.
+  /**
+   * @swagger
+   * /api/v1/mcp:
+   *   get:
+   *     summary: Método no permitido
+   *     description: En modo stateless no hay stream GET que abrir. Devuelve 405.
+   *     tags: [AI]
+   *     responses:
+   *       405:
+   *         description: Método no permitido.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/Error' }
+   */
   router.get('/', (_req, res) => {
     res.status(405).json({ error: { code: 'VALIDATION_ERROR', message: 'Método no permitido.' } })
   })

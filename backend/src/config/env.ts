@@ -67,6 +67,9 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   TRUST_PROXY: booleanish.default(false),
 
+  // Swagger UI
+  SWAGGER_ENABLED: booleanish.default(process.env.NODE_ENV !== 'production'),
+
   // Rate limiting
   LOGIN_RATE_LIMIT_MAX: int(1, 1_000).default(5),
   LOGIN_RATE_LIMIT_WINDOW_MS: int(1_000, 3_600_000).default(900_000),

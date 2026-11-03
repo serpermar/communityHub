@@ -1,0 +1,3662 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "CommunityHub API",
+    "version": "1.0.0",
+    "description": "API de gestión de comunidades de vecinos: miembros, invitaciones,\nincidencias, zonas comunes, reservas, avisos, documentos, finanzas,\nvotaciones, IA y notificaciones.\n\nTodas las rutas salvo `POST /api/v1/auth/login`, `POST /api/v1/auth/register`\ny `GET /health` exigen un access token JWT en `Authorization: Bearer <token>`.\n\n**Envelope**: todas las respuestas de éxito van envueltas en `{ data: ... }`\ny las de error en `{ error: { code, message } }`.\n\n**Roles**: cada usuario tiene un `globalRole` (plataforma) y, por cada\ncomunidad, un `role` distinto en la tabla `members`."
+  },
+  "servers": [{ "url": "http://localhost:3000", "description": "Desarrollo" }],
+  "tags": [
+    { "name": "Health", "description": "Estado del servicio y de la base de datos" },
+    { "name": "Auth", "description": "Registro, login, refresh, logout y export" },
+    { "name": "Communities", "description": "CRUD de comunidades" },
+    { "name": "Members", "description": "Gestión de miembros y roles" },
+    { "name": "Invitations", "description": "Invitaciones y canje" },
+    { "name": "Incidents", "description": "Incidencias vecinales" },
+    { "name": "CommonAreas", "description": "Zonas comunes" },
+    { "name": "Reservations", "description": "Reservas de zonas comunes" },
+    { "name": "Announcements", "description": "Avisos de la comunidad" },
+    { "name": "Documents", "description": "Biblioteca de documentos" },
+    { "name": "Finance", "description": "Gastos, facturas y resumen financiero" },
+    { "name": "Votes", "description": "Votaciones" },
+    { "name": "AI", "description": "Asistente IA y agentes" },
+    { "name": "External", "description": "Meteorología y mapa" },
+    { "name": "Dashboard", "description": "Resumen de la home" },
+    { "name": "Notifications", "description": "Campana del usuario" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token emitido por `POST /api/v1/auth/login`."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+          }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "required": ["page", "limit", "total"],
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 20 },
+          "total": { "type": "integer", "example": 4 },
+          "totalPages": { "type": "integer", "nullable": true, "example": 1 }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "fullName": { "type": "string" },
+          "phone": { "type": "string", "nullable": true },
+          "avatarUrl": { "type": "string", "format": "uri", "nullable": true },
+          "globalRole": { "type": "string", "enum": ["NEIGHBOR", "ADMIN"] },
+          "emailVerifiedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthLoginResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "accessToken": { "type": "string" },
+              "expiresIn": { "type": "integer", "example": 900 },
+              "user": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        }
+      },
+      "AuthSession": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userAgent": { "type": "string" },
+          "ip": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "lastUsedAt": { "type": "string", "format": "date-time" },
+          "current": { "type": "boolean" }
+        }
+      },
+      "AvatarResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": { "avatarUrl": { "type": "string", "nullable": true } }
+          }
+        }
+      },
+      "UserExport": {
+        "type": "object",
+        "properties": { "data": { "type": "object", "additionalProperties": true } }
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "addressLine1": { "type": "string" },
+          "city": { "type": "string" },
+          "province": { "type": "string" },
+          "postalCode": { "type": "string" },
+          "country": { "type": "string" },
+          "latitude": { "type": "number", "nullable": true },
+          "longitude": { "type": "number", "nullable": true },
+          "timezone": { "type": "string" },
+          "registrationNumber": { "type": "string", "nullable": true },
+          "isActive": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "memberRole": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"] }
+        }
+      },
+      "CommunityListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Community" } }
+        }
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string", "format": "uuid" },
+          "fullName": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "unitNumber": { "type": "string", "nullable": true },
+          "role": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"] },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "PENDING"] },
+          "joinedAt": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "MemberListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Member" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "Invitation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email", "nullable": true },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "acceptedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "InvitationCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              { "$ref": "#/components/schemas/Invitation" },
+              {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "role": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"] }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "InvitationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Invitation" } }
+        }
+      },
+      "DocumentCategory": { "type": "string", "enum": ["ACTA", "NORMA", "PRESUPUESTO", "OTHER"] },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "category": { "$ref": "#/components/schemas/DocumentCategory" },
+          "mimeType": { "type": "string" },
+          "sizeBytes": { "type": "integer" },
+          "checksum": { "type": "string" },
+          "minRole": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"] },
+          "isPublic": { "type": "boolean" },
+          "uploadedBy": { "type": "string", "format": "uuid" },
+          "uploadedByName": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "DocumentDownloadResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "IncidentCategory": {
+        "type": "string",
+        "enum": ["PLUMBING", "ELECTRICITY", "HEATING", "ELEVATOR", "CLEANING", "SECURITY", "OTHER"]
+      },
+      "IncidentPriority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+      "IncidentStatus": { "type": "string", "enum": ["OPEN", "IN_PROGRESS", "RESOLVED"] },
+      "IncidentCreatedVia": { "type": "string", "enum": ["MANUAL", "AI_SUGGESTION"] },
+      "Incident": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "referenceCode": { "type": "string", "example": "INC-2026-0001" },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "category": { "$ref": "#/components/schemas/IncidentCategory" },
+          "priority": { "$ref": "#/components/schemas/IncidentPriority" },
+          "status": { "$ref": "#/components/schemas/IncidentStatus" },
+          "location": { "type": "string", "nullable": true },
+          "reporterId": { "type": "string", "format": "uuid" },
+          "reporterName": { "type": "string" },
+          "assignedToId": { "type": "string", "format": "uuid", "nullable": true },
+          "assignedToName": { "type": "string", "nullable": true },
+          "needsReview": { "type": "boolean" },
+          "createdVia": { "$ref": "#/components/schemas/IncidentCreatedVia" },
+          "resolvedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "IncidentListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Incident" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "IncidentComment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "incidentId": { "type": "string", "format": "uuid" },
+          "body": { "type": "string" },
+          "authorId": { "type": "string", "format": "uuid" },
+          "authorName": { "type": "string" },
+          "isInternal": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "IncidentCommentListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/IncidentComment" } }
+        }
+      },
+      "CommonAreaType": {
+        "type": "string",
+        "enum": [
+          "SWIMMING_POOL",
+          "PADEL_COURT",
+          "TENNIS_COURT",
+          "GYM",
+          "MEETING_ROOM",
+          "GARDEN",
+          "OTHER"
+        ]
+      },
+      "CommonArea": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/CommonAreaType" },
+          "description": { "type": "string", "nullable": true },
+          "capacity": { "type": "integer", "nullable": true },
+          "slotMinutes": { "type": "integer", "example": 60 },
+          "openTime": { "type": "string", "example": "08:00" },
+          "closeTime": { "type": "string", "example": "22:00" },
+          "maxDailyReservations": { "type": "integer", "nullable": true },
+          "requiresApproval": { "type": "boolean" },
+          "isActive": { "type": "boolean" },
+          "createdBy": { "type": "string", "format": "uuid" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CommonAreaListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/CommonArea" } }
+        }
+      },
+      "CommonAreaAvailability": {
+        "type": "object",
+        "properties": {
+          "commonAreaId": { "type": "string", "format": "uuid" },
+          "from": { "type": "string", "format": "date-time" },
+          "to": { "type": "string", "format": "date-time" },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startsAt": { "type": "string", "format": "date-time" },
+                "endsAt": { "type": "string", "format": "date-time" },
+                "available": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      },
+      "ReservationStatus": {
+        "type": "string",
+        "enum": ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"]
+      },
+      "Reservation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "communityName": { "type": "string" },
+          "commonAreaId": { "type": "string", "format": "uuid" },
+          "commonAreaName": { "type": "string" },
+          "userId": { "type": "string", "format": "uuid" },
+          "userName": { "type": "string" },
+          "startsAt": { "type": "string", "format": "date-time" },
+          "endsAt": { "type": "string", "format": "date-time" },
+          "status": { "$ref": "#/components/schemas/ReservationStatus" },
+          "attendees": { "type": "integer", "nullable": true },
+          "notes": { "type": "string", "nullable": true },
+          "cancelledAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReservationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Reservation" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "ExpenseCategory": {
+        "type": "string",
+        "enum": ["MAINTENANCE", "UTILITIES", "CLEANING", "SECURITY", "INSURANCE", "OTHER"]
+      },
+      "Expense": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "concept": { "type": "string" },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+          "amount": { "type": "number", "format": "float", "description": "Importe en euros." },
+          "expenseDate": { "type": "string", "format": "date" },
+          "supplier": { "type": "string", "nullable": true },
+          "notes": { "type": "string", "nullable": true },
+          "invoiceId": { "type": "string", "format": "uuid", "nullable": true },
+          "invoiceNumber": { "type": "string", "nullable": true },
+          "createdBy": { "type": "string", "format": "uuid" },
+          "createdByName": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ExpenseListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Expense" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "InvoiceStatus": { "type": "string", "enum": ["PENDING", "PAID", "OVERDUE", "CANCELLED"] },
+      "Invoice": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "number": { "type": "string", "example": "INV-2026-001" },
+          "concept": { "type": "string" },
+          "amount": { "type": "number", "format": "float" },
+          "issueDate": { "type": "string", "format": "date" },
+          "dueDate": { "type": "string", "format": "date", "nullable": true },
+          "paidAt": { "type": "string", "format": "date-time", "nullable": true },
+          "status": { "$ref": "#/components/schemas/InvoiceStatus" },
+          "effectiveStatus": { "$ref": "#/components/schemas/InvoiceStatus" },
+          "supplier": { "type": "string", "nullable": true },
+          "isGenerated": { "type": "boolean" },
+          "createdBy": { "type": "string", "format": "uuid" },
+          "createdByName": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "InvoiceListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Invoice" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "FinanceSummaryExpenseByCategory": {
+        "type": "object",
+        "properties": {
+          "count": { "type": "integer" },
+          "total": { "type": "number", "format": "float" },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" }
+        }
+      },
+      "FinanceSummaryExpenseRecent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "amount": { "type": "number", "format": "float" },
+          "concept": { "type": "string" },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+          "supplier": { "type": "string", "nullable": true },
+          "expenseDate": { "type": "string", "format": "date" }
+        }
+      },
+      "FinanceSummary": {
+        "type": "object",
+        "properties": {
+          "expenseTotal": { "type": "number", "format": "float" },
+          "expenseCount": { "type": "integer" },
+          "expenseByCategory": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinanceSummaryExpenseByCategory" }
+          },
+          "expenseRecent": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinanceSummaryExpenseRecent" }
+          },
+          "invoiceTotal": { "type": "number", "format": "float" },
+          "invoiceCount": { "type": "integer" },
+          "invoiceOpenAmount": { "type": "number", "format": "float" },
+          "invoicePaidAmount": { "type": "number", "format": "float" },
+          "invoicePendingCount": { "type": "integer" },
+          "invoiceOverdueCount": { "type": "integer" }
+        }
+      },
+      "VoteType": { "type": "string", "enum": ["SINGLE", "QUORUM", "MULTIPLE"] },
+      "VoteStatus": { "type": "string", "enum": ["DRAFT", "OPEN", "CLOSED"] },
+      "VoteResultVisibility": { "type": "string", "enum": ["LIVE", "AFTER_CLOSE"] },
+      "VoteOption": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "label": { "type": "string" },
+          "position": { "type": "integer" },
+          "isAbstention": { "type": "boolean" }
+        }
+      },
+      "Vote": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "question": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "type": { "$ref": "#/components/schemas/VoteType" },
+          "status": { "$ref": "#/components/schemas/VoteStatus" },
+          "effectiveStatus": { "$ref": "#/components/schemas/VoteStatus" },
+          "startsAt": { "type": "string", "format": "date-time" },
+          "endsAt": { "type": "string", "format": "date-time" },
+          "allowAbstention": { "type": "boolean" },
+          "quorumPercent": { "type": "integer", "nullable": true },
+          "resultVisibility": { "$ref": "#/components/schemas/VoteResultVisibility" },
+          "options": { "type": "array", "items": { "$ref": "#/components/schemas/VoteOption" } },
+          "myOptionId": { "type": "string", "format": "uuid", "nullable": true },
+          "createdBy": { "type": "string", "format": "uuid" },
+          "createdByName": { "type": "string" },
+          "closedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "VoteListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Vote" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "VoteResultOption": {
+        "type": "object",
+        "properties": {
+          "optionId": { "type": "string", "format": "uuid" },
+          "optionLabel": { "type": "string" },
+          "count": { "type": "integer" },
+          "percent": { "type": "number", "format": "float" }
+        }
+      },
+      "VoteResult": {
+        "type": "object",
+        "properties": {
+          "voteId": { "type": "string", "format": "uuid" },
+          "totalVotes": { "type": "integer" },
+          "options": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/VoteResultOption" }
+          }
+        }
+      },
+      "VoteResultExport": {
+        "type": "object",
+        "properties": { "data": { "type": "object", "additionalProperties": true } }
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "MEMBER_JOINED",
+          "VOTE_OPEN",
+          "VOTE_CLOSED",
+          "INCIDENT_CREATED",
+          "INCIDENT_STATUS_CHANGED",
+          "ANNOUNCEMENT",
+          "RESERVATION",
+          "FINANCE",
+          "SYSTEM"
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "type": { "$ref": "#/components/schemas/NotificationType" },
+          "title": { "type": "string" },
+          "body": { "type": "string", "nullable": true },
+          "payload": { "type": "object", "additionalProperties": true },
+          "communityId": { "type": "string", "format": "uuid", "nullable": true },
+          "readAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Notification" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "object", "properties": { "count": { "type": "integer" } } }
+        }
+      },
+      "DashboardVotes": {
+        "type": "object",
+        "properties": {
+          "open": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "openCount": { "type": "integer" }
+        }
+      },
+      "DashboardPeriod": {
+        "type": "object",
+        "properties": {
+          "to": { "type": "string", "format": "date" },
+          "from": { "type": "string", "format": "date" }
+        }
+      },
+      "DashboardFinanceExpensesByMonth": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string", "example": "2026-01" },
+          "total": { "type": "number" }
+        }
+      },
+      "DashboardFinance": {
+        "type": "object",
+        "properties": {
+          "expenseCount": { "type": "integer" },
+          "expenseTotal": { "type": "number", "format": "float" },
+          "expensesByMonth": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DashboardFinanceExpensesByMonth" }
+          },
+          "invoiceOpenAmount": { "type": "number", "format": "float" },
+          "invoiceOverdueCount": { "type": "integer" },
+          "invoicePendingCount": { "type": "integer" }
+        }
+      },
+      "DashboardCommunity": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "city": { "type": "string" },
+          "name": { "type": "string" },
+          "memberCount": { "type": "integer" },
+          "neighborCount": { "type": "integer" }
+        }
+      },
+      "DashboardIncidentsByStatus": {
+        "type": "object",
+        "properties": {
+          "count": { "type": "integer" },
+          "status": { "$ref": "#/components/schemas/IncidentStatus" }
+        }
+      },
+      "DashboardIncidentsByCategory": {
+        "type": "object",
+        "properties": {
+          "count": { "type": "integer" },
+          "category": { "$ref": "#/components/schemas/IncidentCategory" }
+        }
+      },
+      "DashboardIncidents": {
+        "type": "object",
+        "properties": {
+          "open": { "type": "integer" },
+          "pending": { "type": "integer" },
+          "byStatus": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DashboardIncidentsByStatus" }
+          },
+          "critical": { "type": "integer" },
+          "byCategory": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DashboardIncidentsByCategory" }
+          },
+          "inProgress": { "type": "integer" }
+        }
+      },
+      "DashboardReservationsByMonth": {
+        "type": "object",
+        "properties": { "count": { "type": "integer" }, "month": { "type": "string" } }
+      },
+      "DashboardReservations": {
+        "type": "object",
+        "properties": {
+          "byMonth": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DashboardReservationsByMonth" }
+          },
+          "upcoming": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "upcomingCount": { "type": "integer" }
+        }
+      },
+      "DashboardAnnouncementLatest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "type": { "type": "string", "example": "MEETING" },
+          "title": { "type": "string" },
+          "isPinned": { "type": "boolean" },
+          "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+          "publishAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DashboardAnnouncements": {
+        "type": "object",
+        "properties": {
+          "latest": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DashboardAnnouncementLatest" }
+          }
+        }
+      },
+      "DashboardSummary": {
+        "type": "object",
+        "properties": {
+          "votes": { "$ref": "#/components/schemas/DashboardVotes" },
+          "period": { "$ref": "#/components/schemas/DashboardPeriod" },
+          "finance": { "$ref": "#/components/schemas/DashboardFinance" },
+          "community": { "$ref": "#/components/schemas/DashboardCommunity" },
+          "incidents": { "$ref": "#/components/schemas/DashboardIncidents" },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "reservations": { "$ref": "#/components/schemas/DashboardReservations" },
+          "announcements": { "$ref": "#/components/schemas/DashboardAnnouncements" }
+        }
+      },
+      "AiChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "communityId": { "type": "string", "format": "uuid" },
+          "message": { "type": "string" },
+          "sessionId": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "AiChatResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "sessionId": { "type": "string", "format": "uuid" },
+              "reply": { "type": "string" },
+              "toolsUsed": { "type": "array", "items": { "type": "string" } },
+              "needsHumanReview": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "ChatSession": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string", "nullable": true },
+          "communityId": { "type": "string", "format": "uuid", "nullable": true },
+          "model": { "type": "string", "example": "openai/gpt-oss-120b" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ChatSessionListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/ChatSession" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "role": { "type": "string", "enum": ["user", "assistant", "tool"] },
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ChatMessageListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/ChatMessage" } }
+        }
+      },
+      "IncidentClassification": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "category": { "$ref": "#/components/schemas/IncidentCategory" },
+              "priority": { "$ref": "#/components/schemas/IncidentPriority" },
+              "confidence": { "type": "number", "format": "float" },
+              "needsHumanReview": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "IncidentDraft": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "$ref": "#/components/schemas/IncidentCategory" },
+          "priority": { "$ref": "#/components/schemas/IncidentPriority" },
+          "status": { "type": "string", "enum": ["DRAFT", "CONFIRMED"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Tool": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "get_community" },
+          "description": { "type": "string" },
+          "roles": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN", "PROVIDER"] }
+          },
+          "requiresCommunity": { "type": "boolean" }
+        }
+      },
+      "ToolListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Tool" } }
+        }
+      },
+      "ToolPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "tool": { "type": "string" },
+              "result": { "type": "object", "additionalProperties": true }
+            }
+          }
+        }
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "community" },
+          "title": { "type": "string", "example": "Agente de comunidad" },
+          "description": { "type": "string" },
+          "roles": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN", "PROVIDER"] }
+          },
+          "skills": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "AgentListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Agent" } }
+        }
+      },
+      "AgentRunResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "runId": { "type": "string", "format": "uuid" },
+              "status": { "type": "string", "enum": ["COMPLETED", "FAILED", "PENDING"] },
+              "output": { "type": "object", "additionalProperties": true }
+            }
+          }
+        }
+      },
+      "McpSession": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "communityId": { "type": "string", "format": "uuid" },
+          "role": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN", "PROVIDER"] },
+          "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No autenticado (falta token o es inválido)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Forbidden": {
+        "description": "Autenticado pero sin permisos sobre el recurso",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Recurso no encontrado (o invisible por RLS)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "RateLimited": {
+        "description": "Demasiadas peticiones",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Validation": {
+        "description": "Error de validación del cuerpo o query",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Conflict": {
+        "description": "Conflicto con el estado actual del recurso",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/v1/communities/{communityId}/votes": {
+      "get": {
+        "summary": "Listar votaciones de una comunidad",
+        "description": "El alcance y el 403 lo decide `app_list_votes()` (V-5): un PROVIDER\no un no-miembro reciben 403 desde la función, no desde un guard.\n",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": { "$ref": "#/components/schemas/VoteStatus" }
+          },
+          { "in": "query", "name": "page", "schema": { "type": "integer", "default": 1 } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de votaciones.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/VoteListResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Crear una votación",
+        "description": "Requiere rol PRESIDENT o ADMIN. La votación nace en DRAFT.",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "question", "type", "options", "startsAt", "endsAt"],
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "question": { "type": "string", "minLength": 1 },
+                  "description": { "type": "string", "nullable": true },
+                  "type": { "$ref": "#/components/schemas/VoteType" },
+                  "options": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "object",
+                      "required": ["label"],
+                      "properties": { "label": { "type": "string", "minLength": 1 } }
+                    }
+                  },
+                  "startsAt": { "type": "string", "format": "date-time" },
+                  "endsAt": { "type": "string", "format": "date-time" },
+                  "allowAbstention": { "type": "boolean", "default": false },
+                  "quorumPercent": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "resultVisibility": { "$ref": "#/components/schemas/VoteResultVisibility" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Votación creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Vote" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}": {
+      "get": {
+        "summary": "Detalle de una votación",
+        "description": "404 si la votación no es visible para el usuario (DRAFT ajeno).",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Vote" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una votación (solo en DRAFT)",
+        "description": "Requiere ser PRESIDENT/ADMIN. La comprobación de rol y estado se hace\ndentro de la transacción.\n",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "question": { "type": "string", "minLength": 1 },
+                  "description": { "type": "string", "nullable": true },
+                  "type": { "$ref": "#/components/schemas/VoteType" },
+                  "options": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "object",
+                      "required": ["label"],
+                      "properties": { "label": { "type": "string", "minLength": 1 } }
+                    }
+                  },
+                  "startsAt": { "type": "string", "format": "date-time" },
+                  "endsAt": { "type": "string", "format": "date-time" },
+                  "allowAbstention": { "type": "boolean" },
+                  "quorumPercent": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "resultVisibility": { "$ref": "#/components/schemas/VoteResultVisibility" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Votación actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Vote" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}/publish": {
+      "post": {
+        "summary": "Publicar una votación (DRAFT → PUBLISHED/OPEN)",
+        "description": "Requiere ser PRESIDENT/ADMIN.",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votación publicada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Vote" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}/close": {
+      "post": {
+        "summary": "Cerrar una votación",
+        "description": "Requiere ser PRESIDENT/ADMIN.",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votación cerrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Vote" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}/responses": {
+      "post": {
+        "summary": "Emitir un voto",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["optionId"],
+                "properties": { "optionId": { "type": "string", "format": "uuid" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Voto emitido." },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}/results": {
+      "get": {
+        "summary": "Resultados de una votación",
+        "description": "Solo disponible cuando la votación está cerrada.",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/VoteResult" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/votes/{id}/results/export": {
+      "get": {
+        "summary": "Exportar los resultados (CSV/JSON)",
+        "description": "Solo PRESIDENT/ADMIN.",
+        "tags": ["Votes"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Volcado de votos emitidos.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/VoteResultExport" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/reservations": {
+      "get": {
+        "summary": "Listar reservas de una comunidad",
+        "description": "Cualquier miembro activo puede listar. La redacción de `notes` y el\nalcance los decide `app_list_community_reservations()`.\n",
+        "tags": ["Reservations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de reservas.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReservationListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/common-areas/{id}/reservations": {
+      "post": {
+        "summary": "Crear una reserva de una zona común",
+        "description": "`requireCommonArea()` resuelve la comunidad de la zona. Requiere rol\nNEIGHBOR, PRESIDENT o ADMIN: un PROVIDER trabaja en la comunidad, no\nla usa (R-1).\n",
+        "tags": ["Reservations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "ID de la zona común."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startsAt", "endsAt"],
+                "properties": {
+                  "startsAt": { "type": "string", "format": "date-time" },
+                  "endsAt": { "type": "string", "format": "date-time" },
+                  "attendees": { "type": "integer", "minimum": 1, "nullable": true },
+                  "notes": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reserva creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Reservation" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/reservations/me": {
+      "get": {
+        "summary": "Listar mis reservas",
+        "description": "Devuelve las reservas del usuario autenticado, en cualquier\ncomunidad. El ámbito lo fija `user_id = app_current_user_id()`.\n",
+        "tags": ["Reservations"],
+        "responses": {
+          "200": {
+            "description": "Reservas del usuario.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReservationListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/reservations/{id}": {
+      "get": {
+        "summary": "Detalle de una reserva",
+        "tags": ["Reservations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Reservation" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "summary": "Cancelar una reserva",
+        "description": "Puede cancelar el dueño de la reserva o un ADMIN. El 403 lo emite\n`app_cancel_reservation()` con la fila delante.\n",
+        "tags": ["Reservations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva cancelada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Reservation" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/reservations/{id}/confirm": {
+      "post": {
+        "summary": "Confirmar una reserva",
+        "description": "Requiere rol ADMIN. El 403 lo emite `app_confirm_reservation()`.",
+        "tags": ["Reservations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva confirmada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Reservation" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Listar notificaciones del usuario",
+        "description": "Lista global por usuario (no por comunidad). RLS `notifications_own`.",
+        "tags": ["Notifications"],
+        "parameters": [
+          { "in": "query", "name": "unread", "schema": { "type": "boolean" } },
+          { "in": "query", "name": "page", "schema": { "type": "integer", "default": 1 } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de notificaciones.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "summary": "Contar notificaciones no leídas",
+        "tags": ["Notifications"],
+        "responses": {
+          "200": {
+            "description": "Número de no leídas.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnreadCountResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "patch": {
+        "summary": "Marcar una notificación como leída",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Notificación marcada como leída." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "summary": "Marcar todas las notificaciones como leídas",
+        "tags": ["Notifications"],
+        "responses": {
+          "204": { "description": "Todas marcadas como leídas." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/members": {
+      "get": {
+        "summary": "Listar miembros de una comunidad",
+        "description": "Cualquier miembro activo puede listar. No requiere ADMIN: es el caso\nde uso principal (\"¿el técnico ya tiene acceso?\"). La visibilidad la\ndecide RLS `members_of_community`.\n",
+        "tags": ["Members"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de miembros.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/members/{memberId}": {
+      "get": {
+        "summary": "Detalle de un miembro",
+        "tags": ["Members"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "memberId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Miembro.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Member" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "summary": "Cambiar el rol de un miembro",
+        "description": "Requiere rol ADMIN en la comunidad.",
+        "tags": ["Members"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "memberId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": { "type": "string", "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rol actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Member" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/invitations": {
+      "post": {
+        "summary": "Crear una invitación",
+        "description": "Requiere rol ADMIN en la comunidad. Si se define `email`, solo ese\nemail podrá canjear el código; si no, el código sirve para cualquiera\ncon el enlace. La respuesta incluye el `code` de canje, que **no** se\ndevuelve en el listado.\n",
+        "tags": ["Invitations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"],
+                    "default": "NEIGHBOR"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Si se define, el canje queda limitado a este email."
+                  },
+                  "expiresInDays": { "type": "integer", "minimum": 1, "maximum": 90, "default": 7 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitación creada. La respuesta incluye el `code` de canje, que\nsolo se devuelve aquí y no en el listado.\n",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InvitationCreatedResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "get": {
+        "summary": "Listar invitaciones de una comunidad",
+        "description": "Requiere rol ADMIN. Incluye las ya usadas (historial).",
+        "tags": ["Invitations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de invitaciones.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InvitationListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/invitations/{invitationId}": {
+      "delete": {
+        "summary": "Anular una invitación",
+        "description": "Requiere rol ADMIN. Una invitación usada no se puede anular.",
+        "tags": ["Invitations"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "invitationId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Invitación anulada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "La invitación ya fue usada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/redeem": {
+      "post": {
+        "summary": "Canjear un código de invitación",
+        "description": "El usuario autenticado pasa a ser miembro de la comunidad del código,\ncon el rol que el código indique. No lleva `requireCommunity`: al\ncanjear aún no se sabe a qué comunidad se entra; la decide el código.\n",
+        "tags": ["Invitations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": { "code": { "type": "string", "example": "A1B2-C3D4-E5F6" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canje correcto. Devuelve la comunidad a la que se ha entrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Community" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Código inválido, expirado o ya usado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "409": {
+            "description": "El usuario ya es miembro de esa comunidad",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/sessions": {
+      "post": {
+        "summary": "Canjear la sesión por un token MCP",
+        "description": "Emite un token MCP (JWT con `audience: 'mcp'`) para la comunidad\nindicada. El rol se lee de la base de datos, nunca del cuerpo.\n",
+        "tags": ["AI"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["communityId"],
+                "properties": { "communityId": { "type": "string", "format": "uuid" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token MCP emitido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/McpSession" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/mcp": {
+      "post": {
+        "summary": "Endpoint JSON-RPC del servidor MCP",
+        "description": "Exige token MCP (no el access token normal). Cada petición vuelve a\ncomprobar la pertenencia a la comunidad del token, así que sacar a\nalguien de la comunidad corta su acceso al instante. Si\n`MCP_ENABLED=false`, responde 404 `MCP_DISABLED`.\n",
+        "tags": ["AI"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta JSON-RPC.",
+            "content": {
+              "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "MCP_DISABLED",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      },
+      "get": {
+        "summary": "Método no permitido",
+        "description": "En modo stateless no hay stream GET que abrir. Devuelve 405.",
+        "tags": ["AI"],
+        "responses": {
+          "405": {
+            "description": "Método no permitido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/incidents": {
+      "get": {
+        "summary": "Listar incidencias de una comunidad",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": { "$ref": "#/components/schemas/IncidentStatus" }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "schema": { "$ref": "#/components/schemas/IncidentPriority" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de incidencias.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncidentListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Crear una incidencia",
+        "description": "Requiere rol NEIGHBOR, PRESIDENT o ADMIN en la comunidad. Un\nPROVIDER no puede abrir partes: solo comenta y gestiona los suyos.\n",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "category", "priority"],
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "description": { "type": "string", "nullable": true },
+                  "category": { "$ref": "#/components/schemas/IncidentCategory" },
+                  "priority": { "$ref": "#/components/schemas/IncidentPriority" },
+                  "location": { "type": "string", "nullable": true, "example": "Portal A, 3º B" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Incidencia creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Incident" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/incidents/{id}": {
+      "get": {
+        "summary": "Detalle de una incidencia",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incidencia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Incident" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "summary": "Actualizar una incidencia",
+        "description": "El rol se comprueba en `app_update_incident()` con la fila delante:\nun vecino solo puede editar su parte mientras siga abierto; un\nADMIN puede editar cualquiera.\n",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "description": { "type": "string", "nullable": true },
+                  "category": { "$ref": "#/components/schemas/IncidentCategory" },
+                  "priority": { "$ref": "#/components/schemas/IncidentPriority" },
+                  "location": { "type": "string", "nullable": true },
+                  "assignedToId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Incidencia actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Incident" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una incidencia (soft delete)",
+        "description": "Requiere rol ADMIN. El 403 lo emite `app_soft_delete_incident()`.",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Incidencia eliminada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/incidents/{id}/status": {
+      "patch": {
+        "summary": "Cambiar el estado de una incidencia",
+        "description": "Transiciones permitidas: OPEN → IN_PROGRESS → RESOLVED.\nEl 403 (rol) y el 409 (transición inválida) los decide\n`app_transition_incident()`, con la fila delante.\n",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": { "status": { "$ref": "#/components/schemas/IncidentStatus" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Incident" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/incidents/{id}/comments": {
+      "get": {
+        "summary": "Listar comentarios de una incidencia",
+        "description": "Los comentarios `isInternal=true` solo se devuelven a\nPRESIDENT/ADMIN/PROVIDER asignado.\n",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de comentarios.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncidentCommentListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "summary": "Añadir un comentario a una incidencia",
+        "tags": ["Incidents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["body"],
+                "properties": {
+                  "body": { "type": "string", "minLength": 1 },
+                  "isInternal": { "type": "boolean", "default": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comentario creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/IncidentComment" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/expenses": {
+      "get": {
+        "summary": "Listar gastos",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": { "$ref": "#/components/schemas/ExpenseStatus" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de gastos.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExpenseListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Crear un gasto",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["concept", "category", "amount", "expenseDate"],
+                "properties": {
+                  "concept": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+                  "amount": { "type": "number", "format": "float", "minimum": 0.01 },
+                  "expenseDate": { "type": "string", "format": "date" },
+                  "supplier": { "type": "string", "nullable": true },
+                  "notes": { "type": "string", "nullable": true },
+                  "invoiceId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Gasto creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Expense" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/invoices": {
+      "get": {
+        "summary": "Listar facturas",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": { "$ref": "#/components/schemas/InvoiceStatus" }
+          },
+          { "in": "query", "name": "page", "schema": { "type": "integer", "default": 1 } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de facturas.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InvoiceListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Crear una factura",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["number", "concept", "amount", "issueDate"],
+                "properties": {
+                  "number": { "type": "string" },
+                  "concept": { "type": "string" },
+                  "amount": { "type": "number", "format": "float" },
+                  "issueDate": { "type": "string", "format": "date" },
+                  "dueDate": { "type": "string", "format": "date", "nullable": true },
+                  "supplier": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Factura creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Invoice" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/invoices/{invoiceId}/pay": {
+      "post": {
+        "summary": "Marcar una factura como pagada",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Factura pagada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Invoice" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/finance/summary": {
+      "get": {
+        "summary": "Resumen financiero de la comunidad",
+        "description": "Requiere rol ADMIN. Agrega ingresos, gastos, balance y facturas pendientes.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen financiero.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/FinanceSummary" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/expenses/{id}": {
+      "get": {
+        "summary": "Detalle de un gasto",
+        "description": "La visibilidad (404 si no es ADMIN de la comunidad del gasto) la\ndecide la función de lectura dentro de la transacción.\n",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gasto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Expense" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "summary": "Actualizar un gasto",
+        "description": "El rol se comprueba dentro de la transacción.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "concept": { "type": "string" },
+                  "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+                  "amount": { "type": "number", "format": "float" },
+                  "expenseDate": { "type": "string", "format": "date" },
+                  "supplier": { "type": "string", "nullable": true },
+                  "notes": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gasto actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Expense" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un gasto",
+        "description": "El rol se comprueba dentro de la transacción.",
+        "tags": ["Finance"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Gasto eliminado." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/documents": {
+      "get": {
+        "summary": "Listar documentos de una comunidad",
+        "description": "Devuelve solo los documentos visibles para el usuario autenticado\nsegún las políticas RLS de `documents` y `document_acl`. Un documento\ninvisible devuelve 404, nunca 403 (no se filtra su existencia).\n",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "schema": { "$ref": "#/components/schemas/DocumentCategory" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de documentos visibles.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "summary": "Subir un documento",
+        "description": "Sube un archivo al bucket de Supabase Storage y crea la fila en\n`documents`. Requiere rol ADMIN en la comunidad. El archivo viaja en\nel campo `file` (multipart/form-data) y no puede superar 10 MB.\n",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file", "title", "category"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Archivo a subir (máx. 10 MB)."
+                  },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "category": { "$ref": "#/components/schemas/DocumentCategory" },
+                  "minRole": {
+                    "type": "string",
+                    "enum": ["NEIGHBOR", "PRESIDENT", "ADMIN"],
+                    "default": "NEIGHBOR"
+                  },
+                  "isPublic": { "type": "boolean", "default": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Documento creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Document" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "get": {
+        "summary": "Detalle de un documento",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Document" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un documento",
+        "description": "Requiere rol ADMIN en la comunidad del documento. La comprobación la\nhace `app_delete_document()` dentro de la transacción (no un guard de\nruta): el rol real y la comunidad del documento se leen de la fila.\n",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Documento eliminado (fila y objeto en Storage)." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/download": {
+      "get": {
+        "summary": "Obtener signed URL de descarga",
+        "description": "Devuelve una URL firmada de Supabase Storage, válida durante\n`DOCUMENTS_SIGNED_URL_EXPIRES_IN` segundos (300 por defecto).\nEl backend no sirve el archivo: solo genera la URL.\n",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL firmada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentDownloadResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/dashboard": {
+      "get": {
+        "summary": "Resumen de la home de la comunidad",
+        "description": "Cualquier miembro activo. Los campos financieros (`pendingInvoices`,\n`balanceCents`) solo se devuelven a ADMIN (DSH-3).\n",
+        "tags": ["Dashboard"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/DashboardSummary" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities": {
+      "get": {
+        "summary": "Listar las comunidades del usuario",
+        "description": "Solo devuelve las comunidades donde el usuario es miembro (RLS\n`communities_member`). Cada item incluye `memberRole`, que es el rol\ndel usuario autenticado DENTRO de esa comunidad (no el `globalRole`).\n",
+        "tags": ["Communities"],
+        "responses": {
+          "200": {
+            "description": "Comunidades del usuario.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommunityListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Crear una comunidad",
+        "description": "Requiere rol global de administrador (`requireGlobalAdmin`). El\ncreador pasa a ser ADMIN de la comunidad nueva.\n",
+        "tags": ["Communities"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "addressLine1", "city", "province", "postalCode", "country"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "description": { "type": "string", "nullable": true },
+                  "addressLine1": { "type": "string", "minLength": 1 },
+                  "city": { "type": "string", "minLength": 1 },
+                  "province": { "type": "string", "minLength": 1 },
+                  "postalCode": { "type": "string", "minLength": 1 },
+                  "country": {
+                    "type": "string",
+                    "description": "Código ISO 3166-1 alpha-2.",
+                    "example": "ES"
+                  },
+                  "latitude": { "type": "number", "format": "float", "nullable": true },
+                  "longitude": { "type": "number", "format": "float", "nullable": true },
+                  "timezone": { "type": "string", "default": "Europe/Madrid" },
+                  "registrationNumber": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comunidad creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Community" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/communities/by-slug/{slug}": {
+      "get": {
+        "summary": "Obtener una comunidad por su slug",
+        "description": "Búsqueda por slug en vez de por UUID. Útil para URLs amigables y\npara el flujo de invitación. Devuelve 404 si el usuario no es\nmiembro (RLS).\n",
+        "tags": ["Communities"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": { "type": "string", "example": "alfons-13" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comunidad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Community" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}": {
+      "get": {
+        "summary": "Detalle de una comunidad",
+        "tags": ["Communities"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comunidad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Community" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una comunidad",
+        "description": "Requiere rol ADMIN en la comunidad.",
+        "tags": ["Communities"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "description": { "type": "string", "nullable": true },
+                  "addressLine1": { "type": "string", "minLength": 1 },
+                  "city": { "type": "string", "minLength": 1 },
+                  "province": { "type": "string", "minLength": 1 },
+                  "postalCode": { "type": "string", "minLength": 1 },
+                  "country": { "type": "string", "example": "ES" },
+                  "latitude": { "type": "number", "format": "float", "nullable": true },
+                  "longitude": { "type": "number", "format": "float", "nullable": true },
+                  "timezone": { "type": "string" },
+                  "registrationNumber": { "type": "string", "nullable": true },
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comunidad actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Community" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/communities/{communityId}/common-areas": {
+      "get": {
+        "summary": "Listar zonas comunes de una comunidad",
+        "tags": ["CommonAreas"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de zonas.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommonAreaListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Crear una zona común",
+        "description": "Requiere rol ADMIN.",
+        "tags": ["CommonAreas"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "type"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "type": { "$ref": "#/components/schemas/CommonAreaType" },
+                  "description": { "type": "string", "nullable": true },
+                  "capacity": { "type": "integer", "minimum": 1, "nullable": true },
+                  "slotMinutes": { "type": "integer", "minimum": 15, "default": 60 },
+                  "openTime": { "type": "string", "example": "08:00" },
+                  "closeTime": { "type": "string", "example": "22:00" },
+                  "maxDailyReservations": { "type": "integer", "minimum": 1, "nullable": true },
+                  "requiresApproval": { "type": "boolean", "default": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Zona creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/CommonArea" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/common-areas/{id}": {
+      "put": {
+        "summary": "Actualizar una zona común",
+        "description": "Requiere rol ADMIN. El rol se comprueba en `app_update_common_area()`\ncon la fila delante.\n",
+        "tags": ["CommonAreas"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "type": { "$ref": "#/components/schemas/CommonAreaType" },
+                  "description": { "type": "string", "nullable": true },
+                  "capacity": { "type": "integer", "nullable": true },
+                  "slotMinutes": { "type": "integer", "minimum": 15 },
+                  "openTime": { "type": "string", "example": "08:00" },
+                  "closeTime": { "type": "string", "example": "22:00" },
+                  "maxDailyReservations": { "type": "integer", "nullable": true },
+                  "requiresApproval": { "type": "boolean" },
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Zona actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/CommonArea" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/common-areas/{id}/availability": {
+      "get": {
+        "summary": "Disponibilidad de una zona común",
+        "description": "Devuelve los huecos reservables en el rango indicado.",
+        "tags": ["CommonAreas"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Huecos disponibles.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/CommonAreaAvailability" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Registrar un usuario nuevo",
+        "description": "Crea la cuenta y devuelve el access token. También setea la cookie `refresh_token`.",
+        "tags": ["Auth"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "displayName"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8 },
+                  "displayName": { "type": "string", "minLength": 1, "maxLength": 80 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthLoginResponse" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "409": {
+            "description": "Ya existe una cuenta con ese email",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Iniciar sesión con email y contraseña",
+        "tags": ["Auth"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "usuario@comunidad.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "MiContraseñaSegura123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login correcto. Devuelve el access token y setea la cookie `refresh_token`.",
+            "headers": {
+              "Set-Cookie": {
+                "schema": { "type": "string" },
+                "description": "Contiene `refresh_token=<jwt>; HttpOnly; SameSite=Strict`"
+              }
+            },
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthLoginResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Renovar el access token usando la cookie de refresh",
+        "description": "No requiere `Authorization`, solo la cookie `refresh_token` (HttpOnly).",
+        "tags": ["Auth"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Nuevo access token emitido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "accessToken": { "type": "string" },
+                        "expiresIn": { "type": "integer", "example": 900 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Cerrar la sesión actual",
+        "description": "Invalida el refresh token del servidor y borra la cookie.",
+        "tags": ["Auth"],
+        "responses": {
+          "204": { "description": "Sesión cerrada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Datos del usuario autenticado",
+        "tags": ["Auth"],
+        "responses": {
+          "200": {
+            "description": "Perfil del usuario.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/User" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar el perfil",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": { "type": "string", "minLength": 1, "maxLength": 80 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/User" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/me/avatar": {
+      "post": {
+        "summary": "Subir avatar del usuario",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["avatar"],
+                "properties": {
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Imagen (máx. 2 MB, cualquier `image/*`)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Avatar actualizado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AvatarResponse" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar el avatar del usuario",
+        "tags": ["Auth"],
+        "responses": {
+          "204": { "description": "Avatar eliminado." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "summary": "Cambiar la contraseña",
+        "description": "Exige la contraseña actual. Tras el cambio, se revocan las demás sesiones.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string", "format": "password" },
+                  "newPassword": { "type": "string", "format": "password", "minLength": 8 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Contraseña cambiada." },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "summary": "Listar las sesiones activas del usuario",
+        "tags": ["Auth"],
+        "responses": {
+          "200": {
+            "description": "Sesiones activas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AuthSession" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/revoke-others": {
+      "post": {
+        "summary": "Revocar todas las sesiones salvo la actual",
+        "tags": ["Auth"],
+        "responses": {
+          "204": { "description": "Sesiones revocadas (conserva la actual)." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/{id}": {
+      "delete": {
+        "summary": "Revocar una sesión por id",
+        "tags": ["Auth"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Sesión revocada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/auth/me/export": {
+      "get": {
+        "summary": "Descargar todos los datos del usuario (GDPR)",
+        "description": "Devuelve un volcado JSON con todo lo asociado al usuario: perfil,\nsesiones, comunidades, documentos, incidencias, reservas, votos,\nnotificaciones, etc. Es el endpoint que estaba fallando con `42P17`\npor la recursión de RLS en `document_acl`; ya corregido.\n",
+        "tags": ["Auth"],
+        "responses": {
+          "200": {
+            "description": "Volcado completo.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/UserExport" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/chat": {
+      "post": {
+        "summary": "Chat con el asistente IA",
+        "description": "Requiere cuota diaria. Si `AI_ENABLED=false` o no hay claves, responde\nen modo degradado (AI-3).\n",
+        "tags": ["AI"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AiChatRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta del asistente.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AiChatResponse" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/ai/chat/sessions": {
+      "get": {
+        "summary": "Listar sesiones de chat del usuario",
+        "tags": ["AI"],
+        "responses": {
+          "200": {
+            "description": "Sesiones del usuario.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatSessionListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/chat/sessions/{id}/messages": {
+      "get": {
+        "summary": "Listar mensajes de una sesión",
+        "tags": ["AI"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mensajes.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatMessageListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/ai/chat/sessions/{id}": {
+      "delete": {
+        "summary": "Eliminar una sesión de chat",
+        "tags": ["AI"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Sesión eliminada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/ai/incidents/classify": {
+      "post": {
+        "summary": "Clasificar una descripción de incidencia",
+        "description": "Devuelve categoría, prioridad y `needsHumanReview`.",
+        "tags": ["AI"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["description"],
+                "properties": { "description": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clasificación.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncidentClassification" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/incidents/drafts": {
+      "post": {
+        "summary": "Crear un borrador de incidencia asistido por IA",
+        "tags": ["AI"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["description", "communityId"],
+                "properties": {
+                  "communityId": { "type": "string", "format": "uuid" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Borrador creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/IncidentDraft" } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/incidents/drafts/{id}/confirm": {
+      "post": {
+        "summary": "Confirmar un borrador y crear la incidencia",
+        "tags": ["AI"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Incidencia creada a partir del borrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Incident" } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/ai/tools": {
+      "get": {
+        "summary": "Catálogo de tools disponibles",
+        "tags": ["AI"],
+        "responses": {
+          "200": {
+            "description": "Catálogo.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ToolListResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/tools/{toolName}/preview": {
+      "post": {
+        "summary": "Ejecutar una tool en modo preview (solo lectura)",
+        "tags": ["AI"],
+        "parameters": [
+          { "in": "path", "name": "toolName", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ToolPreviewResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/ai/agents": {
+      "get": {
+        "summary": "Listar agentes disponibles",
+        "tags": ["AI"],
+        "responses": {
+          "200": {
+            "description": "Catálogo de agentes.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AgentListResponse" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/ai/agents/{name}/run": {
+      "post": {
+        "summary": "Ejecutar un agente",
+        "description": "La pertenencia a la comunidad y el rol se comprueban dentro del\nservice, porque `communityId` viaja en el cuerpo (D-1).\n",
+        "tags": ["AI"],
+        "parameters": [
+          { "in": "path", "name": "name", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["communityId", "input"],
+                "properties": {
+                  "communityId": { "type": "string", "format": "uuid" },
+                  "input": { "type": "object", "additionalProperties": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado del agente.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AgentRunResponse" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Validation" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    }
+  }
+}

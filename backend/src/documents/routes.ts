@@ -95,8 +95,94 @@ function subidaUnica(req: Request, res: Response, next: NextFunction): void {
 export function createDocumentsRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/documents:
+   *   get:
+   *     summary: Listar documentos de una comunidad
+   *     description: |
+   *       Devuelve solo los documentos visibles para el usuario autenticado
+   *       según las políticas RLS de `documents` y `document_acl`. Un documento
+   *       invisible devuelve 404, nunca 403 (no se filtra su existencia).
+   *     tags: [Documents]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: query
+   *         name: category
+   *         schema: { $ref: '#/components/schemas/DocumentCategory' }
+   *       - in: query
+   *         name: page
+   *         schema: { type: integer, minimum: 1, default: 1 }
+   *       - in: query
+   *         name: limit
+   *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+   *     responses:
+   *       200:
+   *         description: Lista paginada de documentos visibles.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/DocumentListResponse' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.get('/:communityId/documents', requireAuth, requireCommunity(), controller.listDocuments)
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/documents:
+   *   post:
+   *     summary: Subir un documento
+   *     description: |
+   *       Sube un archivo al bucket de Supabase Storage y crea la fila en
+   *       `documents`. Requiere rol ADMIN en la comunidad. El archivo viaja en
+   *       el campo `file` (multipart/form-data) y no puede superar 10 MB.
+   *     tags: [Documents]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             required: [file, title, category]
+   *             properties:
+   *               file:
+   *                 type: string
+   *                 format: binary
+   *                 description: Archivo a subir (máx. 10 MB).
+   *               title:
+   *                 type: string
+   *                 minLength: 1
+   *                 maxLength: 200
+   *               category: { $ref: '#/components/schemas/DocumentCategory' }
+   *               minRole:
+   *                 type: string
+   *                 enum: [NEIGHBOR, PRESIDENT, ADMIN]
+   *                 default: NEIGHBOR
+   *               isPublic:
+   *                 type: boolean
+   *                 default: false
+   *     responses:
+   *       201:
+   *         description: Documento creado.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Document' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.post(
     '/:communityId/documents',
     requireAuth,
@@ -113,8 +199,80 @@ export function createDocumentsRouter(): Router {
 export function createDocumentRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/documents/{id}:
+   *   get:
+   *     summary: Detalle de un documento
+   *     tags: [Documents]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       200:
+   *         description: Documento.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Document' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.get('/documents/:id', requireAuth, controller.getDocument)
+
+  /**
+   * @swagger
+   * /api/v1/documents/{id}/download:
+   *   get:
+   *     summary: Obtener signed URL de descarga
+   *     description: |
+   *       Devuelve una URL firmada de Supabase Storage, válida durante
+   *       `DOCUMENTS_SIGNED_URL_EXPIRES_IN` segundos (300 por defecto).
+   *       El backend no sirve el archivo: solo genera la URL.
+   *     tags: [Documents]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       200:
+   *         description: URL firmada.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/DocumentDownloadResponse' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.get('/documents/:id/download', requireAuth, controller.downloadDocument)
+
+  /**
+   * @swagger
+   * /api/v1/documents/{id}:
+   *   delete:
+   *     summary: Eliminar un documento
+   *     description: |
+   *       Requiere rol ADMIN en la comunidad del documento. La comprobación la
+   *       hace `app_delete_document()` dentro de la transacción (no un guard de
+   *       ruta): el rol real y la comunidad del documento se leen de la fila.
+   *     tags: [Documents]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       204:
+   *         description: Documento eliminado (fila y objeto en Storage).
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.delete('/documents/:id', requireAuth, controller.deleteDocument)
 
   return router

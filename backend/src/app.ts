@@ -44,6 +44,7 @@ import { createDashboardRouter } from './dashboard/routes.js'
 import { createNotificationsRouter } from './notifications/routes.js'
 import { createAiRateLimiter, createApiRateLimiter, HEALTH_PATH } from './http/ratelimit.js'
 import { errorHandler, notFoundHandler } from './http/error-middleware.js'
+import { mountSwagger } from './http/swagger.js'
 import { prisma } from './db.js'
 
 export function createApp(): Express {
@@ -55,6 +56,10 @@ export function createApp(): Express {
   // proxy y ACTIVARlo haria que `req.ip` fuera undefined.
   app.set('trust proxy', env.TRUST_PROXY)
   app.disable('x-powered-by')
+
+  if (!env.isTest) {
+    mountSwagger(app)
+  }
 
   app.use(
     helmet({
@@ -79,12 +84,29 @@ export function createApp(): Express {
   // Allowlist explicita. Una API con credenciales en cookies no puede usar
   // `origin: true`, porque eso equivale a `Access-Control-Allow-Origin` +
   // credenciales para cualquier origen.
+  //
+  // Ademas de la allowlist de `CORS_ORIGINS`, se admite el propio origen del
+  // backend cuando Swagger esta activo. Swagger UI se sirve desde
+  // `http://localhost:3000/api-docs` y hace POST al mismo origen, y el
+  // navegador envia `Origin: http://localhost:3000` en esos POST (la spec de
+  // fetch lo exige aunque sea same-origin). Sin esta entrada, el propio
+  // Swagger no puede probar los endpoints protegidos: el middleware `cors`
+  // los rechaza antes de que lleguen al handler.
+  //
+  // No es un agujero: una peticion same-origin ya es de confianza por
+  // definicion (el navegador no aplica CORS a same-origin), lo unico que
+  // hace esta entrada es que el middleware `cors` no la rechace antes.
+  const allowedOrigins = new Set(env.corsOrigins)
+  if (env.SWAGGER_ENABLED) {
+    allowedOrigins.add(`http://localhost:${env.PORT}`)
+  }
+
   app.use(
     cors({
       origin(origin, callback) {
         // Sin Origin = peticion del mismo origen (curl, healthcheck, test).
         if (!origin) return callback(null, true)
-        if (env.corsOrigins.includes(origin)) return callback(null, true)
+        if (allowedOrigins.has(origin)) return callback(null, true)
         callback(new Error(`Origen no permitido por CORS: ${origin}`))
       },
       credentials: true,
