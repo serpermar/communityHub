@@ -81,6 +81,107 @@ Sin contexto, las consultas de datos de comunidad devuelven **0 filas**, no un
 error. Es deliberado: un endpoint al que se le olvide el contexto devuelve una
 lista vacía en vez de una lista que no le pertenece.
 
+## Recursión en políticas RLS y cómo romperla
+
+Una política RLS que, para decidir si permite el acceso, consulta **la misma tabla** (o una tabla cuyas políticas vuelven a consultar la original) crea un ciclo. PostgreSQL lo detecta y aborta con `42P17: infinite recursion detected in policy for relation "..."`. El error no es del dato, es del diseño de la política.
+
+Ocurrió con `document_acl`: la política `acl_select_scoped` contenía un `EXISTS (SELECT 1 FROM document_acl ...)`, y la política de `documents` (`documents_select_scoped`) también consultaba `document_acl`. El ciclo `documents → document_acl → documents` hacía fallar cualquier `SELECT` sobre `documents`, incluido el del endpoint `GET /api/v1/auth/me/export`.
+
+#### Corrección en `documents_select_scoped`
+
+La política `documents_select_scoped` tenía un `EXISTS` que comparaba `a.document_id = a.id`. Ambas columnas pertenecen a `document_acl`: `a.document_id` es la FK al documento y `a.id` es la PK de la fila ACL. Como nunca coinciden, el `EXISTS` era **siempre falso** y la rama de acceso vía ACL no concedía nada.
+
+La comparación correcta referencia la fila externa (`documents`):
+
+```sql
+EXISTS (
+  SELECT 1
+  FROM public.document_acl a
+  WHERE a.document_id = documents.id   -- ✅ columna de la fila externa
+    AND a.user_id = public.app_current_user_id()
+    AND a.can_view
+)
+```
+
+No era un agujero de seguridad (el `OR` de la política solo dejaba de conceder, no concedía de más), pero rompía el acceso de usuarios que solo tenían permiso por ACL, sin ser miembros ni administradores de la comunidad.
+
+**La solución: mover la lectura de la tabla conflictiva a una función `SECURITY DEFINER` cuyo dueño tenga `BYPASSRLS`** (en este proyecto, el rol `postgres`). La función se ejecuta sin RLS, así que la política deja de auto-referenciarse.
+
+Ejemplo aplicado a `document_acl`:
+
+```sql
+-- dueño: postgres (BYPASSRLS), no app_runtime
+CREATE OR REPLACE FUNCTION public.app_acl_scoped_access(p_doc_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = p_doc_id
+      AND (
+        public.app_is_admin_of(d.community_id)
+        OR (
+          public.app_is_member_of(d.community_id)
+          AND (
+            d.is_public
+            OR d.min_role = 'NEIGHBOR'::public.member_role
+            OR public.app_role_in(d.community_id) >= d.min_role
+            OR EXISTS (
+              SELECT 1
+              FROM public.document_acl inner_acl
+              WHERE inner_acl.document_id = d.id
+                AND inner_acl.user_id = public.app_current_user_id()
+                AND inner_acl.can_view
+            )
+          )
+        )
+      )
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.app_acl_scoped_access(uuid) TO app_runtime;
+```
+
+Y la política de `document_acl` queda así:
+
+```sql
+DROP POLICY IF EXISTS acl_select_scoped ON public.document_acl;
+
+CREATE POLICY acl_select_scoped
+ON public.document_acl
+FOR SELECT
+USING ( public.app_acl_scoped_access(document_id) );
+```
+
+### Reglas para no repetir el error
+
+1. Una política **nunca** debe consultar la tabla sobre la que se define. Si necesita hacerlo, encapsula esa lógica en una función `SECURITY DEFINER`.
+2. La función debe tener `search_path = public, pg_temp` fijo (evita *search-path injection*).
+3. El dueño de la función debe ser un rol con `BYPASSRLS` (aquí, `postgres`). Si el dueño es `app_runtime` (que no tiene `BYPASSRLS`), la función **sí** aplica RLS y la recursión vuelve.
+4. Comprueba que la tabla **no** tiene `FORCE ROW LEVEL SECURITY` si confías en `SECURITY DEFINER`; con `FORCE`, incluso el dueño está sujeto a RLS.
+
+### Cómo verificar que la recursión está rota
+
+La prueba fiel reproduce el contexto del runtime. Conéctate directamente como `app_runtime` (no con `SET ROLE` desde `postgres`):
+
+```bash
+psql "postgresql://app_runtime.PROJECT_REF:PASSWORD@POOLER_HOST:5432/postgres?sslmode=require"
+```
+
+```sql
+SELECT current_user, current_setting('role');
+SET LOCAL app.current_user_id = '<uuid-de-prueba>';
+SELECT * FROM public.document_acl LIMIT 1;   -- no debe dar 42P17
+SELECT * FROM public.documents  LIMIT 1;    -- no debe dar 42P17
+```
+
+Si `SET ROLE app_runtime` desde `postgres` devuelve `42501: permission denied to set role "app_runtime"`, es solo que `postgres` no es miembro de `app_runtime`; no es un fallo del proyecto.
+
+
+
 ### El punto ciego del login
 
 Las políticas comparan siempre contra `app_current_user_id()`. En el login y en

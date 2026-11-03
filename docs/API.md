@@ -873,6 +873,8 @@ siempre `app_list_documents()` con la fila delante (DN-6), así que un
 documento invisible para el actor es **`404`**, no `403` (C-8: un `403`
 confirmaría que ese id existe).
 
+> La visibilidad de documentos la decide la combinación de `app_list_documents()` y las políticas RLS de `documents` / `document_acl`. En particular, `documents_select_scoped` se corrigió para comparar `document_acl.document_id` con `documents.id`. El contrato HTTP no cambia: un documento invisible sigue devolviendo 404.
+
 Es el primer bloque que toca Storage: el binario **nunca** va en la base, solo
 `storage_path`, la clave dentro del bucket privado `community-documents`
 prefijada por `<communityId>/`. Esa ruta no sale nunca en una respuesta —ni en
