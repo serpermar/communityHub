@@ -54,3 +54,75 @@
 :global(.dark) .emptyWeather {
   color: #94a3b8;
 }
+
+/* ... tus estilos anteriores ... */
+
+.geocodeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.weatherContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.weatherText {
+  font-size: 0.875rem;
+  color: #334155;
+  margin: 0;
+}
+
+:global(.dark) .weatherText {
+  color: #e2e8f0;
+}
+
+/* Nuevo estado vacío del clima */
+.emptyWeather {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #64748b;
+}
+
+:global(.dark) .emptyWeather {
+  color: #94a3b8;
+}
+
+.emptyWeatherIcon {
+  color: #94a3b8;
+  opacity: 0.5;
+}
+
+:global(.dark) .emptyWeatherIcon {
+  color: #64748b;
+}
+
+.emptyWeatherTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+:global(.dark) .emptyWeatherTitle {
+  color: #e2e8f0;
+}
+
+.emptyWeatherHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  max-width: 20rem;
+  line-height: 1.4;
+}
+
+:global(.dark) .emptyWeatherHint {
+  color: #64748b;
+}

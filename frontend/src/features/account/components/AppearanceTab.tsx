@@ -1,119 +1,136 @@
-import { useState } from 'react'
-import { Button, Card, ThemeToggle, useToast } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { ApiError } from '@/services/ApiError'
-import { exportMyData } from '../api'
-import styles from './AppearanceTab.module.css'
-
-const roleLabel = (user: ReturnType<typeof useAuth>['user']) => {
-  if (user?.globalRole === 'ADMIN_SA') return 'Administrador de plataforma'
-  return user?.globalRole === 'NEIGHBOR' ? 'Usuario' : 'Usuario'
-}
+import { useTheme } from '@/context/ThemeContext'
+import { t } from '@/i18n'
+import { cn } from '@/utils/cn'
+import { Tooltip } from '@/components/ui'
+import { Button } from '@/components/ui'
+import styles from '../pages/AccountPage.module.css'
 
 export function AppearanceTab({ onLogout }: { onLogout: () => void }) {
   const { user } = useAuth()
-  const { notify } = useToast()
-  const [exportLoading, setExportLoading] = useState(false)
-  const [copiedId, setCopiedId] = useState(false)
-
-  const copyUserId = async () => {
-    if (!user?.id) return
-    try {
-      await navigator.clipboard.writeText(user.id)
-      setCopiedId(true)
-      setTimeout(() => setCopiedId(false), 1500)
-    } catch {
-      notify('No se ha podido copiar el ID.', 'error')
-    }
-  }
-
-  const onExportData = async () => {
-    setExportLoading(true)
-    try {
-      const blob = await exportMyData()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `communityhub-datos-${user?.id ?? 'usuario'}.json`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      notify('Datos exportados.', 'success')
-    } catch (caught) {
-      notify(ApiError.from(caught).message, 'error')
-    } finally {
-      setExportLoading(false)
-    }
-  }
+  const { theme, toggle } = useTheme()
+  const label = theme === 'dark' ? t('app.themeLight') : t('app.themeDark')
 
   return (
     <div className={styles.sectionGap}>
-      <Card title="Apariencia">
-        <div className={styles.appearanceRow}>
-          <div className={styles.appearanceHeader}>
-            <p className={styles.appearanceTitle}>Tema</p>
-            <p className={styles.appearanceDesc}>
+      {/* 1. Apariencia */}
+      <div className={styles.infoList}>
+        <div className={styles.infoRow}>
+          <div>
+            <p className={styles.infoLabel}>Tema</p>
+            <p className={styles.infoValue}>
               Elige entre claro, oscuro o seguir la preferencia del sistema.
             </p>
           </div>
-          <ThemeToggle />
+          <Tooltip label={label}>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={label}
+              className={cn(
+                'rounded-control p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+              )}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-5 w-5 fill-none stroke-current"
+              >
+                {theme === 'dark' ? (
+                  <path
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 3v2m0 14v2M5.2 5.2l1.4 1.4m10.8 10.8 1.4 1.4M3 12h2m14 0h2M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
+                  />
+                ) : (
+                  <path
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"
+                  />
+                )}
+              </svg>
+            </button>
+          </Tooltip>
         </div>
-      </Card>
+      </div>
 
-      <Card title="Información de la cuenta">
-        <div className={styles.infoList}>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>ID de usuario</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className={styles.infoValue}>{user?.id}</span>
-              <Button size="sm" variant="ghost" onClick={copyUserId}>
-                {copiedId ? 'Copiado' : 'Copiar'}
-              </Button>
-            </div>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>Rol global</span>
-            <span className={styles.infoValue}>{roleLabel(user)}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>Correo verificado</span>
-            <span className={styles.infoValue}>{user?.emailVerifiedAt ? 'Sí' : 'No'}</span>
-          </div>
+      {/* 2. Información de la cuenta (AQUÍ ESTÁ LA MAGIA) */}
+      <div className={styles.infoList}>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Nombre completo</span>
+          <span className={styles.infoValue}>{user?.fullName ?? '—'}</span>
         </div>
-      </Card>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Correo electrónico</span>
+          <span className={styles.infoValue}>{user?.email ?? '—'}</span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Teléfono</span>
+          <span className={styles.infoValue}>{user?.phone || 'No registrado'}</span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Rol global</span>
+          <span className={styles.infoValue}>
+            {user?.globalRole === 'ADMIN_SA' ? 'Administrador de plataforma' : 'Usuario estándar'}
+          </span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Correo verificado</span>
+          <span className={styles.infoValue}>{user?.emailVerifiedAt ? 'Sí' : 'No'}</span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>Miembro desde</span>
+          <span className={styles.infoValue}>
+            {user?.createdAt
+              ? new Date(user.createdAt).toLocaleDateString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
+              : '—'}
+          </span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>ID de usuario</span>
+          <span
+            className={styles.infoValue}
+            style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+          >
+            {user?.id}
+          </span>
+        </div>
+      </div>
 
-      <Card title="Privacidad y datos">
-        <div className={styles.appearanceRow}>
-          <div className={styles.appearanceHeader}>
-            <p className={styles.appearanceTitle}>Descargar mis datos</p>
-            <p className={styles.appearanceDesc}>
-              Obtén una copia de tu información en formato JSON.
-            </p>
-          </div>
+      {/* 3. Privacidad y datos */}
+      <div className={styles.infoList}>
+        <div className={styles.infoRow}>
           <div>
-            <Button size="sm" variant="secondary" onClick={onExportData} loading={exportLoading}>
-              Descargar datos
-            </Button>
+            <p className={styles.infoLabel}>Descargar mis datos</p>
+            <p className={styles.infoValue}>Obtén una copia de tu información en formato JSON.</p>
           </div>
+          <Button variant="secondary" size="sm" onClick={() => alert('Próximamente')}>
+            Descargar datos
+          </Button>
         </div>
-      </Card>
+      </div>
 
-      <Card title="Zona peligrosa">
-        <div className={styles.appearanceRow}>
-          <div className={styles.appearanceHeader}>
-            <p className={styles.appearanceTitle}>Cerrar sesión en este dispositivo</p>
-            <p className={styles.appearanceDesc}>
+      {/* 4. Zona peligrosa */}
+      <div className={styles.infoList}>
+        <div className={styles.infoRow}>
+          <div>
+            <p className={styles.infoLabel}>Cerrar sesión en este dispositivo</p>
+            <p className={styles.infoValue}>
               Finaliza la sesión actual y vuelve a la pantalla de acceso.
             </p>
           </div>
-          <div>
-            <Button variant="danger" onClick={onLogout}>
-              Cerrar sesión
-            </Button>
-          </div>
+          <Button variant="danger" size="sm" onClick={onLogout}>
+            Cerrar sesión
+          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

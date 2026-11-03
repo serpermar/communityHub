@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { motion, useReducedMotion, type Variants } from 'framer-motion'
+import { CloudOff, MapPin } from 'lucide-react'
 import {
   Alert,
   Button,
@@ -20,6 +22,7 @@ import { updateCommunitySchema, type UpdateCommunityForm } from '../schemas'
 import styles from './CommunitySettingsPage.module.css'
 
 export function CommunitySettingsPage() {
+  const shouldReduceMotion = useReducedMotion()
   const { active } = useCommunity()
   const [serverError, setServerError] = useState<string | null>(null)
   const [geocoding, setGeocoding] = useState(false)
@@ -43,7 +46,7 @@ export function CommunitySettingsPage() {
     if (community.data) {
       reset({
         name: community.data.name,
-        slug: community.data.slug, // <-- AÑADIDO
+        slug: community.data.slug,
         description: community.data.description ?? '',
         addressLine1: community.data.addressLine1,
         city: community.data.city,
@@ -59,7 +62,7 @@ export function CommunitySettingsPage() {
     try {
       await updateCommunity(active!.id, {
         name: values.name,
-        slug: values.slug, // <-- AÑADIDO
+        slug: values.slug,
         description: values.description || null,
         addressLine1: values.addressLine1,
         city: values.city,
@@ -81,7 +84,7 @@ export function CommunitySettingsPage() {
         await handleSubmit(async (values) => {
           await updateCommunity(active!.id, {
             name: values.name,
-            slug: values.slug, // <-- AÑADIDO
+            slug: values.slug,
             description: values.description || null,
             addressLine1: values.addressLine1,
             city: values.city,
@@ -105,92 +108,128 @@ export function CommunitySettingsPage() {
   if (community.loading) return <LoadingState label="Cargando ajustes…" />
   if (community.error) return <Alert variant="error">{community.error.message}</Alert>
 
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.1 },
+    },
+  }
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+  }
+
   return (
-    <div className={styles.page}>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className={styles.page}
+    >
       <PageHeader title="Ajustes de la comunidad" />
 
-      <Card title="Datos generales">
-        {serverError && (
-          <div className={styles.errorWrapper}>
-            <Alert variant="error">{serverError}</Alert>
-          </div>
-        )}
-        <form className={styles.form} onSubmit={onSubmit} noValidate>
-          <Field label="Nombre" htmlFor="name" error={errors.name?.message} required>
-            <Input id="name" {...register('name')} />
-          </Field>
-
-          <Field
-            label="Identificador (slug)"
-            htmlFor="slug"
-            error={errors.slug?.message}
-            hint="Afecta a la URL. Cambiarlo romperá los enlaces antiguos."
-            required
-          >
-            <Input id="slug" {...register('slug')} />
-          </Field>
-
-          <Field
-            label="Dirección"
-            htmlFor="addressLine1"
-            error={errors.addressLine1?.message}
-            required
-          >
-            <Input id="addressLine1" {...register('addressLine1')} />
-          </Field>
-
-          <div className={styles.formRow}>
-            <Field label="Ciudad" htmlFor="city" error={errors.city?.message} required>
-              <Input id="city" {...register('city')} />
+      <motion.div variants={itemVariants}>
+        <Card title="Datos generales">
+          {serverError && (
+            <div className={styles.errorWrapper}>
+              <Alert variant="error">{serverError}</Alert>
+            </div>
+          )}
+          <form className={styles.form} onSubmit={onSubmit} noValidate>
+            <Field label="Nombre" htmlFor="name" error={errors.name?.message} required>
+              <Input id="name" {...register('name')} />
             </Field>
-            <Field label="Provincia" htmlFor="province" error={errors.province?.message} required>
-              <Input id="province" {...register('province')} />
+
+            <Field
+              label="Identificador (slug)"
+              htmlFor="slug"
+              error={errors.slug?.message}
+              hint="Afecta a la URL. Cambiarlo romperá los enlaces antiguos."
+              required
+            >
+              <Input id="slug" {...register('slug')} />
             </Field>
-          </div>
 
-          <Field
-            label="Código Postal"
-            htmlFor="postalCode"
-            error={errors.postalCode?.message}
-            required
-          >
-            <Input id="postalCode" {...register('postalCode')} />
-          </Field>
+            <Field
+              label="Dirección"
+              htmlFor="addressLine1"
+              error={errors.addressLine1?.message}
+              required
+            >
+              <Input id="addressLine1" {...register('addressLine1')} />
+            </Field>
 
-          <Field label="Descripción" htmlFor="description" error={errors.description?.message}>
-            <Input id="description" {...register('description')} />
-          </Field>
+            <div className={styles.formRow}>
+              <Field label="Ciudad" htmlFor="city" error={errors.city?.message} required>
+                <Input id="city" {...register('city')} />
+              </Field>
+              <Field label="Provincia" htmlFor="province" error={errors.province?.message} required>
+                <Input id="province" {...register('province')} />
+              </Field>
+            </div>
 
-          <label className={styles.checkboxLabel}>
-            <input type="checkbox" {...register('isActive')} />
-            Comunidad activa
-          </label>
+            <Field
+              label="Código Postal"
+              htmlFor="postalCode"
+              error={errors.postalCode?.message}
+              required
+            >
+              <Input id="postalCode" {...register('postalCode')} />
+            </Field>
 
-          <div className={styles.formFooter}>
-            <Button type="button" variant="secondary" loading={geocoding} onClick={onGeocode}>
-              Localizar por dirección
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              Guardar cambios
-            </Button>
-          </div>
-        </form>
-      </Card>
+            <Field label="Descripción" htmlFor="description" error={errors.description?.message}>
+              <Input id="description" {...register('description')} />
+            </Field>
 
-      <Card title="Meteorología del barrio">
-        {weather.data ? (
-          <p className={styles.weatherText}>
-            {weather.data.current.temperatureC} °C (sensación{' '}
-            {weather.data.current.apparentTemperatureC} °C) · {weather.data.current.condition}. Máx{' '}
-            {weather.data.today.maxC} °C / Mín {weather.data.today.minC} °C.
-          </p>
-        ) : (
-          <p className={styles.emptyWeather}>
-            No hay datos meteorológicos (la comunidad aún no tiene coordenadas o el proveedor no
-            responde).
-          </p>
-        )}
-      </Card>
+            <label className={styles.checkboxLabel}>
+              <input type="checkbox" {...register('isActive')} />
+              Comunidad activa
+            </label>
+
+            <div className={styles.formFooter}>
+              <Button
+                type="button"
+                variant="secondary"
+                loading={geocoding}
+                onClick={onGeocode}
+                className={styles.geocodeButton}
+              >
+                <MapPin size={16} />
+                Localizar por dirección
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                Guardar cambios
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Card title="Meteorología del barrio">
+          {weather.data ? (
+            <div className={styles.weatherContent}>
+              <p className={styles.weatherText}>
+                {Math.round(weather.data.current.temperatureC)} °C (sensación{' '}
+                {Math.round(weather.data.current.apparentTemperatureC)} °C) ·{' '}
+                {weather.data.current.condition}. Máx {Math.round(weather.data.today.maxC)} °C / Mín{' '}
+                {Math.round(weather.data.today.minC)} °C.
+              </p>
+            </div>
+          ) : (
+            <div className={styles.emptyWeather}>
+              <CloudOff size={32} className={styles.emptyWeatherIcon} />
+              <p className={styles.emptyWeatherTitle}>No hay datos meteorológicos</p>
+              <p className={styles.emptyWeatherHint}>
+                La comunidad aún no tiene coordenadas guardadas. Usa "Localizar por dirección" para
+                obtenerlas.
+              </p>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       <ConfirmDialog
         open={blocked}
@@ -201,6 +240,6 @@ export function CommunitySettingsPage() {
         onConfirm={confirm}
         onCancel={cancel}
       />
-    </div>
+    </motion.div>
   )
 }
