@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   Alert,
@@ -69,52 +69,69 @@ export function DocumentsPage() {
     [active?.id, category, page, pageSize],
   )
 
-  const onDownload = async (document: CommunityDocument) => {
+  // ⬇️ Callbacks estables: evitan que Modal re-ejecute sus efectos en cada tecla
+  const handleCloseModal = useCallback(() => {
+    setOpen(false)
+    setServerError(null)
+  }, [])
+
+  const handleOpenModal = useCallback(() => {
+    setServerError(null)
+    setOpen(true)
+  }, [])
+
+  const onDownload = useCallback(async (document: CommunityDocument) => {
     try {
       const { url } = await getDownloadUrl(document.id)
       window.open(url, '_blank', 'noopener')
     } catch (caught) {
       setServerError(ApiError.from(caught).message)
     }
-  }
+  }, [])
 
-  const onDelete = async (document: CommunityDocument) => {
-    setServerError(null)
-    try {
-      await deleteDocument(document.id)
-      setPendingDelete(null)
-      result.reload()
-    } catch (caught) {
-      setServerError(ApiError.from(caught).message)
-    }
-  }
+  const onDelete = useCallback(
+    async (document: CommunityDocument) => {
+      setServerError(null)
+      try {
+        await deleteDocument(document.id)
+        setPendingDelete(null)
+        result.reload()
+      } catch (caught) {
+        setServerError(ApiError.from(caught).message)
+      }
+    },
+    [result],
+  )
 
-  const onUpload = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!file) {
-      setServerError('Selecciona un archivo.')
-      return
-    }
-    setServerError(null)
-    setUploading(true)
-    try {
-      await uploadDocument(active!.id, {
-        file,
-        title: title.trim(),
-        category: uploadCategory,
-        minRole,
-        isPublic,
-      })
-      setFile(null)
-      setTitle('')
-      setOpen(false)
-      result.reload()
-    } catch (caught) {
-      setServerError(ApiError.from(caught).message)
-    } finally {
-      setUploading(false)
-    }
-  }
+  const onUpload = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault()
+      if (!file) {
+        setServerError('Selecciona un archivo.')
+        return
+      }
+      setServerError(null)
+      setUploading(true)
+      try {
+        await uploadDocument(active!.id, {
+          file,
+          title: title.trim(),
+          category: uploadCategory,
+          minRole,
+          isPublic,
+        })
+        setFile(null)
+        setTitle('')
+        setOpen(false)
+        result.reload()
+      } catch (caught) {
+        setServerError(ApiError.from(caught).message)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [active, file, title, uploadCategory, minRole, isPublic, result],
+  )
 
   const columns: Column<CommunityDocument>[] = [
     {
@@ -184,7 +201,7 @@ export function DocumentsPage() {
     <div className={styles.page}>
       <PageHeader
         title="Documentos"
-        actions={isAdmin && <Button onClick={() => setOpen(true)}>Subir documento</Button>}
+        actions={isAdmin && <Button onClick={handleOpenModal}>Subir documento</Button>}
       />
 
       <Card>
@@ -203,7 +220,7 @@ export function DocumentsPage() {
         </Select>
       </Card>
 
-      {serverError && <Alert variant="error">{serverError}</Alert>}
+      {serverError && !open && <Alert variant="error">{serverError}</Alert>}
 
       {result.loading ? (
         <SkeletonTable columns={5} />
@@ -222,9 +239,7 @@ export function DocumentsPage() {
                   title="No hay documentos"
                   description="Sube el primer documento de la comunidad."
                   action={
-                    isAdmin ? (
-                      <Button onClick={() => setOpen(true)}>Subir documento</Button>
-                    ) : undefined
+                    isAdmin ? <Button onClick={handleOpenModal}>Subir documento</Button> : undefined
                   }
                 />
               }
@@ -242,8 +257,15 @@ export function DocumentsPage() {
         </motion.div>
       ) : null}
 
-      <Modal open={open} title="Subir documento" onClose={() => setOpen(false)}>
-        <form className={styles.form} onSubmit={onUpload} noValidate>
+      <Modal open={open} title="Subir documento" onClose={handleCloseModal}>
+        {/* Barrera defensiva: evita que clics internos burbujeen al backdrop */}
+        <form
+          className={styles.form}
+          onSubmit={onUpload}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          noValidate
+        >
           <Field label="Archivo" htmlFor="doc-file" required>
             <input
               id="doc-file"
@@ -297,7 +319,7 @@ export function DocumentsPage() {
           </label>
           {serverError && <Alert variant="error">{serverError}</Alert>}
           <div className={styles.modalFooter}>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={handleCloseModal}>
               Cancelar
             </Button>
             <Button type="submit" loading={uploading}>
