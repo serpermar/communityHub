@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - 'backend/**'
+      - 'supabase/**'
       - '.github/workflows/backend.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - 'supabase/**'
       - '.github/workflows/backend.yml'
 
 concurrency:
@@ -20,40 +22,110 @@ jobs:
     defaults:
       run:
         working-directory: backend
-
     env:
+      # Solo para que `env.ts` pase la validación al cargar el módulo.
+      # Los tests de este job no tocan la BD.
       DATABASE_URL: postgresql://app_runtime:dummy@localhost:5432/postgres?sslmode=require
       MIGRATION_DATABASE_URL: postgresql://postgres:dummy@localhost:5432/postgres?sslmode=require
       JWT_SECRET: ci-secret-32-chars-long-enough-123456
-      REFRESH_SECRET: ci-refresh-secret-32-chars-long-enough
       NODE_ENV: test
       LOG_LEVEL: error
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:unit
+      - run: npm run build
 
-      - name: Install dependencies
-        run: npm ci
+  integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: communityhub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # `sslmode=require` es obligatorio: env.ts rechaza arrancar sin él.
+      # Postgres 16 docker tiene SSL activado por defecto con certificado
+      # autofirmado; `require` no verifica la cadena, solo exige que haya TLS.
+      DATABASE_URL: postgresql://app_runtime:app_runtime_pw@localhost:5432/communityhub_test?sslmode=require
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/communityhub_test?sslmode=require
+      JWT_SECRET: ci-secret-32-chars-long-enough-123456
+      NODE_ENV: test
+      LOG_LEVEL: error
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Generar cliente de Prisma
+        run: npx prisma generate
 
-      - name: Lint
-        run: npm run lint
+      - name: Crear rol app_runtime
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d communityhub_test <<'SQL'
+            create role app_runtime with login password 'app_runtime_pw'
+              nosuperuser nocreatedb nocreaterole nobypassrls;
+            grant connect on database communityhub_test to app_runtime;
+          SQL
 
-      - name: Format check
-        run: npm run format:check
+      - name: Aplicar esquema + funciones SQL + RLS
+        run: npm run db:apply
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Dar permisos a app_runtime sobre el esquema
+        # app_runtime no debe tener CREATE (eso es exclusivo de postgres),
+        # pero sí DML. Los SQL custom aplican GRANT sobre las tablas que
+        # crean; este step cubre las que falten y los DEFAULT PRIVILEGES
+        # para objetos futuros.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d communityhub_test <<'SQL'
+            GRANT USAGE ON SCHEMA public TO app_runtime;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT USAGE, SELECT ON SEQUENCES TO app_runtime;
+          SQL
 
-      - name: Build
-        run: npm run build
+      - name: Verificar que app_runtime NO tiene BYPASSRLS
+        env:
+          PGPASSWORD: app_runtime_pw
+        run: |
+          psql -h localhost -U app_runtime -d communityhub_test -tAc \
+            "select rolbypassrls from pg_roles where rolname = current_user" \
+            | grep -qx 'f' || { echo "app_runtime tiene BYPASSRLS"; exit 1; }
+
+      - name: Verificar el esquema
+        run: npm run db:verify
+
+      - name: Tests de integración
+        run: npm run test:integration

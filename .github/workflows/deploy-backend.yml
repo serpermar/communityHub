@@ -1,0 +1,72 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'supabase/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+# Dos deploys simultáneos pueden aplicar SQL en paralelo. `cancel-in-progress:
+# false` es deliberado: si llega un segundo deploy mientras el primero está
+# aplicando migraciones, NO se cancela el primero (dejaría el esquema a medias).
+# El segundo espera a que el primero termine.
+concurrency:
+  group: deploy-backend-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Environment con protection rules: requiere aprobación manual en GitHub
+    # antes de tocar producción. Sin este bloque, cada merge a main aplicaría
+    # SQL a Supabase sin revisión.
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      # Opcional: si se configura, el aplicador verifica el certificado de
+      # Supabase en lugar de cifrar sin verificar.
+      # POSTGRES_CA_CERT_PATH: ${{ secrets.POSTGRES_CA_CERT_PATH }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      - name: Generar cliente de Prisma
+        run: npx prisma generate
+
+      - name: Aplicar esquema + RLS + funciones SQL a producción
+        # `--prod` exige MIGRATION_DATABASE_URL explícitamente. Sin él, el
+        # script fallaría con un error de permisos engañoso si DATABASE_URL
+        # apuntara a app_runtime por error.
+        run: npm run db:apply:prod
+
+      - name: Verificar el esquema aplicado
+        run: npm run db:verify
+
+  smoke-test:
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Health check post-deploy
+        env:
+          API_URL: ${{ secrets.PROD_API_URL }}
+        run: |
+          response=$(curl -sf "$API_URL/api/v1/health")
+          echo "$response" | jq -e '.data.rlsEnforced == true' > /dev/null \
+            || { echo "RLS NO está aplicado en producción"; exit 1; }
+          echo "✅ Producción con RLS activo"

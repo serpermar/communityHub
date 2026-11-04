@@ -57,7 +57,9 @@ jobs:
         run: npm run check-bundle
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium
+        # --with-deps instala las dependencias del sistema (libnss3, libgbm1,
+        # etc.). Sin ellas, Chromium falla al arrancar en ubuntu-latest.
+        run: npx playwright install --with-deps chromium
 
       - name: E2E tests
         run: npx playwright test

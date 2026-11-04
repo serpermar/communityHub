@@ -16,6 +16,7 @@
 // Uso:
 //   npm run db:apply                            aplica contra MIGRATION_DATABASE_URL
 //   npm run db:verify                           aplica y además ejecuta 04_verify.sql
+//   npm run db:apply:prod                       aplica en producción (exige MIGRATION_DATABASE_URL)
 //   npm run db:apply -- --url "postgres://..."  aplica contra otra URL
 //
 // `db:verify` es un script aparte y no un flag documentado a propósito:
@@ -26,6 +27,11 @@
 // llegó a comprobar nada. Un script sin flags se comporta igual en cualquier
 // shell. Para aplicarlo a mano contra otra base:
 //   npx tsx prisma/apply-sql.ts --verify
+//
+// `--prod` es distinto: no cambia lo que hace el script, solo endurece la
+// resolución de la URL. En modo producción NO se cae a DATABASE_URL si falta
+// MIGRATION_DATABASE_URL, porque ese fallback es la única forma de que el
+// script se equivoque de rol y falle con un mensaje que no señala la causa.
 // ---------------------------------------------------------------------------
 
 import 'dotenv/config'
@@ -102,7 +108,39 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined
 }
 
-const url = arg('url') ?? process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL
+const isProd = process.argv.includes('--prod')
+const explicitUrl = arg('url')
+
+// ---------------------------------------------------------------------------
+// Resolución de URL
+//
+// En modo `--prod` NO se cae a DATABASE_URL. En producción, DATABASE_URL
+// apunta a `app_runtime`, que no tiene permisos para aplicar DDL (ni debería):
+// el fallback haría que el script fallara 40 líneas más abajo con
+// `permission denied for schema public`, un mensaje real pero inútil porque no
+// señala lo que hay que arreglar (que falta MIGRATION_DATABASE_URL). Es la
+// única trampa conocida del script para uso en producción, y se cierra aquí.
+//
+// En dev y en `--verify`, el fallback se mantiene: un dev sin
+// MIGRATION_DATABASE_URL en el .env puede aplicar contra su DATABASE_URL local
+// si esa base permite DDL (por ejemplo, un Postgres de Docker con el rol
+// postgres como DATABASE_URL).
+// ---------------------------------------------------------------------------
+if (isProd && !explicitUrl && !process.env.MIGRATION_DATABASE_URL) {
+  throw new Error(
+    [
+      'db:apply:prod requiere MIGRATION_DATABASE_URL.',
+      '',
+      'En producción, DATABASE_URL apunta a app_runtime (sin BYPASSRLS y sin',
+      'permisos de DDL). No se cae a esa URL porque el error resultante',
+      '("permission denied for schema public") no señala la causa real.',
+      '',
+      'Configura MIGRATION_DATABASE_URL en el entorno (o pasa --url "...").',
+    ].join('\n'),
+  )
+}
+
+const url = explicitUrl ?? process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL
 
 if (!url) {
   // Se lanza en vez de llamar a process.exit(1), por lo mismo que al final del
@@ -192,6 +230,7 @@ const client = new Client(options)
 // vacía stdout antes de salir y no hace falta process.exit() en ningún sitio.
 async function main(): Promise<void> {
   console.log(`TLS: ${tls.note}`)
+  if (isProd) console.log('Modo: PRODUCCIÓN (--prod)')
 
   try {
     await client.connect()
