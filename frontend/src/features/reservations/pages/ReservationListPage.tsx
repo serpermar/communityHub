@@ -85,13 +85,43 @@ export function ReservationListPage() {
   }
 
   const columns: Column<Reservation>[] = [
-    { key: 'area', header: 'Zona', render: (row) => row.commonAreaName },
+    {
+      key: 'area',
+      header: 'Zona',
+      render: (row) => (
+        <div className={styles.cellWithIcon}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.cellIcon}>
+            <path
+              d="M2 4h12M2 8h12M2 12h12"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>{row.commonAreaName}</span>
+        </div>
+      ),
+    },
     {
       key: 'when',
-      header: 'Franja',
-      render: (row) => `${formatDateTime(row.startsAt)} – ${formatDateTime(row.endsAt)}`,
+      header: 'Fecha y hora',
+      render: (row) => (
+        <div className={styles.timeCell}>
+          <div className={styles.timeMain}>{formatDateTime(row.startsAt)}</div>
+          <div className={styles.timeSub}>hasta {formatDateTime(row.endsAt)}</div>
+        </div>
+      ),
     },
-    { key: 'user', header: 'Reserva', render: (row) => row.userName ?? '—' },
+    {
+      key: 'user',
+      header: 'Reservado por',
+      render: (row) => (
+        <div className={styles.userCell}>
+          <div className={styles.userAvatar}>{row.userName?.charAt(0).toUpperCase() || '?'}</div>
+          <span>{row.userName ?? '—'}</span>
+        </div>
+      ),
+    },
     {
       key: 'status',
       header: 'Estado',
@@ -138,14 +168,15 @@ export function ReservationListPage() {
   ]
 
   const listVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { duration: shouldReduceMotion ? 0 : 0.3 } },
   }
 
   return (
     <div className={styles.page}>
       <PageHeader
         title={t('nav.reservations')}
+        description="Gestiona las reservas de zonas comunes de la comunidad"
         actions={
           <div role="group" aria-label="Vista" className={styles.viewGroup}>
             <button
@@ -154,6 +185,14 @@ export function ReservationListPage() {
               aria-pressed={view === 'list'}
               className={`${styles.viewButton} ${view === 'list' ? styles.viewButtonActive : ''}`}
             >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M2 4h12M2 8h12M2 12h12"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
               Lista
             </button>
             <button
@@ -162,6 +201,23 @@ export function ReservationListPage() {
               aria-pressed={view === 'calendar'}
               className={`${styles.viewButton} ${view === 'calendar' ? styles.viewButtonActive : ''}`}
             >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect
+                  x="2"
+                  y="3"
+                  width="12"
+                  height="11"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M2 6h12M5 2v2M11 2v2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
               Calendario
             </button>
           </div>
@@ -169,7 +225,13 @@ export function ReservationListPage() {
       />
 
       {view === 'calendar' ? (
-        <ReservationCalendar />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ReservationCalendar />
+        </motion.div>
       ) : (
         <>
           <Card>
@@ -194,9 +256,18 @@ export function ReservationListPage() {
               />
             </div>
             {date && holidays.some((h) => h.date === date) && (
-              <p className={styles.holidayText}>
-                {holidays.find((h) => h.date === date)?.localName || 'Festivo'}
-              </p>
+              <div className={styles.holidayBanner}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                  <path
+                    d="M8 5v3l2 2"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span>{holidays.find((h) => h.date === date)?.localName || 'Festivo'}</span>
+              </div>
             )}
           </Card>
 
@@ -216,7 +287,7 @@ export function ReservationListPage() {
                   empty={
                     <EmptyState
                       title="No hay reservas"
-                      description="Reserva una zona común desde su ficha."
+                      description="Reserva una zona común desde su ficha para ver las reservas aquí."
                     />
                   }
                 />

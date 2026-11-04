@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/components/ui'
 import { AuthTransition } from '@/components/auth/AuthTransition'
 import { useAuth } from '@/context/AuthContext'
+import { DensityProvider } from '@/context/DensityContext'
 import { router } from '@/routes/router'
 import { useEffect, useRef, useState } from 'react'
 
@@ -29,12 +30,14 @@ export function AppProviders({ children }: { children?: ReactNode }) {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ToastProvider>
-          <ErrorBoundary>
-            <AuthTransitionGate />
-            {children ?? <RouterProvider router={router} />}
-          </ErrorBoundary>
-        </ToastProvider>
+        <DensityProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <AuthTransitionGate />
+              {children ?? <RouterProvider router={router} />}
+            </ErrorBoundary>
+          </ToastProvider>
+        </DensityProvider>
       </AuthProvider>
     </ThemeProvider>
   )

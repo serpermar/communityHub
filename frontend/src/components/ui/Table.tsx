@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 import { Button } from './Button'
 import styles from './Table.module.css'
@@ -17,8 +17,6 @@ export interface SortState {
   key: string
   direction: SortDirection
 }
-
-const TABLE_DENSITY_KEY = 'communityhub.tableDensity'
 
 function compare(a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b
@@ -55,15 +53,7 @@ export function DataTable<T>({
   const [sortState, setSortState] = useState<SortState | null>(initialSort ?? null)
   const sort = sortProp !== undefined ? sortProp : sortState
 
-  const [denseState, setDenseState] = useState(
-    () =>
-      typeof window !== 'undefined' && window.localStorage.getItem(TABLE_DENSITY_KEY) === 'compact',
-  )
-  const dense = denseProp !== undefined ? denseProp : denseState
-  useEffect(() => {
-    if (denseProp !== undefined) return
-    window.localStorage.setItem(TABLE_DENSITY_KEY, denseState ? 'compact' : 'comfortable')
-  }, [denseState, denseProp])
+  const dense = denseProp !== undefined ? denseProp : false
 
   const cellPadding = dense ? styles.bodyCellDense : styles.bodyCell
   const headCellPadding = dense ? styles.headCellDense : styles.headCell
@@ -120,16 +110,6 @@ export function DataTable<T>({
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.densityBar}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setDenseState((current) => !current)}
-          aria-pressed={dense}
-        >
-          {dense ? 'Densidad: compacta' : 'Densidad: cómoda'}
-        </Button>
-      </div>
       <div className={styles.tableScroll}>
         <table className={styles.table}>
           <thead>
