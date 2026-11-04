@@ -26,17 +26,11 @@
 //   2. `requireAnnouncement()` NO lleva `requireCommunityRole`. El rol lo
 //      consulta `app_role_in()` dentro de la transaccion, contra la fila, y
 //      quien decide que se puede hacer con ese rol son
-//      `app_update_announcement()` y `app_delete_announcement()`. Un guard
-//      aqui daria el mismo 403 con un mensaje peor, y si el guard se olvidara
-//      el endpoint seguira seguro —pero al reves, si la comprobacion viviera
-//      solo en el guard, el mismo endpoint seria un agujero por PostgREST, que
-//      no pasa por Express.
+//      `app_update_announcement()` y `app_delete_announcement()`.
 //
 //   3. El POST si lleva `requireCommunityRole('PRESIDENT', 'ADMIN')` como
 //      chequeo grueso (AN-1), igual que el POST de incidencias y el de zonas
-//      comunes. La funcion lo repite dentro: un rol insuficiente falla antes de
-//      abrir transaccion, con un 403 que lo dice, y el endpoint sigue siendo
-//      seguro aunque el guard desaparezca.
+//      comunes. La funcion lo repite dentro.
 //
 // El DELETE no lleva `requireCommunityRole('ADMIN')` ni siquiera como chequeo
 // grueso, y no es una excepcion caprichosa: es AN-1. El borrado es de ADMIN
@@ -61,6 +55,36 @@ import { requireAnnouncement } from './middleware.js'
 export function createAnnouncementsRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/announcements:
+   *   get:
+   *     summary: Listar avisos de una comunidad
+   *     description: |
+   *       Cualquier miembro activo puede listar. La ventana de visibilidad por
+   *       rol (y si un aviso ya expiró) la decide `app_list_announcements()`
+   *       dentro de la transacción.
+   *     tags: [Announcements]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *       - in: query
+   *         name: page
+   *         schema: { type: integer, minimum: 1, default: 1 }
+   *       - in: query
+   *         name: limit
+   *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+   *     responses:
+   *       200:
+   *         description: Lista paginada de avisos.
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/AnnouncementListResponse' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.get(
     '/:communityId/announcements',
     requireAuth,
@@ -68,6 +92,50 @@ export function createAnnouncementsRouter(): Router {
     controller.listAnnouncements,
   )
 
+  /**
+   * @swagger
+   * /api/v1/communities/{communityId}/announcements:
+   *   post:
+   *     summary: Crear un aviso
+   *     description: |
+   *       Requiere rol PRESIDENT o ADMIN en la comunidad (AN-1). El aviso nace
+   *       publicado; la fecha de publicación la fija `publishAt` (o el momento
+   *       actual si no se indica).
+   *     tags: [Announcements]
+   *     parameters:
+   *       - in: path
+   *         name: communityId
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [title, body]
+   *             properties:
+   *               title: { type: string, minLength: 1, maxLength: 200 }
+   *               body: { type: string, minLength: 1 }
+   *               type: { $ref: '#/components/schemas/AnnouncementType' }
+   *               priority: { $ref: '#/components/schemas/AnnouncementPriority' }
+   *               isPinned: { type: boolean, default: false }
+   *               minRole: { type: string, enum: [NEIGHBOR, PRESIDENT, ADMIN], default: NEIGHBOR }
+   *               publishAt: { type: string, format: date-time, nullable: true }
+   *               expiresAt: { type: string, format: date-time, nullable: true }
+   *     responses:
+   *       201:
+   *         description: Aviso creado.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Announcement' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   */
   router.post(
     '/:communityId/announcements',
     requireAuth,
@@ -85,8 +153,7 @@ export function createAnnouncementsRouter(): Router {
  * `requireAnnouncement()` sustituye a `requireCommunity()` en las dos: resuelve
  * la comunidad del aviso con `app_announcement_community()` y la deja en
  * `req.community`, con lo que el servicio funcionaria igual que en el resto del
- * proyecto. Es la pieza que la spec 04 §11 dejo anotada como riesgo abierto
- * para los modulos con id y no comunidad en la URL.
+ * proyecto.
  *
  * Ninguna de las dos lleva `requireCommunityRole`, ni siquiera el PUT: el rol
  * lo decide la funcion con la fila delante, por el argumento 2 de la cabecera.
@@ -94,12 +161,78 @@ export function createAnnouncementsRouter(): Router {
 export function createAnnouncementRouter(): Router {
   const router = Router()
 
+  /**
+   * @swagger
+   * /api/v1/announcements/{id}:
+   *   put:
+   *     summary: Actualizar un aviso
+   *     description: |
+   *       Requiere rol PRESIDENT o ADMIN sobre la comunidad del aviso, o ser
+   *       su autor. La comprobación la hace `app_update_announcement()` dentro
+   *       de la transacción, con la fila delante.
+   *     tags: [Announcements]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               title: { type: string, minLength: 1, maxLength: 200 }
+   *               body: { type: string }
+   *               type: { $ref: '#/components/schemas/AnnouncementType' }
+   *               priority: { $ref: '#/components/schemas/AnnouncementPriority' }
+   *               isPinned: { type: boolean }
+   *               minRole: { type: string, enum: [NEIGHBOR, PRESIDENT, ADMIN] }
+   *               publishAt: { type: string, format: date-time, nullable: true }
+   *               expiresAt: { type: string, format: date-time, nullable: true }
+   *     responses:
+   *       200:
+   *         description: Aviso actualizado.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data: { $ref: '#/components/schemas/Announcement' }
+   *       400: { $ref: '#/components/responses/Validation' }
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.put(
     '/announcements/:id',
     requireAuth,
     requireAnnouncement(),
     controller.updateAnnouncement,
   )
+
+  /**
+   * @swagger
+   * /api/v1/announcements/{id}:
+   *   delete:
+   *     summary: Eliminar un aviso (soft delete)
+   *     description: |
+   *       Requiere rol ADMIN. El 403 lo emite `app_delete_announcement()` con
+   *       `announcement_requires_admin` — el único sitio donde se decide.
+   *     tags: [Announcements]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string, format: uuid }
+   *     responses:
+   *       204:
+   *         description: Aviso eliminado.
+   *       401: { $ref: '#/components/responses/Unauthorized' }
+   *       403: { $ref: '#/components/responses/Forbidden' }
+   *       404: { $ref: '#/components/responses/NotFound' }
+   */
   router.delete(
     '/announcements/:id',
     requireAuth,

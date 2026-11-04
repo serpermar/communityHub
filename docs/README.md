@@ -338,6 +338,15 @@ El backend estará disponible en:
 http://localhost:3000
 ```
 
+### Documentación interactiva de la API (Swagger)
+
+Con el backend en marcha, la especificación OpenAPI y la interfaz interactiva están disponibles en:
+
+- **Swagger UI**: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+- **Spec JSON**: [http://localhost:3000/api-docs.json](http://localhost:3000/api-docs.json)
+
+La UI permite autenticarse con un access token (`Authorize`) y probar cualquier endpoint protegido. En producción, `SWAGGER_ENABLED` está a `false` por defecto; si se necesita, puede protegerse con autenticación básica o dejarla solo en desarrollo.
+
 ### 3. Arrancar el frontend
 
 Abre otra terminal y ejecuta:
@@ -524,6 +533,7 @@ Las cifras y el estado reflejan la documentación facilitada para esta actualiza
 La documentación específica se encuentra en el directorio `docs/` y en los documentos de seguridad del repositorio.
 
 - [`docs/API.md`](./docs/API.md) — documentación de la API y sus módulos.
+- [`docs/SWAGGER.md`](docs/SWAGGER.md) — **Swagger UI** y especificación OpenAPI 3.0.
 - [`docs/AI-DEVELOPMENT.md`](./docs/AI-DEVELOPMENT.md) — desarrollo asistido por IA, MCP, skills y agentes.
 - [`SECURITY.md`](./SECURITY.md) — criterios y decisiones de seguridad.
 

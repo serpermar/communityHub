@@ -2,6 +2,8 @@
 
 Contrato HTTP del backend. Base: `/api/v1`. Formato: JSON.
 
+El contrato manual sigue siendo útil como referencia rápida, pero debe quedar claro que **Swagger es la fuente de verdad ejecutable**.
+
 Los envoltorios son **únicos** y no tienen excepción:
 
 ```jsonc
@@ -23,6 +25,9 @@ Los envoltorios son **únicos** y no tienen excepción:
 `details` solo aparece cuando hay algo útil que decir campo a campo (errores de
 validación). Los errores de autorización no lo llevan nunca: un 403 no dice qué
 faltó.
+
+```markdown
+> **Nota**: la especificación **OpenAPI 3.0** y la interfaz **Swagger UI** son la fuente de verdad ejecutable del contrato HTTP. Este documento es una referencia textual de apoyo. Si hay discrepancia entre este archivo y la spec generada en `/api-docs.json`, prevalece la spec. Ver [`docs/SWAGGER.md`](./SWAGGER.md).
 
 ## Autenticación
 
@@ -873,7 +878,7 @@ siempre `app_list_documents()` con la fila delante (DN-6), así que un
 documento invisible para el actor es **`404`**, no `403` (C-8: un `403`
 confirmaría que ese id existe).
 
-> La visibilidad de documentos la decide la combinación de `app_list_documents()` y las políticas RLS de `documents` / `document_acl`. En particular, `documents_select_scoped` se corrigió para comparar `document_acl.document_id` con `documents.id`. El contrato HTTP no cambia: un documento invisible sigue devolviendo 404.
+> **Nota sobre RLS:** la visibilidad de documentos la decide la combinación de `app_list_documents()` y las políticas RLS de `documents` / `document_acl`. En particular, `documents_select_scoped` se corrigió para comparar `document_acl.document_id` con `documents.id`. El contrato HTTP no cambia: un documento invisible sigue devolviendo 404.
 
 Es el primer bloque que toca Storage: el binario **nunca** va en la base, solo
 `storage_path`, la clave dentro del bucket privado `community-documents`

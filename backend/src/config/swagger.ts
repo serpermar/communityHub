@@ -254,7 +254,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- Incidents (CORREGIDO) -------------------------------
+        // --- Incidents (verificado) ------------------------------
         IncidentCategory: {
           type: 'string',
           enum: ['PLUMBING', 'ELECTRICITY', 'HEATING', 'ELEVATOR', 'CLEANING', 'SECURITY', 'OTHER'],
@@ -310,7 +310,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- CommonAreas (CORREGIDO) -----------------------------
+        // --- CommonAreas (verificado) ----------------------------
         CommonAreaType: {
           type: 'string',
           enum: [
@@ -349,27 +349,69 @@ const options: swaggerJsdoc.Options = {
             data: { type: 'array', items: { $ref: '#/components/schemas/CommonArea' } },
           },
         },
+        CommonAreaSlotStatus: {
+          type: 'string',
+          enum: ['FREE', 'RESERVED', 'BLOCKED'],
+        },
+        CommonAreaAvailabilitySlot: {
+          type: 'object',
+          properties: {
+            startsAt: { type: 'string', format: 'date-time' },
+            endsAt: { type: 'string', format: 'date-time' },
+            status: { $ref: '#/components/schemas/CommonAreaSlotStatus' },
+          },
+        },
         CommonAreaAvailability: {
           type: 'object',
           properties: {
-            commonAreaId: { type: 'string', format: 'uuid' },
-            from: { type: 'string', format: 'date-time' },
-            to: { type: 'string', format: 'date-time' },
+            date: { type: 'string', format: 'date', example: '2026-11-10' },
+            slotMinutes: { type: 'integer', example: 60 },
+            openTime: { type: 'string', example: '08:00' },
+            closeTime: { type: 'string', example: '22:00' },
             slots: {
               type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  startsAt: { type: 'string', format: 'date-time' },
-                  endsAt: { type: 'string', format: 'date-time' },
-                  available: { type: 'boolean' },
-                },
-              },
+              items: { $ref: '#/components/schemas/CommonAreaAvailabilitySlot' },
             },
           },
         },
 
-        // --- Reservations (CORREGIDO) ----------------------------
+        // --- Announcements (a verificar contra la API) -----------
+        AnnouncementType: {
+          type: 'string',
+          enum: ['MEETING', 'NOTICE', 'MAINTENANCE', 'EMERGENCY', 'OTHER'],
+        },
+        AnnouncementPriority: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+        },
+        Announcement: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            communityId: { type: 'string', format: 'uuid' },
+            title: { type: 'string' },
+            body: { type: 'string' },
+            type: { $ref: '#/components/schemas/AnnouncementType' },
+            priority: { $ref: '#/components/schemas/AnnouncementPriority' },
+            isPinned: { type: 'boolean' },
+            minRole: { type: 'string', enum: ['NEIGHBOR', 'PRESIDENT', 'ADMIN'] },
+            publishAt: { type: 'string', format: 'date-time' },
+            expiresAt: { type: 'string', format: 'date-time', nullable: true },
+            publishedBy: { type: 'string', format: 'uuid' },
+            publishedByName: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        AnnouncementListResponse: {
+          type: 'object',
+          properties: {
+            data: { type: 'array', items: { $ref: '#/components/schemas/Announcement' } },
+            meta: { $ref: '#/components/schemas/PaginationMeta' },
+          },
+        },
+
+        // --- Reservations (verificado) ---------------------------
         ReservationStatus: {
           type: 'string',
           enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'],
@@ -402,7 +444,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- Finance (CORREGIDO) ---------------------------------
+        // --- Finance (verificado) --------------------------------
         ExpenseCategory: {
           type: 'string',
           enum: ['MAINTENANCE', 'UTILITIES', 'CLEANING', 'SECURITY', 'INSURANCE', 'OTHER'],
@@ -503,7 +545,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- Voting (CORREGIDO) ----------------------------------
+        // --- Voting (verificado) ---------------------------------
         VoteType: { type: 'string', enum: ['SINGLE', 'QUORUM', 'MULTIPLE'] },
         VoteStatus: { type: 'string', enum: ['DRAFT', 'OPEN', 'CLOSED'] },
         VoteResultVisibility: { type: 'string', enum: ['LIVE', 'AFTER_CLOSE'] },
@@ -574,10 +616,7 @@ const options: swaggerJsdoc.Options = {
             quorumPercent: { type: 'integer', nullable: true },
             quorumMet: { type: 'boolean' },
             abstentionCount: { type: 'integer' },
-            options: {
-              type: 'array',
-              items: { $ref: '#/components/schemas/VoteResultOption' },
-            },
+            options: { type: 'array', items: { $ref: '#/components/schemas/VoteResultOption' } },
           },
         },
         VoteResultExport: {
@@ -585,7 +624,7 @@ const options: swaggerJsdoc.Options = {
           properties: { data: { type: 'object', additionalProperties: true } },
         },
 
-        // --- Notifications (CORREGIDO) ---------------------------
+        // --- Notifications (verificado) --------------------------
         NotificationType: {
           type: 'string',
           enum: [
@@ -625,7 +664,7 @@ const options: swaggerJsdoc.Options = {
           properties: { data: { type: 'object', properties: { count: { type: 'integer' } } } },
         },
 
-        // --- Dashboard (REESCRITO) -------------------------------
+        // --- Dashboard (verificado) ------------------------------
         DashboardVotes: {
           type: 'object',
           properties: {
@@ -748,7 +787,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- AI (CORREGIDO) --------------------------------------
+        // --- AI (verificado) -------------------------------------
         AiChatRequest: {
           type: 'object',
           required: ['message'],
@@ -880,7 +919,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
-        // --- Agents (CORREGIDO) ----------------------------------
+        // --- Agents (verificado) ---------------------------------
         Agent: {
           type: 'object',
           properties: {
