@@ -65,11 +65,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # `sslmode=require` es obligatorio: env.ts rechaza arrancar sin él.
-      # Postgres 16 docker tiene SSL activado por defecto con certificado
-      # autofirmado; `require` no verifica la cadena, solo exige que haya TLS.
-      DATABASE_URL: postgresql://app_runtime:app_runtime_pw@localhost:5432/communityhub_test?sslmode=require
-      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/communityhub_test?sslmode=require
+      # `sslmode=disable` porque el Postgres de Docker no tiene SSL.
+      # `env.ts` lo permite en `NODE_ENV=test` (Fix A).
+      DATABASE_URL: postgresql://app_runtime:app_runtime_pw@localhost:5432/communityhub_test?sslmode=disable
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/communityhub_test?sslmode=disable
       JWT_SECRET: ci-secret-32-chars-long-enough-123456
       NODE_ENV: test
       LOG_LEVEL: error
@@ -85,24 +84,26 @@ jobs:
       - name: Generar cliente de Prisma
         run: npx prisma generate
 
-      - name: Crear rol app_runtime
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h localhost -U postgres -d communityhub_test <<'SQL'
-            create role app_runtime with login password 'app_runtime_pw'
-              nosuperuser nocreatedb nocreaterole nobypassrls;
-            grant connect on database communityhub_test to app_runtime;
-          SQL
-
+      # El rol app_runtime lo crea `02_rls.sql`, dentro de `db:apply`. NO hay
+      # que crearlo antes: si se crea a mano, `02_rls.sql` falla con
+      # "role already exists" y `db:apply` aborta.
       - name: Aplicar esquema + funciones SQL + RLS
         run: npm run db:apply
 
+      - name: Configurar password de app_runtime
+        # `02_rls.sql` crea el rol sin password (porque no debe tener secretos
+        # en un .sql versionado). El password se lo pone aquí, al lado de la
+        # URL que lo usa, para que CI funcione con la URL de arriba.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d communityhub_test -c \
+            "ALTER ROLE app_runtime WITH LOGIN PASSWORD 'app_runtime_pw'"
+
       - name: Dar permisos a app_runtime sobre el esquema
-        # app_runtime no debe tener CREATE (eso es exclusivo de postgres),
-        # pero sí DML. Los SQL custom aplican GRANT sobre las tablas que
-        # crean; este step cubre las que falten y los DEFAULT PRIVILEGES
-        # para objetos futuros.
+        # Los `GRANT` de `02_rls.sql` cubren las tablas que crea `01_schema.sql`,
+        # pero no las que se crean en migraciones futuras. Este step cubre las
+        # tablas actuales y pone los DEFAULT PRIVILEGES para objetos futuros.
         env:
           PGPASSWORD: postgres
         run: |

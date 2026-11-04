@@ -194,8 +194,40 @@ if (/:6543\//.test(raw.DATABASE_URL)) {
   )
 }
 
-if (!/sslmode=require/.test(raw.DATABASE_URL)) {
-  throw new Error('DATABASE_URL necesita sslmode=require')
+// ---------------------------------------------------------------------------
+// SSL
+//
+// Fuera de test, `sslmode=require` es obligatorio: sin el, la password de la
+// base de datos viajaria en claro por la red.
+//
+// En test se permite `sslmode=disable` por un motivo concreto: el Postgres de
+// Docker que se levanta en CI (imagen oficial `postgres:16`) no tiene SSL
+// activado por defecto. Sin esta excepcion, el job de integracion moriria en
+// el primer `env.ts` con un error que no dice nada sobre el SSL del
+// contenedor. Un `sslmode=disable` en un socket TCP de localhost dentro del
+// runner de GitHub Actions no es un agujero: no hay red entre medias.
+//
+// El resto de valores (`prefer`, `allow`, `verify-ca`, `verify-full`) se
+// rechazan siempre: `pg` los interpreta distinto que libpq, y aceptar
+// `verify-full` cuando `pg` no verifica seria peor que rechazarlo.
+// ---------------------------------------------------------------------------
+const sslmode = new URL(raw.DATABASE_URL).searchParams.get('sslmode')
+
+if (raw.NODE_ENV === 'test') {
+  if (sslmode !== 'require' && sslmode !== 'disable') {
+    throw new Error(
+      `En test, DATABASE_URL necesita sslmode=require o sslmode=disable. Detectado: ${sslmode ?? '(sin sslmode)'}`,
+    )
+  }
+} else if (sslmode !== 'require') {
+  throw new Error(
+    [
+      'DATABASE_URL necesita sslmode=require.',
+      `Detectado: ${sslmode ?? '(sin sslmode)'}`,
+      '',
+      'Fuera de test no se admite sslmode=disable: la password viajaria en claro.',
+    ].join('\n'),
+  )
 }
 
 if (raw.NODE_ENV === 'production' && raw.REFRESH_COOKIE_SAMESITE !== 'strict') {
