@@ -4,6 +4,25 @@
 
 :root {
   color-scheme: light;
+
+  /*
+   * Paleta de marca como variables CSS.
+   *
+   * Varios modulos CSS llevan tiempo escribiendo `var(--brand-500, #3b82f6)`,
+   * pero la variable no estaba definida en ninguna parte: el respaldo azul era
+   * lo que se veia de verdad, mientras botones, inputs y enlaces usaban el
+   * indigo declarado en `tailwind.config.ts`. El resultado era una marca que
+   * cambiaba de color segun la pantalla.
+   *
+   * Los valores son los mismos del tema de Tailwind para que ambos sistemas no
+   * puedan separarse. `400` se anade porque ya se usaba en los modos oscuros.
+   */
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
 }
 
 html,

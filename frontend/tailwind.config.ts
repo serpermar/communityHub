@@ -9,6 +9,7 @@ export default {
         brand: {
           50: '#eef2ff',
           100: '#e0e7ff',
+          400: '#818cf8',
           500: '#6366f1',
           600: '#4f46e5',
           700: '#4338ca',
@@ -94,7 +95,7 @@ export default {
       fontSize: {
         'page-title': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
         'section-title': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600' }],
-        'meta': ['0.75rem', { lineHeight: '1rem' }],
+        meta: ['0.75rem', { lineHeight: '1rem' }],
       },
       // Radios por nivel de componente: control (inputs/botones), card (tarjetas)
       // y overlay (modales/desplegables), para que no se elijan al azar.
