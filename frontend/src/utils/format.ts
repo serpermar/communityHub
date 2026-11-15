@@ -1,6 +1,11 @@
 function toDate(value: string | Date | null | undefined): Date | null {
   if (value === null || value === undefined || value === '') return null
-  const date = value instanceof Date ? value : new Date(value)
+  // Una fecha sin hora (`YYYY-MM-DD`) se interpreta como medianoche LOCAL.
+  // `new Date('2026-01-15')` la trata como UTC y en husos al oeste de UTC
+  // mostraria el dia anterior.
+  const dateOnly = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  const date =
+    value instanceof Date ? value : dateOnly ? new Date(`${value}T00:00:00`) : new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }
 
@@ -27,7 +32,14 @@ export function formatMoney(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === '') return '—'
   const n = typeof value === 'string' ? Number(value) : value
   if (Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n)
+  // `useGrouping: true` es imprescindible: en es-ES el separador de miles solo se
+  // aplica por defecto a partir de 5 digitos, asi que 2000 salia como "2000,00 €"
+  // y no como "2.000,00 €".
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    useGrouping: true,
+  }).format(n)
 }
 
 /** `YYYY-MM-DD` para `<input type="date">` y query params. */

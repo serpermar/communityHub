@@ -27,6 +27,7 @@ import { ApiError } from '@/services/ApiError'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
+import { formatDate, formatMoney } from '@/utils/format'
 import {
   createExpense,
   createInvoice,
@@ -47,7 +48,6 @@ import {
 } from '../types'
 import styles from './FinancePage.module.css'
 
-const money = (value: number): string => `${value.toFixed(2)} €`
 const today = (): string => new Date().toISOString().slice(0, 10)
 
 export function FinancePage() {
@@ -98,28 +98,28 @@ function SummaryTab({ communityId }: { communityId: string }) {
   return (
     <div className={styles.summaryGrid}>
       <Card title={<span className={styles.cardTitle}>Gastos</span>}>
-        <p className={styles.summaryValue}>{money(data.expenseTotal)}</p>
+        <p className={styles.summaryValue}>{formatMoney(data.expenseTotal)}</p>
         <p className={styles.summaryMeta}>{data.expenseCount} gastos registrados.</p>
         <ul className={styles.summaryList}>
           {data.expenseByCategory.map((item) => (
             <li key={item.category} className={styles.summaryRow}>
               <span>{EXPENSE_CATEGORY_LABELS[item.category]}</span>
-              <span>{money(item.total)}</span>
+              <span>{formatMoney(item.total)}</span>
             </li>
           ))}
         </ul>
       </Card>
 
       <Card title={<span className={styles.cardTitle}>Facturas</span>}>
-        <p className={styles.summaryValue}>{money(data.invoiceTotal)}</p>
+        <p className={styles.summaryValue}>{formatMoney(data.invoiceTotal)}</p>
         <ul className={styles.summaryList}>
           <li className={styles.summaryRow}>
             <span>Pendiente de cobro/pago</span>
-            <span>{money(data.invoiceOpenAmount)}</span>
+            <span>{formatMoney(data.invoiceOpenAmount)}</span>
           </li>
           <li className={styles.summaryRow}>
             <span>Pagado</span>
-            <span>{money(data.invoicePaidAmount)}</span>
+            <span>{formatMoney(data.invoicePaidAmount)}</span>
           </li>
           <li className={styles.summaryRow}>
             <span>Pendientes</span>
@@ -241,8 +241,8 @@ function ExpensesTab({ communityId }: { communityId: string }) {
       header: 'Categoría',
       render: (row) => EXPENSE_CATEGORY_LABELS[row.category],
     },
-    { key: 'date', header: 'Fecha', render: (row) => row.expenseDate },
-    { key: 'amount', header: 'Importe', render: (row) => money(row.amount) },
+    { key: 'date', header: 'Fecha', render: (row) => formatDate(row.expenseDate) },
+    { key: 'amount', header: 'Importe', render: (row) => formatMoney(row.amount) },
     { key: 'supplier', header: 'Proveedor', render: (row) => row.supplier ?? '—' },
     {
       key: 'actions',
@@ -448,8 +448,8 @@ function InvoicesTab({ communityId }: { communityId: string }) {
   const columns: Column<Invoice>[] = [
     { key: 'number', header: 'Número', render: (row) => row.number },
     { key: 'concept', header: 'Concepto', render: (row) => row.concept ?? '—' },
-    { key: 'amount', header: 'Importe', render: (row) => money(row.amount) },
-    { key: 'due', header: 'Vence', render: (row) => row.dueDate },
+    { key: 'amount', header: 'Importe', render: (row) => formatMoney(row.amount) },
+    { key: 'due', header: 'Vence', render: (row) => formatDate(row.dueDate) },
     {
       key: 'status',
       header: 'Estado',

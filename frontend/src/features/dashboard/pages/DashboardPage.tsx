@@ -37,6 +37,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useCommunity } from '@/context/CommunityContext'
 import { useResource } from '@/hooks/useResource'
 import { t } from '@/i18n'
+import { formatMoney } from '@/utils/format'
 import { CATEGORY_LABELS } from '@/features/incidents/types'
 import { useChartColors } from '@/hooks/useChartColors'
 import { isManager } from '@/types/roles'
@@ -489,14 +490,14 @@ export function DashboardPage() {
           <div className={styles.financeGrid}>
             <Stat
               label="Gasto total"
-              value={`${data.finance.expenseTotal.toFixed(2)} €`}
+              value={formatMoney(data.finance.expenseTotal)}
               trend={{ value: -12, isPositive: false }}
               accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.slug}/finance?tab=expenses`)}
             />
             <Stat
               label="Pendiente de pago"
-              value={`${data.finance.invoiceOpenAmount.toFixed(2)} €`}
+              value={formatMoney(data.finance.invoiceOpenAmount)}
               accentClass={styles.accentFinance}
               onClick={() => navigate(`/c/${active!.slug}/finance?tab=invoices`)}
             />
