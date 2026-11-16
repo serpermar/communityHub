@@ -6,7 +6,13 @@ import { gzipSync } from 'node:zlib'
 
 const ASSETS_DIR = fileURLToPath(new URL('../dist/assets/', import.meta.url))
 const KB = 1024
-const BUDGETS = { 'vendor-charts': 130, 'vendor-react': 85, 'vendor-forms': 30, index: 55 }
+const BUDGETS = {
+  'vendor-charts': 130,
+  'vendor-react': 85,
+  'vendor-motion': 60,
+  'vendor-forms': 30,
+  index: 55,
+}
 const DEFAULT_BUDGET = 40
 
 function budgetFor(name) {

@@ -539,9 +539,9 @@ describe('PATCH /api/v1/communities/:communityId', () => {
     expect(res.status).toBe(403)
   })
 
-  it('rechaza cambiar el slug con 400 (C-6)', async () => {
+  it('permite cambiar el slug con 200 (C-6 editable)', async () => {
     const adminC = await nuevoUsuario()
-    const id = await makeCommunity('Slug fijo')
+    const id = await makeCommunity('Slug editable')
     comunidades.push(id)
     await makeMember(adminC.id, id, 'ADMIN')
 
@@ -557,15 +557,44 @@ describe('PATCH /api/v1/communities/:communityId', () => {
       .set('Authorization', token)
       .send({ slug: 'otro-slug' })
 
-    expect(res.status).toBe(400)
-    // El mensaje tiene que explicar que es deliberado, no "clave desconocida".
-    expect(JSON.stringify(res.body.error.details)).toContain('slug')
+    expect(res.status).toBe(200)
+    expect(res.body.data.slug).toBe('otro-slug')
+
+    // Y en la tabla, no solo en la respuesta: un 200 con el cuerpo inventado
+    // pasaria el assert anterior.
+    const fila = await admin.communities.findUniqueOrThrow({
+      where: { id },
+      select: { slug: true },
+    })
+    expect(fila.slug).toBe('otro-slug')
+    expect(fila.slug).not.toBe(slugAntes)
+  })
+
+  it('rechaza un slug duplicado con 409 (C-6)', async () => {
+    const adminC = await nuevoUsuario()
+    const id = await makeCommunity('Slug duplicado')
+    const otra = await makeCommunity('Slug ocupado')
+    comunidades.push(id, otra)
+    await makeMember(adminC.id, id, 'ADMIN')
+
+    const slugOcupado = (
+      await admin.communities.findUniqueOrThrow({ where: { id: otra }, select: { slug: true } })
+    ).slug
+
+    const token = await tokenDe(adminC)
+    const res = await request(app())
+      .patch(`${RUTAS}/${id}`)
+      .set('Authorization', token)
+      .send({ slug: slugOcupado })
+
+    expect(res.status).toBe(409)
+    expect(res.body.error.code).toBe('CONFLICT')
 
     const fila = await admin.communities.findUniqueOrThrow({
       where: { id },
       select: { slug: true },
     })
-    expect(fila.slug).toBe(slugAntes)
+    expect(fila.slug).not.toBe(slugOcupado)
   })
 
   it('rechaza media coordenada con 400', async () => {

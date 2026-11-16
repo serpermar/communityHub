@@ -80,6 +80,7 @@ describe('AccountPage', () => {
     )
 
     renderPage()
+    await userEvent.click(screen.getByRole('tab', { name: 'Seguridad' }))
 
     await userEvent.type(await screen.findByLabelText(/contraseña actual/i), 'la-de-antes')
     await userEvent.type(screen.getByLabelText(/^nueva contraseña/i), 'una-nueva-larga-12')
@@ -107,6 +108,7 @@ describe('AccountPage', () => {
     )
 
     renderPage()
+    await userEvent.click(screen.getByRole('tab', { name: 'Seguridad' }))
 
     await userEvent.type(await screen.findByLabelText(/contraseña actual/i), 'incorrecta')
     await userEvent.type(screen.getByLabelText(/^nueva contraseña/i), 'una-nueva-larga-12')

@@ -244,6 +244,19 @@ async function main(): Promise<void> {
   let failed = false
 
   for (const file of files) {
+    // `03_storage.sql` es exclusivo de Supabase: necesita el esquema `storage`
+    // (lo crea la Storage API) y la extensión `pgsodium`. En un Postgres limpio
+    // (el job de integración) ninguna de las dos existe, así que aplicar el
+    // archivo falla con un error que no tiene que ver con el dominio. Se omite
+    // el archivo entero; el resto del esquema se aplica igual.
+    if (file === '03_storage.sql') {
+      const storage = await client.query("select 1 from pg_namespace where nspname = 'storage'")
+      if ((storage.rowCount ?? 0) === 0) {
+        console.log('03_storage.sql — omitido (no hay esquema storage: entorno sin Supabase)')
+        continue
+      }
+    }
+
     const sql = readFileSync(resolve(SQL_DIR, file), 'utf8')
     process.stdout.write(`${file} `)
     try {

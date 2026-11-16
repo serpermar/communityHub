@@ -43,7 +43,11 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      # `--include=dev` es obligatorio: el job define NODE_ENV=production y, sin
+      # este flag, npm omite las devDependencies. `tsx` (que ejecuta
+      # db:apply:prod) y `prisma` (que genera el cliente) viven ahí, así que sin
+      # ellas el step de SQL falla con "tsx: not found" (exit 127).
+      - run: npm ci --include=dev
 
       - name: Generar cliente de Prisma
         run: npx prisma generate

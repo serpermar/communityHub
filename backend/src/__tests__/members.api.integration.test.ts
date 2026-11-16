@@ -1165,7 +1165,7 @@ describe('invariantes de la base de datos', () => {
       'app_get_community_member(uuid,uuid)',
       'app_list_community_members(uuid)',
       'app_invite_to_community(uuid,text)',
-      'app_redeem_invitation(text)',
+      'app_redeem_invitation(text,text)',
       'app_set_member_role(uuid,uuid,member_role)',
       'app_set_member_status(uuid,uuid,member_status)',
     ]

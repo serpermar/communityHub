@@ -46,6 +46,11 @@ export default defineConfig(({ mode }) => {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-charts': ['recharts'],
             'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+            // framer-motion se importa desde el layout y los overlays (Toast,
+            // Modal, CommandPalette), que no son lazy: sin chunk propio acaba en
+            // `index`, que es el que más crece. Separarlo mejora el cacheo y
+            // mantiene el presupuesto del entry en 55 KB.
+            'vendor-motion': ['framer-motion'],
           },
         },
       },

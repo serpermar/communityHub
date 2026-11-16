@@ -52,7 +52,7 @@ administrador, y nada más.
 | C-3 | `app_is_global_admin()` compara contra `app_current_user_id()` y **no acepta** ningún usuario como parámetro | `app_is_admin_of(user_id, community_id)` con el id como parámetro | Una función `SECURITY DEFINER` que acepta un `userId` libre es escalada de privilegios con una llamada. El predicado va fijado al contexto de sesión |
 | C-4 | Los miembros no entran en este bloque | Incluirlos aquí | `03-members.md` es un bloque propio. Mezclarlos dejaría la spec sin un criterio claro de qué está aprobado |
 | C-5 | Sin endpoint de borrado. La baja es `PATCH { isActive: false }` | `DELETE /communities/:id` | `deleted_at` y su índice parcial ya existen para baja lógica. Un borrado físico por API sería el primero del proyecto y `communities` no tiene política `DELETE` a propósito |
-| C-6 | El `slug` se normaliza a minúsculas y es inmutable tras el alta | Dejarlo editable | `communities_slug_uidx` es único pero **sensible a mayúsculas**: "Barrio Alto" y "barrio-alto" coexistirían y la URL dependería de cómo lo escribió cada uno |
+| C-6 | El `slug` se normaliza a minúsculas y es **editable** tras el alta; un slug duplicado devuelve **409** | Hacerlo inmutable | `communities_slug_uidx` ya garantiza la unicidad y el servicio traduce el `23505` a `409`. Impedir la edición obligaba a crear otra comunidad para corregir una URL mal escrita, que es peor que el riesgo de romper enlaces antiguos (que se asume y se documenta en `docs/API.md`) |
 | C-7 | `latitude` y `longitude` son **anulables**: dirección obligatoria, coordenadas opcionales. Si se manda una, se mandan las dos, y ambas en rango | Obligatorias en el alta | Un vecino no escribe `39.474, -0.379`: casi nadie lo hace y quien lo hace se equivoca. Rellenarlas con `0,0` sería peor, porque `0,0` está en el Atlántico y daría meteorología y mapa equivocados sin que nadie se entere. `null` significa "sin localizar todavía", y el bloque de integraciones las resuelve desde la dirección con Photon. Exigir las dos juntas evita el caso `latitude = 0, longitude = -0.379`, que cae en el golfo de Guinea |
 | C-8 | Quien no es miembro recibe **403**, y un UUID inexistente también | 404 para ambos | 403 uniforme es lo que ya hace `requireCommunity`. Un 403 no distingue "no existe" de "no eres miembro", así que no hay oráculo de existencia |
 | C-9 | Un `:communityId` mal formado es **400**, no 403 | Dejar el 403 actual | Es un error de forma del cliente, no de permisos. `requireCommunity` mezcla hoy los dos casos |
@@ -219,8 +219,12 @@ Prisma lanzaría `P2025` y el middleware lo traduciría a **404**: un miembro
 recibiría un 404 por intentar editar, que es un código equivocado y además
 confuso. RLS sigue estando detrás como red de seguridad.
 
-El `slug` no se acepta en el `PATCH`. Si viene, 400 con un mensaje que lo diga
-(C-6). `updated_at` lo mueve el servicio, no el cliente.
+El `slug` es editable en el `PATCH`, con la misma validación que en el alta
+(minúsculas, números y guiones, sin guiones en los extremos). Si choca con el de
+otra comunidad, el índice único produce un `23505` que el servicio traduce a
+**409** (C-6). Cambiarlo modifica la URL de la comunidad y rompe los enlaces
+antiguos: es una decisión del cliente, documentada en `docs/API.md`.
+`updated_at` lo mueve el servicio, no el cliente.
 
 ### 5.5 Baja lógica
 
@@ -404,8 +408,8 @@ del 400 del UUID mal formado (C-9). Este bloque es su primer consumidor.
 
 - Los cuatro endpoints responden con el envelope y los códigos de la sección 6.
 - `:communityId` mal formado → 400, no 403 (C-9).
-- `slug` en el `PATCH` → 400.
-- `slug` con mayúsculas o espacios → 400, y se guarda en minúsculas.
+- `slug` en el `PATCH` con mayúsculas, espacios o guiones en los extremos → 400.
+- `slug` en el `PATCH` que ya usa otra comunidad → 409.
 - Cuerpo con clave desconocida → 400, porque los esquemas son .strict().
 - latitude sin longitude (o al revés) → 400. Aceptar solo una pondría la
   comunidad en el golfo de Guinea con latitude = 0.

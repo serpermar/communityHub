@@ -56,10 +56,17 @@ jobs:
       - name: Bundle budget
         run: npm run check-bundle
 
+      # Los E2E (spec 15 §11) van contra el BACKEND REAL y una BD sembrada
+      # (`backend: npm run dev` + `npm run db:seed`); este job solo levanta Vite,
+      # así que sin ese backend `npx playwright test` falla con timeout en el
+      # primer login. Se dejan opt-in: activa la variable de repositorio
+      # E2E_ENABLED=true cuando haya un backend accesible en :3000.
       - name: Install Playwright browsers
+        if: vars.E2E_ENABLED == 'true'
         # --with-deps instala las dependencias del sistema (libnss3, libgbm1,
         # etc.). Sin ellas, Chromium falla al arrancar en ubuntu-latest.
         run: npx playwright install --with-deps chromium
 
       - name: E2E tests
+        if: vars.E2E_ENABLED == 'true'
         run: npx playwright test

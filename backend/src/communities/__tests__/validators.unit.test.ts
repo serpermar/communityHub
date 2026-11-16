@@ -152,13 +152,19 @@ describe('updateCommunitySchema', () => {
     expect(r.success).toBe(false)
   })
 
-  it('rechaza cambiar el slug y lo dice (C-6)', () => {
+  it('acepta cambiar el slug si es valido (C-6 editable)', () => {
+    // El slug es editable: el servicio traduce el 23505 del indice unico a un
+    // 409, asi que un cambio valido debe llegar hasta la capa de escritura.
     const r = updateCommunitySchema.safeParse({ slug: 'otro-slug' })
 
-    expect(r.success).toBe(false)
-    // No basta con que falle: tiene que explicar que el slug es inmutable, y no
-    // un "clave desconocida" que deja pensar que es un error de escritura.
-    expect(JSON.stringify(r.error?.issues)).toContain('slug')
+    expect(r.success).toBe(true)
+    expect(r.data?.slug).toBe('otro-slug')
+  })
+
+  it('rechaza un slug con mayusculas, espacios o guiones en los extremos', () => {
+    expect(updateCommunitySchema.safeParse({ slug: 'Otro Slug' }).success).toBe(false)
+    expect(updateCommunitySchema.safeParse({ slug: '-otro-slug' }).success).toBe(false)
+    expect(updateCommunitySchema.safeParse({ slug: 'otro-slug-' }).success).toBe(false)
   })
 
   it('acepta un PATCH parcial y solo trae los campos enviados', () => {

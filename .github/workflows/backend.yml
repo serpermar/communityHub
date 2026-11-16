@@ -100,22 +100,13 @@ jobs:
           psql -h localhost -U postgres -d communityhub_test -c \
             "ALTER ROLE app_runtime WITH LOGIN PASSWORD 'app_runtime_pw'"
 
-      - name: Dar permisos a app_runtime sobre el esquema
-        # Los `GRANT` de `02_rls.sql` cubren las tablas que crea `01_schema.sql`,
-        # pero no las que se crean en migraciones futuras. Este step cubre las
-        # tablas actuales y pone los DEFAULT PRIVILEGES para objetos futuros.
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h localhost -U postgres -d communityhub_test <<'SQL'
-            GRANT USAGE ON SCHEMA public TO app_runtime;
-            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
-            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public
-              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public
-              GRANT USAGE, SELECT ON SEQUENCES TO app_runtime;
-          SQL
+      # NO se hace un `GRANT ... ON ALL TABLES` aquí. Los permisos de
+      # `app_runtime` son explícitos por tabla en los scripts SQL, y varios
+      # módulos revocan escrituras a propósito (miembros, invitaciones,
+      # incidencias, zonas comunes, avisos, documentos...). Un GRANT global
+      # reabriría esos permisos y `04_verify.sql` fallaría —con razón— al
+      # comprobar que la aplicación no puede escribir donde no debe. Si una
+      # migración futura crea una tabla, su archivo SQL debe conceder lo justo.
 
       - name: Verificar que app_runtime NO tiene BYPASSRLS
         env:

@@ -930,6 +930,21 @@ grant execute on function app_ai_cache_put(text, text, jsonb, integer) to app_ru
 -- En CommunityHub el frontend NO habla con Supabase: todo pasa por el backend,
 -- que conecta como app_runtime. Por tanto anon y authenticated no necesitan
 -- ningún permiso sobre las tablas del dominio. Se revocan todos.
+--
+-- En Supabase esos dos roles existen siempre. En un Postgres limpio (el del job
+-- de integración, o un self-hosted) no, y los REVOKE de abajo fallarían con
+-- "role does not exist". Se crean sin LOGIN: no se usan para conectar, solo
+-- como destinatarios de los REVOKE.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $$;
+
 revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 revoke all on all functions in schema public from anon, authenticated;

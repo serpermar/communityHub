@@ -1,0 +1,9 @@
+# Prettier no toca lo que no lee.
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Los lockfiles los mantiene npm.
+package-lock.json

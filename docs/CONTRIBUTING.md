@@ -24,3 +24,6 @@ npm install
   arrancado y los datos de demo sembrados, porque recorre los 8 flujos reales.
 - **Navegadores de Playwright:** `npm run test:e2e:install` instala Chromium la
   primera vez (`playwright install chromium`).
+- **E2E en CI:** desactivados por defecto porque el job de frontend no levanta el
+  backend real. Se activan con la variable de repositorio `E2E_ENABLED=true`
+  cuando haya un backend accesible en `:3000`.

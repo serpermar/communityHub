@@ -774,7 +774,16 @@ end $$;
 do $$
 declare
   b record;
+  n bigint;
 begin
+  -- El esquema `storage` lo crea Supabase. En un Postgres limpio (CI) no existe
+  -- y `db:verify` debe seguir sirviendo para el resto del esquema: se omite solo
+  -- esta seccion en vez de tumbar la verificacion entera.
+  if not exists (select 1 from pg_namespace where nspname = 'storage') then
+    raise notice 'OK · sin esquema storage (entorno no Supabase): se omiten los buckets';
+    return;
+  end if;
+
   for b in
     select id, public from storage.buckets
     where id in ('community-documents', 'user-avatars')
@@ -791,7 +800,9 @@ begin
     raise exception 'Falta el bucket user-avatars';
   end if;
 
-  raise notice 'OK · buckets creados y privados';
+  execute 'select count(*) from storage.buckets' into n;
+
+  raise notice 'OK · buckets creados y privados (%)', n;
 end $$;
 
 -- ----------------------------------------------------------------------------
@@ -2537,8 +2548,6 @@ where routine_schema = 'public'
     'app_notify', 'app_notify_leadership', 'app_notify_community'
   )
   and grantee = 'PUBLIC'
-union all
-select 'Buckets', count(*)::text from storage.buckets
 union all
 select 'Versión Postgres', version();
 

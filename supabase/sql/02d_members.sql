@@ -491,7 +491,7 @@ begin
   update community_members
      set status = p_status
    where id = p_member_id
-     and m.community_id = p_community_id;
+     and community_id = p_community_id;
 end;
 $$;
 

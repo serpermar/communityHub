@@ -96,7 +96,7 @@ community_id  uuid not null references communities (id) on delete cascade
 user_id       uuid not null references users (id) on delete cascade
 role          member_role not null default 'NEIGHBOR'   -- NEIGHBOR, PRESIDENT, ADMIN, PROVIDER
 status        member_status not null default 'ACTIVE'   -- ACTIVE, SUSPENDED, LEFT
-unit_number   text              -- portal, 3ºB. Sin uso en este bloque (§11)
+unit_number   text              -- portal, 3ºB. Se rellena al canjear la invitación (§5)
 invited_by    uuid references users (id) on delete set null
 joined_at     timestamptz not null default now()
 created_at    timestamptz not null default now()
@@ -282,7 +282,7 @@ Devuelve el **código en claro**, porque hay que poder enseñárselo al vecino.
 - Inserta con `expires_at = now() + interval '7 days'` y `accepted_at = null`.
 - Devuelve el código. Único punto del sistema donde el código en claro existe.
 
-### `app_redeem_invitation(p_code text) returns table (member_id uuid, community_id uuid)`
+### `app_redeem_invitation(p_code text, p_unit_number text default null) returns table (member_id uuid, community_id uuid)`
 
 - Guarda: hay sesión (`app_current_user_id()` no es null), si no → `42501`.
 - Busca por `sha256(p_code)` entre las no usadas y no caducadas.
@@ -296,6 +296,8 @@ Devuelve el **código en claro**, porque hay que poder enseñárselo al vecino.
 - Inserta la membresía como `NEIGHBOR` con `invited_by` = el del código. Si la fila
   existía en `SUSPENDED` o `LEFT`, el `on conflict (community_id, user_id) do
   update` la devuelve a `ACTIVE` y a `NEIGHBOR` (§2.2).
+- `p_unit_number` es opcional: si llega, se guarda en `unit_number`; si no, la
+  membresía se queda sin vivienda y un `on conflict` conserva la que ya tuviera.
 - Marca `accepted_at` y `accepted_by`.
 - Todo en una transacción: o entra con membresía, o no entra.
 
@@ -595,11 +597,10 @@ no dentro del mensaje de la base de datos.
 Decisiones que se dejan **ditas** aquí para que no se olviden, porque dependen de
 bloques posteriores:
 
-- **`unit_number` (portal)**: la columna existe y este bloque **no** la escribe.
-  No hay datos de portales en ninguna parte del sistema todavía, y meter un campo
-  más en el `PATCH` obliga a decidir qué es "borrarlo" (`null` explícito) frente
-  a "no mandarlo", que en un solo `PATCH` son cosas distintas. Se rellena cuando
-  haya reservas (`06-reservations`) o cuando el ADMIN tenga datos reales.
+- **`unit_number` (portal)**: se rellena al canjear una invitación, pero el
+  `PATCH` de miembro todavía no lo acepta. Meterlo en el `PATCH` obliga a decidir
+  qué es "borrarlo" (`null` explícito) frente a "no mandarlo", que en un solo
+  `PATCH` son cosas distintas. Se añadirá cuando el ADMIN tenga datos reales.
 - **Notificar al miembro de su cambio de rol**: no se hace, porque no hay SMTP.
   Cuando lo haya, el sitio es un `after()` del `PATCH`, no la transacción: un
   correo no debe poder tumbar el cambio.

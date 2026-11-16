@@ -1,5 +1,5 @@
 import { HttpResponse, http } from 'msw'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -23,11 +23,9 @@ function renderLogin() {
 const submit = () => screen.getByRole('button', { name: 'Entrar' })
 
 describe('LoginPage', () => {
-  it('valida el formulario vacío', async () => {
+  it('mantiene deshabilitado el botón mientras el formulario no es válido', () => {
     renderLogin()
-    await userEvent.click(submit())
-    expect(await screen.findByText('El correo es obligatorio.')).toBeInTheDocument()
-    expect(screen.getByText('La contraseña es obligatoria.')).toBeInTheDocument()
+    expect(submit()).toBeDisabled()
   })
 
   it('inicia sesión y navega al inicio', async () => {
@@ -53,7 +51,11 @@ describe('LoginPage', () => {
 
     renderLogin()
     await userEvent.type(screen.getByLabelText(/correo electrónico/i), 'ana@example.com')
-    await userEvent.type(screen.getByLabelText(/contraseña/i), 'contrasena-larga')
+    await userEvent.type(screen.getByLabelText(/^contraseña/i), 'contrasena-larga')
+    // `mode: 'onTouched'` valida al perder el foco; sin este blur el botón sigue
+    // deshabilitado aunque los dos campos tengan contenido válido.
+    await userEvent.tab()
+    await waitFor(() => expect(submit()).toBeEnabled())
     await userEvent.click(submit())
 
     expect(await screen.findByText('Panel de inicio')).toBeInTheDocument()
@@ -71,7 +73,9 @@ describe('LoginPage', () => {
 
     renderLogin()
     await userEvent.type(screen.getByLabelText(/correo electrónico/i), 'ana@example.com')
-    await userEvent.type(screen.getByLabelText(/contraseña/i), 'mala')
+    await userEvent.type(screen.getByLabelText(/^contraseña/i), 'mala')
+    await userEvent.tab()
+    await waitFor(() => expect(submit()).toBeEnabled())
     await userEvent.click(submit())
 
     expect(await screen.findByText('Credenciales incorrectas.')).toBeInTheDocument()
